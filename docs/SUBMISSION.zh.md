@@ -61,7 +61,7 @@
 | 安全与合规性 | 5% | COMPLIANCE.md：隐私、平台规则、广告规范、知识产权 |
 
 ## 0.6 更新（2026-10-11）
-新增可复现业务价值模型（scripts/value-model.mjs，种子固定，直接调用真实引擎，10,000 SKU 一轮决策约 28 ms）；规模化架构文档 SCALING.md（多租户隔离、密钥保险库、平台复制路线图）；架构文档补充智能体契约表；合规文档 COMPLIANCE.md；2000 SKU 规模基准测试。32 项自动化检查通过。所有写入仍为本地模拟，价值数字为模型化敞口而非实盘收益。
+新增可复现业务价值模型（scripts/value-model.mjs，种子固定，直接调用真实引擎，10,000 SKU 一轮决策约 28 ms）；规模化架构文档 SCALING.md（多租户隔离、密钥保险库、平台复制路线图）；架构文档补充智能体契约表；合规文档 COMPLIANCE.md；2000 SKU 规模基准测试与 500 SKU 压测组合生成器。36 项自动化检查通过。所有写入仍为本地模拟，价值数字为模型化敞口而非实盘收益。
 
 ## Version 0.3 — economics-driven advertising loop
 The Autopilot screen runs a deterministic agent workflow every 30 seconds while the browser tab is open: data validation → unit economics → stock constraints → budget allocation → risk checks → local simulated campaign execution → receipts. Repeated unchanged decisions are idempotent. Data older than one hour pauses the simulated campaigns. Reload does not auto-resume the loop. 22 automated tests pass.
