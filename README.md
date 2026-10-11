@@ -31,6 +31,14 @@ OZON_ENV_FILE=/absolute/private/ozon.env npm start
 
 Never paste credentials into the portal, source code, commits, screenshots or issue reports. GitHub Pages runs only the synthetic demo; it cannot call the local API. No credentials are included in this repository.
 
+## Version 0.2
+
+- Add your own products, import sales windows and validated product JSON. Data stays in this browser and survives reloads.
+- Store-wide allocation cap and persistent freeze switch for recommendations. These controls do not pause real Ozon campaigns.
+- Unallocated advertising expenses trigger protection even without sales.
+- Daily inventory forecast includes arrival quantity, missed demand, storage cost and additional purchase need.
+- Export product data and decision records; 18 automated checks.
+
 ## Included
 
 - Responsive Russian / Chinese management portal; no build required.
@@ -58,7 +66,7 @@ The engine recomputes strategy decisions as storage, seasonal assumptions, stock
 
 ## Before production
 
-See [integration plan](docs/INTEGRATION.md). Implement settlement reconciliation, actual purchase batches, campaign-to-SKU allocation, budget aggregation, persisted server-side notifications and authenticated user access. Validate Chinese-account Performance API permissions separately. Run shadow mode and a bounded pilot before enabling writes.
+See [integration plan](docs/INTEGRATION.md). Implement settlement reconciliation, actual purchase batches, campaign-to-SKU allocation, real spend enforcement, persisted server-side notifications and authenticated user access. Validate Chinese-account Performance API permissions separately. Run shadow mode and a bounded pilot before enabling writes.
 
 ## Project structure
 

@@ -1,0 +1,169 @@
+{
+  "version": 1,
+  "products": [
+    {
+      "id": "CN-001",
+      "name": "Aurora Travel Kit",
+      "category": "Travel",
+      "scheme": "FBO",
+      "price": 2490,
+      "purchaseCny": 62,
+      "fx": 12.5,
+      "inbound": 160,
+      "fulfilment": 220,
+      "packaging": 30,
+      "returnReserve": 65,
+      "commission": 0.2,
+      "stock": 84,
+      "dailyDemand": 4,
+      "incomingDays": 35,
+      "incomingQty": 150,
+      "storageDay": 1.8,
+      "seasonFactor": 1.1,
+      "historyDays": 12,
+      "sales": [
+        {
+          "revenue": 2490,
+          "cost": 1748,
+          "adCost": 900,
+          "settled": true
+        },
+        {
+          "revenue": 2490,
+          "cost": 1748,
+          "adCost": 1050,
+          "settled": true
+        },
+        {
+          "revenue": 2490,
+          "cost": 1748,
+          "adCost": 1100,
+          "settled": true
+        }
+      ]
+    },
+    {
+      "id": "CN-002",
+      "name": "Nordic Winter Set",
+      "category": "Seasonal",
+      "scheme": "FBO",
+      "price": 3190,
+      "purchaseCny": 80,
+      "fx": 12.5,
+      "inbound": 190,
+      "fulfilment": 250,
+      "packaging": 40,
+      "returnReserve": 80,
+      "commission": 0.18,
+      "stock": 180,
+      "dailyDemand": 2,
+      "incomingDays": 20,
+      "incomingQty": 100,
+      "storageDay": 1.2,
+      "seasonFactor": 1.28,
+      "historyDays": 180,
+      "sales": [
+        {
+          "revenue": 3190,
+          "cost": 2134,
+          "adCost": 150,
+          "settled": true
+        },
+        {
+          "revenue": 3190,
+          "cost": 2134,
+          "adCost": 180,
+          "settled": true
+        },
+        {
+          "revenue": 3190,
+          "cost": 2134,
+          "adCost": 160,
+          "settled": true
+        }
+      ]
+    },
+    {
+      "id": "CN-003",
+      "name": "Studio Desk Light",
+      "category": "Home",
+      "scheme": "FBS",
+      "price": 4290,
+      "purchaseCny": 125,
+      "fx": 12.5,
+      "inbound": 0,
+      "fulfilment": 780,
+      "packaging": 70,
+      "returnReserve": 100,
+      "commission": 0.17,
+      "stock": 12,
+      "dailyDemand": 3,
+      "incomingDays": 21,
+      "incomingQty": 100,
+      "storageDay": 0.7,
+      "seasonFactor": 1.02,
+      "historyDays": 80,
+      "sales": [
+        {
+          "revenue": 4290,
+          "cost": 3242,
+          "adCost": 200,
+          "settled": true
+        },
+        {
+          "revenue": 4290,
+          "cost": 3242,
+          "adCost": 230,
+          "settled": true
+        },
+        {
+          "revenue": 4290,
+          "cost": 3242,
+          "adCost": 220,
+          "settled": true
+        }
+      ]
+    },
+    {
+      "id": "CN-004",
+      "name": "Summer Outdoor Pack",
+      "category": "Outdoor",
+      "scheme": "FBO",
+      "price": 1890,
+      "purchaseCny": 38,
+      "fx": 12.5,
+      "inbound": 120,
+      "fulfilment": 170,
+      "packaging": 25,
+      "returnReserve": 50,
+      "commission": 0.18,
+      "stock": 420,
+      "dailyDemand": 1,
+      "incomingDays": 60,
+      "incomingQty": 0,
+      "storageDay": 5,
+      "seasonFactor": 0.92,
+      "historyDays": 150,
+      "sales": [
+        {
+          "revenue": 1890,
+          "cost": 1180,
+          "adCost": 200,
+          "settled": true
+        },
+        {
+          "revenue": 1890,
+          "cost": 1180,
+          "adCost": 170,
+          "settled": true
+        },
+        {
+          "revenue": 1890,
+          "cost": 1180,
+          "adCost": 210,
+          "settled": true
+        }
+      ]
+    }
+  ]
+}

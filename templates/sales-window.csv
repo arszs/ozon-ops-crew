@@ -1,0 +1,5 @@
+sku,revenue_rub,total_cost_rub,allocated_ads_rub,settled,unallocated_ads_rub
+CN-001,2490,1748,900,1,0
+CN-001,2490,1748,1050,1,0
+CN-001,2490,1748,1100,1,0
+CN-001,0,0,0,1,100
