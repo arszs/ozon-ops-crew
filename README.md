@@ -5,7 +5,7 @@
 ### China → Russia · Inventory-aware profit control
 **价格 × 广告 × 库存，一体化利润决策**
 
-[中文参赛方案](docs/SUBMISSION.zh.md) · [Русское описание](docs/PROJECT.ru.md) · [Architecture](docs/ARCHITECTURE.md) · [Evaluation](docs/EVALUATION.md)
+[**Open interactive demo / 打开演示**](https://arszs.github.io/ozon-ops-crew/) · [中文参赛方案](docs/SUBMISSION.zh.md) · [Русское описание](docs/PROJECT.ru.md) · [Architecture](docs/ARCHITECTURE.md) · [Evaluation](docs/EVALUATION.md)
 
 </div>
 
