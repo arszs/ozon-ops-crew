@@ -49,6 +49,20 @@
 ## 0.2 更新（2026-10-11）
 新增全店预算分配上限、持久化建议冻结、无订单广告支出保护、自有商品表单、销售窗口 CSV 与商品 JSON 导入、日库存及补货预测、缺货需求与仓储费用估算、决策导出。18 项自动化检查通过。所有写入操作仍为本地模拟，尚未连接真实广告执行；固定需求预测不是自动学习模型。
 
+## 评审判分对应（权重 100%）
+
+| 评审项 | 权重 | 本仓库证据 |
+|---|---:|---|
+| 业务需求与痛点 | 15% | §1–2：中国卖家→俄罗斯，FBO/FBS，汇率/履约/仓储/长补货周期 |
+| Agent 技术方案 | 25% | ARCHITECTURE.md 智能体契约表：六阶段任务流程、工具调用、人机协作边界 |
+| 产品或网站 Demo | 20% | 中俄双语可交互演示 + 3 分钟演示视频（docs/demo.mp4） |
+| 业务价值与实际效益 | 25% | VALUE-MODEL.md：可复现的价值模型（固定种子、真实引擎）；EVALUATION.md 试点度量方案；不虚构实盘收益 |
+| 创新性与可扩展性 | 10% | SCALING.md：多租户架构、单卖家边际成本、品类/市场/平台复制路径 |
+| 安全与合规性 | 5% | COMPLIANCE.md：隐私、平台规则、广告规范、知识产权 |
+
+## 0.6 更新（2026-10-11）
+新增可复现业务价值模型（scripts/value-model.mjs，种子固定，直接调用真实引擎，10,000 SKU 一轮决策约 28 ms）；规模化架构文档 SCALING.md（多租户隔离、密钥保险库、平台复制路线图）；架构文档补充智能体契约表；合规文档 COMPLIANCE.md；2000 SKU 规模基准测试。32 项自动化检查通过。所有写入仍为本地模拟，价值数字为模型化敞口而非实盘收益。
+
 ## Version 0.3 — economics-driven advertising loop
 The Autopilot screen runs a deterministic agent workflow every 30 seconds while the browser tab is open: data validation → unit economics → stock constraints → budget allocation → risk checks → local simulated campaign execution → receipts. Repeated unchanged decisions are idempotent. Data older than one hour pauses the simulated campaigns. Reload does not auto-resume the loop. 22 automated tests pass.
 

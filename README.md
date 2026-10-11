@@ -9,7 +9,7 @@
 
 [![Engine checks](https://github.com/arszs/ozon-ops-crew/actions/workflows/ci.yml/badge.svg)](https://github.com/arszs/ozon-ops-crew/actions/workflows/ci.yml)
 [![Demo deploy](https://github.com/arszs/ozon-ops-crew/actions/workflows/pages.yml/badge.svg)](https://github.com/arszs/ozon-ops-crew/actions/workflows/pages.yml)
-[![Tests](https://img.shields.io/badge/tests-29%20passed-brightgreen)](#run-in-30-seconds)
+[![Tests](https://img.shields.io/badge/tests-32%20passed-brightgreen)](#run-in-30-seconds)
 [![Demo](https://img.shields.io/badge/demo-live-blue)](https://arszs.github.io/ozon-ops-crew/)
 
 </div>
@@ -40,15 +40,18 @@ OZON_ENV_FILE=/absolute/private/ozon.env npm start
 
 Never paste credentials into the portal, source code, commits, screenshots or issue reports. GitHub Pages runs only the synthetic demo; it cannot call the local API. No credentials are included in this repository.
 
-## Version 0.5.3
+## Version 0.6
 
+- Reproducible business-value model (`node scripts/value-model.mjs`): the real engine scores a seeded 10,000-SKU portfolio in ~28 ms and aggregates the exposure its decisions address.
+- Scale benchmark: full 2,000-SKU decision and autopilot cycles inside strict time budgets; decisions are deterministic.
+- New jury documents: [scaling architecture](docs/SCALING.md), [value model](docs/VALUE-MODEL.md), [compliance](docs/COMPLIANCE.md), agent contract table in [architecture](docs/ARCHITECTURE.md).
 - Add your own products, import sales windows and validated product JSON. Data stays in this browser and survives reloads.
 - Store-wide allocation cap and persistent freeze switch for recommendations. These controls do not pause real Ozon campaigns.
 - Unallocated advertising expenses trigger protection even without sales.
 - Daily inventory forecast includes arrival quantity, missed demand, storage cost and additional purchase need.
 - Demo snapshot stays fresh across reloads; imported datasets keep their own snapshot time.
 - Bounded browser storage with safe persistence, plus a recorded 3-minute demo video.
-- Export product data and decision records; 29 automated checks.
+- Export product data and decision records; 32 automated checks.
 
 ## Included
 
@@ -59,7 +62,7 @@ Never paste credentials into the portal, source code, commits, screenshots or is
 - In-portal simulation notifications and decision audit history, stored in the current browser.
 - Validated CSV scenario import/export; procurement batch schema for Excel.
 - Local read-only Ozon Seller catalog adapter with bounded pages and request timeout.
-- Chinese competition proposal, architecture, evaluation plan, demo script and delivery checklist.
+- Chinese competition proposal, architecture with agent contracts, evaluation plan, reproducible value model, scaling and compliance documents, demo script and delivery checklist.
 - Deterministic safety tests and GitHub Actions CI / Pages workflow.
 
 ## Competition

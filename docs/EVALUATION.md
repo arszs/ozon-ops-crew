@@ -4,14 +4,14 @@
 | Criterion | Weight | Evidence in this repository |
 |---|---:|---|
 | Business problem | 15% | Chinese seller / Russia, FBO/FBS; SUBMISSION.zh.md §1–2 |
-| Agent technical design | 25% | ARCHITECTURE.md, deterministic engine, contracts and limits |
-| Usable interactive demo | 20% | RU/CN portal, scenario controls, CSV import, settings, audit |
-| Business value | 25% | Explicit measurement plan below; no fabricated uplift |
-| Innovation/scalability | 10% | Joint ads/price/inventory decisions, batch currency model |
-| Safety/compliance | 5% | Read-only allowlist, secret isolation, no external writes |
+| Agent technical design | 25% | ARCHITECTURE.md agent contracts, deterministic engine, contracts and limits |
+| Usable interactive demo | 20% | RU/CN portal, scenario controls, CSV import, settings, audit, docs/demo.mp4 |
+| Business value | 25% | VALUE-MODEL.md reproducible model + measurement plan below; no fabricated uplift |
+| Innovation/scalability | 10% | SCALING.md multi-tenant path; joint ads/price/inventory decisions, batch currency model |
+| Safety/compliance | 5% | COMPLIANCE.md; read-only allowlist, secret isolation, no external writes |
 
 ## Automated checks
-`npm test`: negative rolling profit including advertising; unsettled fees; low-sample season guard; expensive storage; stockout/replenishment; invalid policy; profit floor vs price cap; currency calculation. CI executes the same tests.
+`npm test`: negative rolling profit including advertising; unsettled fees; low-sample season guard; expensive storage; stockout/replenishment; invalid policy; profit floor vs price cap; currency calculation; autopilot idempotency and staleness; 2000-SKU scale benchmark with deterministic decisions. CI executes the same tests.
 
 ## Pilot plan
 1. Collect and reconcile at least one full settlement cycle; classify orders/returns/fees by SKU and batch.
