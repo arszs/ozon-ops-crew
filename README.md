@@ -5,7 +5,7 @@
 ### China → Russia · Inventory-aware profit control
 **价格 × 广告 × 库存，一体化利润决策**
 
-[**Open interactive demo / 打开演示**](https://arszs.github.io/ozon-ops-crew/) · [中文参赛方案](docs/SUBMISSION.zh.md) · [Русское описание](docs/PROJECT.ru.md) · [Architecture](docs/ARCHITECTURE.md) · [Evaluation](docs/EVALUATION.md)
+[**Open interactive demo / 打开演示**](https://arszs.github.io/ozon-ops-crew/) · [**Watch 3-min demo video**](docs/demo.mp4) · [中文参赛方案](docs/SUBMISSION.zh.md) · [Русское описание](docs/PROJECT.ru.md) · [Architecture](docs/ARCHITECTURE.md) · [Evaluation](docs/EVALUATION.md)
 
 [![Engine checks](https://github.com/arszs/ozon-ops-crew/actions/workflows/ci.yml/badge.svg)](https://github.com/arszs/ozon-ops-crew/actions/workflows/ci.yml)
 [![Demo deploy](https://github.com/arszs/ozon-ops-crew/actions/workflows/pages.yml/badge.svg)](https://github.com/arszs/ozon-ops-crew/actions/workflows/pages.yml)
@@ -96,3 +96,7 @@ The Advertising Return screen allocates a capped daily budget using a diminishin
 ## Version 0.5.1 — resilience and presentation
 - Local persistence is capped (200 notifications, 500 audit records) and survives a full browser storage: the portal keeps working and warns instead of crashing.
 - README gains CI/deploy badges and interface screenshots; the demo page ships description and Open Graph tags for link previews.
+
+## Version 0.5.2 — demo freshness and video
+- Demo-mode data no longer goes stale after reload: the freshness timestamp is restored only for user-imported data, so the public autopilot demonstration keeps running instead of pausing every campaign after one hour.
+- Three-minute recorded walkthrough added at [docs/demo.mp4](docs/demo.mp4); minor bilingual copy fix.

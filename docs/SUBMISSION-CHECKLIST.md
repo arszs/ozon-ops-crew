@@ -9,7 +9,7 @@
 - [x] Demo script in Chinese
 - [ ] Add deployed demo URL to the existing Synnovator submission
 - [ ] Upload/sync final source and Chinese proposal to arszlx/ozon-ops-agents
-- [ ] Record a short screen demo or deliver a live walkthrough (recommended, not a stated mandatory video requirement)
+- [x] Record a short screen demo or deliver a live walkthrough (recommended, not a stated mandatory video requirement) — [docs/demo.mp4](demo.mp4), recorded 2026-10-11
 - [ ] Confirm exact closing time and final attendance with organizer
 - [ ] Verify final saved submission on Synnovator
 
