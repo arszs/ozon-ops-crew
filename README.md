@@ -40,13 +40,15 @@ OZON_ENV_FILE=/absolute/private/ozon.env npm start
 
 Never paste credentials into the portal, source code, commits, screenshots or issue reports. GitHub Pages runs only the synthetic demo; it cannot call the local API. No credentials are included in this repository.
 
-## Version 0.2
+## Version 0.5.3
 
 - Add your own products, import sales windows and validated product JSON. Data stays in this browser and survives reloads.
 - Store-wide allocation cap and persistent freeze switch for recommendations. These controls do not pause real Ozon campaigns.
 - Unallocated advertising expenses trigger protection even without sales.
 - Daily inventory forecast includes arrival quantity, missed demand, storage cost and additional purchase need.
-- Export product data and decision records; 18 automated checks.
+- Demo snapshot stays fresh across reloads; imported datasets keep their own snapshot time.
+- Bounded browser storage with safe persistence, plus a recorded 3-minute demo video.
+- Export product data and decision records; 29 automated checks.
 
 ## Included
 
