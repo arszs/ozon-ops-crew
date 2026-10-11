@@ -1,0 +1,5 @@
+sku,purchase_cny,fx,inbound_rub,stock,incoming_days,incoming_qty
+CN-001,62,12.5,160,84,35,150
+CN-002,80,12.5,190,180,20,100
+CN-003,125,12.5,0,12,21,100
+CN-004,38,12.5,120,420,60,0

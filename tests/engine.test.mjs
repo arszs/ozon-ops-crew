@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {evaluate,economics,defaults,validatePolicy} from '../web/engine.mjs';import {demoProducts} from '../web/demo.mjs';
+test('loss including allocated ads triggers pause and freezes price',()=>{const p=demoProducts[0],r=evaluate(p,defaults);assert.equal(r.strategy,'stop');assert.equal(r.adBudget,0);assert.equal(r.proposedPrice,p.price);assert.equal(r.net,-824);});
+test('unsettled expenses never produce confirmed-loss claim',()=>{const p=structuredClone(demoProducts[0]);p.sales[0].settled=false;assert.equal(evaluate(p,defaults).strategy,'observe');});
+test('seasonal holding requires sufficient history',()=>{const p=structuredClone(demoProducts[1]);assert.equal(evaluate(p,defaults).strategy,'hold');p.historyDays=3;assert.notEqual(evaluate(p,defaults).strategy,'hold');});
+test('expensive storage favors liquidation',()=>assert.equal(evaluate(demoProducts[3],defaults).strategy,'clear'));
+test('stockout before next delivery protects stock',()=>assert.equal(evaluate(demoProducts[2],defaults).strategy,'protect'));
+test('invalid policies rejected',()=>{assert.throws(()=>validatePolicy({...defaults,window:2,minSales:3}));assert.throws(()=>validatePolicy({...defaults,lossLimit:-1}));});
+test('profit floor cannot override price-step safety',()=>{const r=evaluate(demoProducts[2],{...defaults,minUnitProfit:10000});assert.equal(r.blocked,true);assert.equal(r.adBudget,0);assert.equal(r.proposedPrice,demoProducts[2].price);});
+test('currency conversion and commission are separate',()=>{const e=economics(demoProducts[0]);assert.equal(e.cost,1250);assert.equal(e.contribution,742);});

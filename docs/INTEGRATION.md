@@ -1,0 +1,15 @@
+# Integration plan
+
+## Available now
+Local adapter: `POST https://api-seller.ozon.ru/v3/product/list`, read-only JSON retrieval, pages of 20, cursor input and 15-second timeout. Verified using provided credentials; secrets and returned catalog data remain outside the repository. Official documentation entry: https://docs.ozon.ru/api/seller/ . Documentation fetch encountered a redirect loop during preparation; other methods are intentionally not guessed or enabled.
+
+## Needed next
+Seller API: actual prices, inventory, FBO/FBS orders, financial operations and settlement reports. Confirm current schema and permissions for this Chinese account before implementation. Performance API uses separate authorization: do not reuse the Seller key or assume advertising rights. Verify campaign membership and campaign-level vs SKU-level controls before pausing.
+
+Procurement: Excel batches need SKU, batch/date, quantity, CNY amount, FX/date, inbound and other costs, arrival estimate. Keep historical currency rates with each batch; support partial receipts and returns. Actual storage cost must use the correct account/warehouse tariff.
+
+## Secret handling
+Use an external permission-restricted env file. Do not add it to source control or public deployment. The API server binds only to localhost and rejects nonlocal Host headers. The prototype lacks production identity management and must not be exposed publicly with real credentials. Rotate a credential if it is disclosed outside the intended private channel.
+
+## Production gates
+Reconciliation complete; explicit merchant budgets; aggregate spend cap; zero-sales spend trip; stale-data halt; duplicate-call prevention; verified pause response; persistent audit; role-based access; notification delivery; manual resume; regional data handling assessment.
