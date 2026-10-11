@@ -13,3 +13,6 @@ Use an external permission-restricted env file. Do not add it to source control 
 
 ## Production gates
 Reconciliation complete; explicit merchant budgets; aggregate spend cap; zero-sales spend trip; stale-data halt; duplicate-call prevention; verified pause response; persistent audit; role-based access; notification delivery; manual resume; regional data handling assessment.
+
+## Verified Performance read access
+On 2026-10-11 token authorization and campaign listing were verified against the live account. `performance.mjs` uses `POST /api/client/token` and read-only `GET /api/client/campaign` at api-performance.ozon.ru. Credentials are read from an external OZON_PERFORMANCE_ENV_FILE, tokens remain server-only and are cached until shortly before expiry. No campaign mutation method is implemented. Public Pages serves no account data. Actual costs, SKU membership, permitted budgets and account-specific write semantics still need verification before enabling execution.

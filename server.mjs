@@ -1,3 +1,4 @@
+import {campaigns,performanceConfigured} from './performance.mjs';
 import http from 'node:http';
 import {catalog,credentials} from './ozon.mjs';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
@@ -13,6 +14,7 @@ http.createServer(async(req,res)=>{
   if(req.headers.host && !['127.0.0.1:'+port,'localhost:'+port].includes(req.headers.host)){res.writeHead(403);res.end();return;}
   res.setHeader('X-Content-Type-Options','nosniff');
   res.setHeader('Cache-Control','no-store');
+  if(path==='/api/campaigns' && req.method==='GET'){res.setHeader('Content-Type','application/json');try{res.end(JSON.stringify(await campaigns()));}catch(err){res.writeHead(502);res.end(JSON.stringify({error:err.message}));}return;}
   if(path==='/api/catalog' && req.method==='GET'){res.setHeader('Content-Type','application/json');try{res.end(JSON.stringify(await catalog(url.searchParams.get('cursor')||'')));}catch(err){res.writeHead(502);res.end(JSON.stringify({error:err.message}));}return;}
   if(path==='/api/policy'){
    res.setHeader('Content-Type','application/json');
@@ -23,7 +25,7 @@ http.createServer(async(req,res)=>{
     const p=validatePolicy(JSON.parse(body));await writeFile(join(root,'runtime/policy.json'),JSON.stringify(p,null,2));res.end(JSON.stringify(p));return;
    }
   }
-  if(path==='/api/status'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({mode:'demo',sellerConfigured:Boolean((await credentials()).key),performanceConnected:false,externalWritesEnabled:false}));return;}
+  if(path==='/api/status'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({mode:'demo',sellerConfigured:Boolean((await credentials()).key),performanceConfigured:await performanceConfigured(),externalWritesEnabled:false}));return;}
   if(req.method!=='GET'){res.writeHead(405);res.end();return;}
   const allowed=['/','/index.html','/style.css','/app.mjs','/engine.mjs','/demo.mjs','/mark.svg','/planning.mjs','/autopilot.mjs'];
   if(!allowed.includes(path)){res.writeHead(404);res.end('Not found');return;}
