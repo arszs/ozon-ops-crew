@@ -7,7 +7,16 @@
 
 [**Open interactive demo / 打开演示**](https://arszs.github.io/ozon-ops-crew/) · [中文参赛方案](docs/SUBMISSION.zh.md) · [Русское описание](docs/PROJECT.ru.md) · [Architecture](docs/ARCHITECTURE.md) · [Evaluation](docs/EVALUATION.md)
 
+[![Engine checks](https://github.com/arszs/ozon-ops-crew/actions/workflows/ci.yml/badge.svg)](https://github.com/arszs/ozon-ops-crew/actions/workflows/ci.yml)
+[![Demo deploy](https://github.com/arszs/ozon-ops-crew/actions/workflows/pages.yml/badge.svg)](https://github.com/arszs/ozon-ops-crew/actions/workflows/pages.yml)
+[![Tests](https://img.shields.io/badge/tests-29%20passed-brightgreen)](#run-in-30-seconds)
+[![Demo](https://img.shields.io/badge/demo-live-blue)](https://arszs.github.io/ozon-ops-crew/)
+
 </div>
+
+| Store overview | Advertising autopilot | Marginal ad profit |
+| --- | --- | --- |
+| [![Store overview](docs/screenshots/overview.png)](https://arszs.github.io/ozon-ops-crew/) | [![Advertising autopilot](docs/screenshots/autopilot.png)](https://arszs.github.io/ozon-ops-crew/) | [![Marginal ad profit](docs/screenshots/ad-return.png)](https://arszs.github.io/ozon-ops-crew/) |
 
 A control room for Chinese Ozon Global sellers: compare pricing and advertising strategies against stock, replenishment, storage costs and seasonal assumptions. Detect a rolling loss including advertising, freeze automated price changes and request a SKU-level advertising pause.
 
@@ -82,4 +91,8 @@ The Autopilot screen runs a deterministic agent workflow every 30 seconds while 
 This is an executable competition demonstration, not live Ozon advertising automation. Real activation requires separately verified Performance API access, complete actual costs, campaign membership checks, a persistent server worker and merchant-approved operating limits. No live uplift is claimed.
 
 ## Version 0.5 — marginal advertising profit
-The Advertising Return screen allocates a capped daily budget using a diminishing-response scenario curve, incremental order share and unit contribution after a conservative storage allowance. It leaves inefficient budget unspent, excludes risk-blocked SKUs and requires at least 1.20 RUB incremental contribution per RUB spent. This is a discrete scenario optimizer, not a trained forecast or causal proof. Its output does not alter the automatic simulator or live campaigns. 27 tests pass.
+The Advertising Return screen allocates a capped daily budget using a diminishing-response scenario curve, incremental order share and unit contribution after a conservative storage allowance. It leaves inefficient budget unspent, excludes risk-blocked SKUs and requires at least 1.20 RUB incremental contribution per RUB spent. This is a discrete scenario optimizer, not a trained forecast or causal proof. Its output does not alter the automatic simulator or live campaigns. 29 tests pass.
+
+## Version 0.5.1 — resilience and presentation
+- Local persistence is capped (200 notifications, 500 audit records) and survives a full browser storage: the portal keeps working and warns instead of crashing.
+- README gains CI/deploy badges and interface screenshots; the demo page ships description and Open Graph tags for link previews.
