@@ -25,7 +25,7 @@ http.createServer(async(req,res)=>{
   }
   if(path==='/api/status'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({mode:'demo',sellerConfigured:Boolean((await credentials()).key),performanceConnected:false,externalWritesEnabled:false}));return;}
   if(req.method!=='GET'){res.writeHead(405);res.end();return;}
-  const allowed=['/','/index.html','/style.css','/app.mjs','/engine.mjs','/demo.mjs','/mark.svg','/planning.mjs'];
+  const allowed=['/','/index.html','/style.css','/app.mjs','/engine.mjs','/demo.mjs','/mark.svg','/planning.mjs','/autopilot.mjs'];
   if(!allowed.includes(path)){res.writeHead(404);res.end('Not found');return;}
   const f=path==='/'?'index.html':path.slice(1);res.setHeader('Content-Type',types[extname(f)]||'text/plain');res.end(await readFile(join(root,'web',f)));
  }catch(err){res.writeHead(400,{'Content-Type':'application/json'});res.end(JSON.stringify({error:'Invalid request or configuration'}));}

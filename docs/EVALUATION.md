@@ -30,3 +30,8 @@ Synthetic deterministic scenarios pass automated checks. Seller catalog read acc
 - Simulate stop: journal entry says simulation, never executed remotely.
 - Malformed/unknown-SKU CSV rejected without partial update.
 - Public demo exposes no live catalog or credentials.
+
+## Version 0.3 — economics-driven advertising loop
+The Autopilot screen runs a deterministic agent workflow every 30 seconds while the browser tab is open: data validation → unit economics → stock constraints → budget allocation → risk checks → local simulated campaign execution → receipts. Repeated unchanged decisions are idempotent. Data older than one hour pauses the simulated campaigns. Reload does not auto-resume the loop. 22 automated tests pass.
+
+This is an executable competition demonstration, not live Ozon advertising automation. Real activation requires separately verified Performance API access, complete actual costs, campaign membership checks, a persistent server worker and merchant-approved operating limits. No live uplift is claimed.

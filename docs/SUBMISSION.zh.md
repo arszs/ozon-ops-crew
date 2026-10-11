@@ -48,3 +48,8 @@
 
 ## 0.2 更新（2026-10-11）
 新增全店预算分配上限、持久化建议冻结、无订单广告支出保护、自有商品表单、销售窗口 CSV 与商品 JSON 导入、日库存及补货预测、缺货需求与仓储费用估算、决策导出。18 项自动化检查通过。所有写入操作仍为本地模拟，尚未连接真实广告执行；固定需求预测不是自动学习模型。
+
+## Version 0.3 — economics-driven advertising loop
+The Autopilot screen runs a deterministic agent workflow every 30 seconds while the browser tab is open: data validation → unit economics → stock constraints → budget allocation → risk checks → local simulated campaign execution → receipts. Repeated unchanged decisions are idempotent. Data older than one hour pauses the simulated campaigns. Reload does not auto-resume the loop. 22 automated tests pass.
+
+This is an executable competition demonstration, not live Ozon advertising automation. Real activation requires separately verified Performance API access, complete actual costs, campaign membership checks, a persistent server worker and merchant-approved operating limits. No live uplift is claimed.

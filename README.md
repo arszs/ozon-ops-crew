@@ -75,3 +75,8 @@ See [integration plan](docs/INTEGRATION.md). Implement settlement reconciliation
 ## Rights and privacy
 
 Original project source prepared for the owner. No third-party seller data, API keys, customer identifiers, account catalog exports or claimed proprietary Ozon assets are included. Ozon is referenced to describe integration compatibility; this is not an official Ozon product. No open-source license is granted until the owner selects one.
+
+## Version 0.3 — economics-driven advertising loop
+The Autopilot screen runs a deterministic agent workflow every 30 seconds while the browser tab is open: data validation → unit economics → stock constraints → budget allocation → risk checks → local simulated campaign execution → receipts. Repeated unchanged decisions are idempotent. Data older than one hour pauses the simulated campaigns. Reload does not auto-resume the loop. 22 automated tests pass.
+
+This is an executable competition demonstration, not live Ozon advertising automation. Real activation requires separately verified Performance API access, complete actual costs, campaign membership checks, a persistent server worker and merchant-approved operating limits. No live uplift is claimed.
