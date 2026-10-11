@@ -80,3 +80,6 @@ Original project source prepared for the owner. No third-party seller data, API 
 The Autopilot screen runs a deterministic agent workflow every 30 seconds while the browser tab is open: data validation → unit economics → stock constraints → budget allocation → risk checks → local simulated campaign execution → receipts. Repeated unchanged decisions are idempotent. Data older than one hour pauses the simulated campaigns. Reload does not auto-resume the loop. 22 automated tests pass.
 
 This is an executable competition demonstration, not live Ozon advertising automation. Real activation requires separately verified Performance API access, complete actual costs, campaign membership checks, a persistent server worker and merchant-approved operating limits. No live uplift is claimed.
+
+## Version 0.5 — marginal advertising profit
+The Advertising Return screen allocates a capped daily budget using a diminishing-response scenario curve, incremental order share and unit contribution after a conservative storage allowance. It leaves inefficient budget unspent, excludes risk-blocked SKUs and requires at least 1.20 RUB incremental contribution per RUB spent. This is a discrete scenario optimizer, not a trained forecast or causal proof. Its output does not alter the automatic simulator or live campaigns. 27 tests pass.
