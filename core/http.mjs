@@ -48,6 +48,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='operations'&&!id)return send(await ws.planOperation(body));
     if(resource==='operations'&&action==='approve')return send(await ws.approveOperation(id,body.payloadHash));
     if(resource==='operations'&&action==='execute')return send(await ws.executeOperation(id));
+    if(resource==='trials'&&!id)return send(await ws.recordTrial(body));
     if(resource==='assessments')return send(await ws.assessment(body));
    }
    return send({error:'Not found'},404);

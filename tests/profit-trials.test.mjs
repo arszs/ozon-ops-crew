@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {evaluateTrial} from '../core/profit-trials.mjs';
+import {Workspace} from '../core/workspace.mjs';
+const sample=()=>({storeId:'ozon-demo',sku:'S1',lever:'price',baseline:'1500',variant:'1600',evidence:'settlement export',comparable:true,a:{start:'2026-08-01',end:'2026-08-07',orders:35,revenue:10000,cost:6000,ads:500,settled:true},b:{start:'2026-08-08',end:'2026-08-21',orders:70,revenue:25000,cost:18000,ads:2800,settled:true}});
+test('normalizes profit across unequal durations, counts advertising and avoids causal claims',()=>{const r=evaluateTrial(sample());assert.equal(r.result.before,500);assert.equal(r.result.after,300);assert.equal(r.result.delta,-200);assert.equal(r.result.verdict,'no_improvement');assert.equal(r.result.causal,false);});
+test('positive result remains a repeat candidate; incomplete evidence blocks verdict',()=>{const x=sample();x.b.cost=10000;assert.equal(evaluateTrial(x).result.verdict,'repeat_candidate');x.b.settled=false;x.a.orders=2;x.comparable=false;const r=evaluateTrial(x);assert.equal(r.result.verdict,'insufficient');assert.equal(r.result.blockers.length,3);});
+test('rejects overlapping periods, invalid calendar dates, blanks and nonnumeric money',()=>{for(const change of [x=>x.b.start='2026-08-07',x=>x.a.start='2026-02-30',x=>x.a.cost=null,x=>x.a.ads=Infinity,x=>x.a.orders=1.5,x=>x.sku=' ',x=>x.variant=x.baseline]){const x=sample();change(x);assert.throws(()=>evaluateTrial(x));}});
+test('records survive reopening, remain scoped by store, and enter verified audit',async()=>{const dir=await mkdtemp(join(tmpdir(),'ops-trials-'));try{const file=join(dir,'workspace.json'),ws=new Workspace(file);await ws.init();const t=await ws.recordTrial(sample());assert.equal(t.mode,'mock');const view=await new Workspace(file).view();assert.equal(view.trials[0].id,t.id);assert.equal(view.auditValid,true);assert.equal(view.audit.at(-1).kind,'profit.trial.recorded');await assert.rejects(()=>ws.recordTrial({...sample(),storeId:'missing'}));assert.equal((await ws.view()).trials.length,1);}finally{await rm(dir,{recursive:true,force:true});}});
