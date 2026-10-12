@@ -18,3 +18,5 @@
 .wb-inventory{margin-top:24px;padding-top:22px;border-top:1px solid var(--line);margin-bottom:24px}
 .wb-cost-form{border-top:1px solid var(--line);padding-top:16px}.wb-cost-check{display:flex;align-items:flex-start;gap:10px}.wb-cost-check input{width:auto;margin-top:3px}.wb-cost-history{border-top:1px solid var(--line);padding:16px 0;overflow-wrap:anywhere}.wb-cost-history small{color:var(--muted);font-size:10px}.wb-contribution .form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:750px){.wb-contribution .form-grid{grid-template-columns:1fr}}
 .wb-advertising .table-wrap{max-height:420px;overflow:auto}.wb-advertising thead{position:sticky;top:0;z-index:1}.wb-advertising td small{color:var(--muted)}
+
+.wb-goods-net{padding:16px 0}.wb-goods-net strong{font-size:28px;line-height:1.25}.wb-attribution{margin-top:12px}.wb-attribution>summary{font-weight:600}

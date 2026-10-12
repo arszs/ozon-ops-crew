@@ -217,3 +217,11 @@ WB store contribution now combines the published report total with explicitly en
 
 
 WB Promotion reads now expose per-product spend, views, clicks and attributed orders alongside financial-report economics. The seller can inspect CPC/CPM, bid mode and placements as read, and see missing campaigns or unreconciled allocations. This supplies evidence for designing experiments; it does not execute a strategy or prove its historical effect. Remaining work includes real Chinese-account validation, verified advertising-period attribution, guarded WB operations and comparative business measurements.
+
+### WB: объяснимая сумма товара и сверка дневных отчётов
+
+В списке товаров и карточке SKU появилась прочитанная сумма товарного поля после возвратов. Детали расходов и сверка скрыты под раскрывающимся блоком; исходные русские операции также доступны отдельно. Продавцу не нужно разбирать всю таблицу, чтобы увидеть товар и следующий пробел в расчёте.
+
+Сверка идёт по каждому полю каждой дневной формы: расхождения −20 и +20 в разных отчётах не исчезают из-за совпадения общего итога. Общие удержания без nmID остаются на уровне магазина. Реклама повторно не вычитается. Пока не проверены полная формула расчётов, распределение общих расходов и затраты конкретного SKU, сумма товара не называется прибылью и не становится основанием для рекомендации рекламной стратегии.
+
+Следующий существенный шаг — подтверждаемое распределение расходов и затрат по SKU, связанное с точной версией отчётов и периодом рекламы; затем сравнение рекламных стратегий WB по вкладу. Проверка на настоящем китайском аккаунте и 10 реальных товарах по-прежнему не выполнена. Текущая браузерная проверка синтетическая, 344 автоматических теста проходят.

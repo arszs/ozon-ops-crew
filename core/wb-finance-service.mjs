@@ -4,6 +4,7 @@ import {dirname} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {hash} from './repository.mjs';
 import {reconcileWbContribution,wbContributionStatus} from './wb-contribution.mjs';
+import {attributeWbFinance,wbAttributionSummary} from './wb-finance-attribution.mjs';
 import {wbAccount} from '../adapters/wb-api.mjs';
 import {readWbFinance,wbFinanceRange,financeRequest,normalizeWbReport,normalizeWbFinanceRow,addDecimal,WB_FINANCE_INTERVAL,wbInteger} from '../adapters/wb-finance.mjs';
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -12,7 +13,7 @@ const decode=r=>JSON.parse(r.data);
 export class WbFinanceService{
  constructor(file,{read=readWbFinance,accountRef=wbAccount,clock=()=>Date.now(),sleep=pause}={}){
   mkdirSync(dirname(file),{recursive:true,mode:0o700});this.db=new DatabaseSync(file);chmodSync(file,0o600);
-  Object.assign(this,{read,accountRef,clock,sleep});this.pending=new Map();
+  Object.assign(this,{read,accountRef,clock,sleep});this.pending=new Map();this.attributionCache=new Map();
   this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
    CREATE TABLE IF NOT EXISTS wb_finance_runs(id TEXT PRIMARY KEY,store TEXT,owner TEXT,date_from TEXT,date_to TEXT,state TEXT,phase TEXT,cursor TEXT,at TEXT,updated TEXT,error TEXT);
    CREATE TABLE IF NOT EXISTS wb_finance_reports(run TEXT,id TEXT,data TEXT,PRIMARY KEY(run,id));
@@ -30,6 +31,15 @@ export class WbFinanceService{
  deadline(owner){return this.db.prepare('SELECT retry_at FROM wb_finance_limits WHERE owner=?').get(owner)?.retry_at||0;}
  reports(id){return this.db.prepare('SELECT data FROM wb_finance_reports WHERE run=? ORDER BY id').all(id).map(decode);}
  counts(id){return {reports:this.db.prepare('SELECT COUNT(*) n FROM wb_finance_reports WHERE run=?').get(id).n,rows:this.db.prepare('SELECT COUNT(*) n FROM wb_finance_rows WHERE run=?').get(id).n};}
+ attribution(run,reports,counts){
+  const key=JSON.stringify([run.id,counts.reports,counts.rows,run.updated]);
+  if(this.attributionCache.has(key))return this.attributionCache.get(key);
+  const iterator=this.db.prepare('SELECT data FROM wb_finance_rows WHERE run=? ORDER BY rowid').iterate(run.id);
+  function* rows(){for(const r of iterator)yield decode(r);}
+  const result=attributeWbFinance(reports,rows());
+  if(this.attributionCache.size>=2)this.attributionCache.delete(this.attributionCache.keys().next().value);
+  this.attributionCache.set(key,result);return result;
+ }
  async get(store,{sku}={}){
   const owner=await this.identity(store),run=this.latest(store,owner);if(sku!=null)sku=wbInteger(sku);
   if(!run)return {state:'idle',snapshot:null,retryAt:this.deadline(owner)||null};
@@ -39,17 +49,18 @@ export class WbFinanceService{
   for(const r of reports){const t=totals[r.currency]??={};for(const [k,v] of Object.entries(r.amounts))t[k]=addDecimal(t[k],v);}
   const days=[];for(let d=Date.parse(chosen.date_from);d<=Date.parse(chosen.date_to);d+=86400000)days.push(new Date(d).toISOString().slice(0,10));
   const present=new Set(reports.map(r=>r.from)),missingDays=days.filter(d=>!present.has(d)),byCurrency=Object.fromEntries(Object.keys(totals).map(c=>{const found=new Set(reports.filter(r=>r.currency===c).map(r=>r.from));return [c,{reportedDays:found.size,missingDays:days.filter(d=>!found.has(d))}];}));
-  const coverage=this.counts(chosen.id),unallocated=this.db.prepare("SELECT COUNT(*) n FROM wb_finance_rows WHERE run=? AND sku='0'").get(chosen.id).n;
+  const coverage=this.counts(chosen.id),attribution=this.attribution(chosen,reports,coverage),unallocated=this.db.prepare("SELECT COUNT(*) n FROM wb_finance_rows WHERE run=? AND sku='0'").get(chosen.id).n;
   const products=this.db.prepare(`SELECT sku,MAX(json_extract(data,'$.title')) name,COUNT(*) lines,
    SUM(CASE WHEN json_extract(data,'$.document')='Продажа' AND json_extract(data,'$.operation')='Продажа' THEN json_extract(data,'$.quantity') ELSE 0 END) sales,
    SUM(CASE WHEN json_extract(data,'$.document')='Возврат' AND json_extract(data,'$.operation')='Возврат' THEN json_extract(data,'$.quantity') ELSE 0 END) returns
-   FROM wb_finance_rows WHERE run=? AND sku<>'0' GROUP BY sku ORDER BY lines DESC,sku LIMIT 5`).all(chosen.id);
+   FROM wb_finance_rows WHERE run=? AND sku<>'0' GROUP BY sku ORDER BY lines DESC,sku LIMIT 5`).all(chosen.id).map(p=>({...p,attribution:attribution.products.get(p.sku)||{}}));
   let product=null;
   if(sku){const groups=new Map();let lines=0,title='';for(const {data} of this.db.prepare('SELECT data FROM wb_finance_rows WHERE run=? AND sku=?').iterate(chosen.id,sku)){
    const r=JSON.parse(data),key=JSON.stringify([r.currency,r.document,r.operation]);let g=groups.get(key);if(!g){g={currency:r.currency,document:r.document,operation:r.operation,lines:0,quantity:0,amounts:{}};groups.set(key,g);}g.lines++;g.quantity+=r.quantity;if(!Number.isSafeInteger(g.quantity))throw Error('WB 汇总数量超过精确范围');for(const [k,v] of Object.entries(r.amounts))g.amounts[k]=addDecimal(g.amounts[k],v);lines++;title=r.title||title;
-  }product={sku,title,lines,groups:[...groups.values()]};}
+  }product={sku,title,lines,groups:[...groups.values()],attribution:attribution.products.get(sku)||{}};}
   if(await this.accountRef(store)!==owner)throw Error('WB 账户已变化，请重新读取');
   const view={state:run.state,phase:run.phase,error:run.error,period:{from:run.date_from,to:run.date_to},retryAt:this.deadline(owner)||null,progress:this.counts(run.id),snapshot:reports.length||coverage.rows?{runId:chosen.id,evidenceHash:hash({runId:chosen.id,from:chosen.date_from,to:chosen.date_to,reports,pages:this.db.prepare("SELECT input_hash,output_hash FROM wb_finance_attempts WHERE run=? AND state='ok' ORDER BY id").all(chosen.id)}),period:{from:chosen.date_from,to:chosen.date_to},at:chosen.updated,complete:chosen.state==='complete',stale:chosen.id!==run.id||this.clock()-Date.parse(chosen.updated)>86400000,totals,coverage:{...coverage,days:days.length,reportedDays:present.size,missingDays,byCurrency,unallocated},products,product}:null};
+  if(view.snapshot)view.snapshot.attribution=wbAttributionSummary(attribution);
   const costs=this.costs(store,owner,run.date_from,run.date_to);view.reconciliations=costs.map(c=>({...c,status:costs.findLast(r=>r.currency===c.currency).id===c.id?wbContributionStatus(c,view):'revised'}));return view;
  }
  costs(store,owner,from,to){

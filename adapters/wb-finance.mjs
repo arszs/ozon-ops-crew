@@ -3,7 +3,7 @@ import {wbAccount,wbRegion} from './wb-api.mjs';
 import {ApiCooldown} from '../core/api-cooldown.mjs';
 export const WB_FINANCE_INTERVAL=60100;
 export const WB_REPORT_FIELDS=['retailAmountSum','forPaySum','deliveryServiceSum','paidStorageSum','paidAcceptanceSum','deductionSum','penaltySum','additionalPaymentSum','cashbackAmountSum','cashbackDiscountSum','cashbackCommissionChangeSum','paymentSchedule','bankPaymentSum'];
-export const WB_DETAIL_MONEY=['forPay','retailAmount','deliveryService','paidStorage','paidAcceptance','deduction','penalty','additionalPayment','rebillLogisticCost','cashbackAmount','cashbackDiscount','cashbackCommissionChange'];
+export const WB_DETAIL_MONEY=['forPay','retailAmount','deliveryService','paidStorage','paidAcceptance','deduction','penalty','additionalPayment','rebillLogisticCost','cashbackAmount','cashbackDiscount','cashbackCommissionChange','paymentSchedule'];
 export const WB_DETAIL_FIELDS=['reportId','rrdId','nmId','dateFrom','dateTo','currency','title','vendorCode','docTypeName','sellerOperName','quantity',...WB_DETAIL_MONEY];
 export function wbInteger(v,{zero=false}={}){if(typeof v==='number'&&!Number.isSafeInteger(v))throw Error('WB 标识精度丢失');const s=String(v);if(!/^(0|[1-9]\d{0,19})$/.test(s)||!zero&&s==='0')throw Error('WB 报表标识无效');return s;}
 export function wbDecimal(v){if(typeof v!=='string'||!/^[-+]?\d{1,24}(\.\d{1,6})?$/.test(v))throw Error('WB 报表金额缺失或精度无效');const [i,f='']=v.replace(/^[-+]/,'').split('.');return (v.startsWith('-')?-1n:1n)*(BigInt(i)*1000000n+BigInt(f.padEnd(6,'0')));}
