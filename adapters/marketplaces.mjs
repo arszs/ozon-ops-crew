@@ -1,15 +1,13 @@
 import {readFile} from 'node:fs/promises';
-import {sellerRead} from '../ozon.mjs';
+import {readOzonCatalogue} from './ozon-catalogue.mjs';
 const timeout=()=>AbortSignal.timeout(20000);
 export async function envFile(file){if(!file)return {};const out={};for(const line of (await readFile(file,'utf8')).split(/\r?\n/)){const i=line.indexOf('=');if(i>0&&!line.startsWith('#'))out[line.slice(0,i).trim()]=line.slice(i+1).trim();}return out;}
 async function json(url,options){const r=await fetch(url,{...options,signal:timeout()});if(!r.ok)throw Error('marketplace_http_'+r.status);return r.json();}
-export async function storeCredentials(store){return {...process.env,...await envFile(store.envFile)};}
+// Each configured store owns its credentials; missing keys must not inherit another account.
+export async function storeCredentials(store){return envFile(store.envFile);}
 export async function readStore(store){
  if(store.mode==='mock')return store.snapshot?structuredClone(store.snapshot):{mode:'mock',products:[{sku:'DEMO-STORAGE-01',name:'Складной короб, 30 л',price:1290,stock:48}],orders:12,orderedAmount:15480,profit:null,currency:'RUB',source:'固定演示数据，不是真实销售'};
- if(store.marketplace==='ozon'){
-  if(store.id==='ozon-live'){const d=await sellerRead('/v3/product/list',{filter:{visibility:'ALL'},limit:20,last_id:''});return {mode:'live',catalogTotal:d.result.total,products:d.result.items.map(p=>({sku:String(p.product_id),offerId:p.offer_id})),source:'Ozon Seller API · 前20个商品'};}
-  const c=await storeCredentials(store);if(!c.OZON_CLIENT_ID||!c.OZON_API_KEY)throw Error('未配置 Ozon API');const d=await json('https://api-seller.ozon.ru/v3/product/list',{method:'POST',headers:{'Client-Id':c.OZON_CLIENT_ID,'Api-Key':c.OZON_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({filter:{visibility:'ALL'},limit:20,last_id:''})});return {mode:'live',catalogTotal:d.result.total,products:d.result.items.map(p=>({sku:String(p.product_id),offerId:p.offer_id})),source:'Ozon Seller API · 前20个商品'};
- }
+ if(store.marketplace==='ozon')return readOzonCatalogue(store);
  const c=await storeCredentials(store);if(!c.WB_API_TOKEN)throw Error('未配置 WB_API_TOKEN');const d=await json('https://content-api.wildberries.ru/content/v2/get/cards/list',{method:'POST',headers:{Authorization:c.WB_API_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({settings:{cursor:{limit:100},filter:{withPhoto:-1}}})});if(d.error)throw Error('wb_content_error');return {mode:'live',products:(d.cards||[]).map(p=>({sku:String(p.nmID),offerId:p.vendorCode,name:p.title})),cursor:d.cursor,source:'WB Content API · 前100个商品，非完整库存'};
 }
 export async function dictionaries(store,search=''){

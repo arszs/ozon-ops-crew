@@ -1,12 +1,12 @@
 import {credentials} from '../ozon.mjs';
 import {hash} from '../core/repository.mjs';
-const READ=new Set(['/v1/description-category/tree','/v1/description-category/attribute','/v1/description-category/attribute/values/search','/v1/description-category/attribute/values','/v1/product/import/info','/v3/product/info/list']);
+const READ=new Set(['/v3/product/list','/v1/description-category/tree','/v1/description-category/attribute','/v1/description-category/attribute/values/search','/v1/description-category/attribute/values','/v1/product/import/info','/v3/product/info/list']);
 let lastCall=0,queue=Promise.resolve();
 export async function ozonCall(store,path,body,{write=false,fetcher=fetch}={}){
  if(!READ.has(path)&&!(write&&path==='/v3/product/import'))throw Error('Ozon method not allowed');
  const run=queue.then(async()=>{
   const wait=350-(Date.now()-lastCall);if(wait>0)await new Promise(r=>setTimeout(r,wait));lastCall=Date.now();
-  const c=store.id==='ozon-live'?await credentials():await (await import('./marketplaces.mjs')).storeCredentials(store).then(v=>({client:v.OZON_CLIENT_ID,key:v.OZON_API_KEY}));
+  const c=store.id==='ozon-live'?await credentials():await (await import('./marketplaces.mjs')).envFile(store.envFile).then(v=>({client:v.OZON_CLIENT_ID,key:v.OZON_API_KEY}));
   if(!c.client||!c.key)throw Error('Ozon credentials missing');
   const r=await fetcher('https://api-seller.ozon.ru'+path,{method:'POST',headers:{'Client-Id':c.client,'Api-Key':c.key,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});
   if(!r.ok)throw Error('Ozon HTTP '+r.status+(r.status===429?'：达到速率限制，请稍后重试读取；不要重复提交发布':''));
