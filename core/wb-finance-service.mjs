@@ -3,6 +3,7 @@ import {mkdirSync,chmodSync} from 'node:fs';
 import {dirname} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {hash} from './repository.mjs';
+import {reconcileWbContribution,wbContributionStatus} from './wb-contribution.mjs';
 import {wbAccount} from '../adapters/wb-api.mjs';
 import {readWbFinance,wbFinanceRange,financeRequest,normalizeWbReport,normalizeWbFinanceRow,addDecimal,WB_FINANCE_INTERVAL,wbInteger} from '../adapters/wb-finance.mjs';
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -19,6 +20,7 @@ export class WbFinanceService{
    CREATE INDEX IF NOT EXISTS wb_finance_sku ON wb_finance_rows(run,sku);
    CREATE TABLE IF NOT EXISTS wb_finance_attempts(id INTEGER PRIMARY KEY,run TEXT,at TEXT,phase TEXT,cursor TEXT,state TEXT,input_hash TEXT,output_hash TEXT,error TEXT);
    CREATE TABLE IF NOT EXISTS wb_finance_limits(owner TEXT PRIMARY KEY,retry_at INTEGER);
+   CREATE TABLE IF NOT EXISTS wb_finance_costs(id TEXT PRIMARY KEY,store TEXT,owner TEXT,date_from TEXT,date_to TEXT,currency TEXT,revision INTEGER,data TEXT,UNIQUE(store,owner,date_from,date_to,currency,revision));
    UPDATE wb_finance_attempts SET state='interrupted',error='服务重启：上次请求未保存结果' WHERE state='reading';
    UPDATE wb_finance_runs SET state='interrupted',error='上次读取被中断，可以继续' WHERE state IN ('reading','waiting');`);
  }
@@ -47,7 +49,25 @@ export class WbFinanceService{
    const r=JSON.parse(data),key=JSON.stringify([r.currency,r.document,r.operation]);let g=groups.get(key);if(!g){g={currency:r.currency,document:r.document,operation:r.operation,lines:0,quantity:0,amounts:{}};groups.set(key,g);}g.lines++;g.quantity+=r.quantity;if(!Number.isSafeInteger(g.quantity))throw Error('WB 汇总数量超过精确范围');for(const [k,v] of Object.entries(r.amounts))g.amounts[k]=addDecimal(g.amounts[k],v);lines++;title=r.title||title;
   }product={sku,title,lines,groups:[...groups.values()]};}
   if(await this.accountRef(store)!==owner)throw Error('WB 账户已变化，请重新读取');
-  return {state:run.state,phase:run.phase,error:run.error,period:{from:run.date_from,to:run.date_to},retryAt:this.deadline(owner)||null,progress:this.counts(run.id),snapshot:reports.length||coverage.rows?{runId:chosen.id,period:{from:chosen.date_from,to:chosen.date_to},at:chosen.updated,complete:chosen.state==='complete',stale:chosen.id!==run.id||this.clock()-Date.parse(chosen.updated)>86400000,totals,coverage:{...coverage,days:days.length,reportedDays:present.size,missingDays,byCurrency,unallocated},products,product}:null};
+  const view={state:run.state,phase:run.phase,error:run.error,period:{from:run.date_from,to:run.date_to},retryAt:this.deadline(owner)||null,progress:this.counts(run.id),snapshot:reports.length||coverage.rows?{runId:chosen.id,evidenceHash:hash({runId:chosen.id,from:chosen.date_from,to:chosen.date_to,reports,pages:this.db.prepare("SELECT input_hash,output_hash FROM wb_finance_attempts WHERE run=? AND state='ok' ORDER BY id").all(chosen.id)}),period:{from:chosen.date_from,to:chosen.date_to},at:chosen.updated,complete:chosen.state==='complete',stale:chosen.id!==run.id||this.clock()-Date.parse(chosen.updated)>86400000,totals,coverage:{...coverage,days:days.length,reportedDays:present.size,missingDays,byCurrency,unallocated},products,product}:null};
+  const costs=this.costs(store,owner,run.date_from,run.date_to);view.reconciliations=costs.map(c=>({...c,status:costs.findLast(r=>r.currency===c.currency).id===c.id?wbContributionStatus(c,view):'revised'}));return view;
+ }
+ costs(store,owner,from,to){
+  const records=this.db.prepare('SELECT data FROM wb_finance_costs WHERE store=? AND owner=? AND date_from=? AND date_to=? ORDER BY rowid').all(store.id,owner,from,to).map(decode),last=new Map();
+  for(const c of records){const {hash:checksum,...body}=c,previous=last.get(c.currency);if(c.storeId!==store.id||c.period.from!==from||c.period.to!==to||c.revision!==(previous?.revision||0)+1||c.previous!==(previous?.hash||'genesis')||hash(body)!==checksum)throw Error('WB 成本历史证据校验失败');last.set(c.currency,c);}
+  return records;
+ }
+ async reconcile(store,input){
+  const owner=await this.identity(store),view=await this.get(store),draft=reconcileWbContribution(view,input),run=this.latest(store,owner);
+  if(await this.accountRef(store)!==owner)throw Error('WB 账户已变化，请重新读取');
+  // No await after the final identity/current-run check: optimistic revision and evidence commit are atomic.
+  const latest=this.latest(store,owner);if(this.pending.has(owner)||!latest||latest.id!==run?.id||latest.id!==draft.reportId||latest.state!=='complete')throw Error('财务正在更新，请完成后再核对');
+  this.db.exec('BEGIN IMMEDIATE');try{
+   const old=this.costs(store,owner,draft.period.from,draft.period.to).findLast(c=>c.currency===draft.currency);
+   if(!Number.isSafeInteger(input.revision)||input.revision!==(old?.revision||0))throw Error('成本版本已变化，请重新打开后保存');
+   const record={id:randomUUID(),storeId:store.id,at:this.stamp(),...draft,revision:(old?.revision||0)+1,previous:old?.hash||'genesis'};record.hash=hash(record);
+   this.db.prepare('INSERT INTO wb_finance_costs VALUES(?,?,?,?,?,?,?,?)').run(record.id,store.id,owner,draft.period.from,draft.period.to,draft.currency,record.revision,JSON.stringify(record));this.db.exec('COMMIT');return record;
+  }catch(e){this.db.exec('ROLLBACK');throw e;}
  }
  async start(store,input={}){
   const owner=await this.identity(store);if(this.pending.has(owner)){if(this.pending.get(owner).store===store.id&&!input.from&&!input.to&&input.restart!==true)return this.get(store);throw Error('此 WB 账户的另一店铺连接正在读取财务');}

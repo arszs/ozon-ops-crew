@@ -54,6 +54,7 @@ export async function createWorkspaceAPI(root,live){
    }
    if(req.method==='POST'){
     if(resource==='stores'&&!id)return send(await ws.addStore(body));
+    if(resource==='stores'&&action==='wb-finance-reconcile')return send(await wbFinance.reconcile(ws.resolveStore(await ws.repo.read(),id),body));
     if(resource==='stores'&&action==='wb-finance')return send(await wbFinance.start(ws.resolveStore(await ws.repo.read(),id),body));
     if(resource==='stores'&&action==='wb-prices')return send(await wbPrices.refresh(ws.resolveStore(await ws.repo.read(),id),body.nmID));
     if(resource==='stores'&&action==='wb-inventory')return send(await wbInventory.start(ws.resolveStore(await ws.repo.read(),id),body.nmID,{restart:body.restart===true}));
