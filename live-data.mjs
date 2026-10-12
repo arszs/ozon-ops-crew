@@ -88,7 +88,8 @@ export async function synchronizeLive(progress=()=>{}){
   }
  }
  const skus=[...rows.keys()];progress('Читаю реальные цены и остатки товаров…');
- await attempt('products',async()=>{for(let i=0;i<skus.length;i+=100){const d=await sellerRead('/v3/product/info/list',{sku:skus.slice(i,i+100)});if(!Array.isArray(d.items))throw Error('products_schema');for(const p of d.items){const aliases=new Set([String(p.sku),...(p.sources||[]).map(s=>String(s.sku))]);for(const sku of aliases){if(!rows.has(sku))continue;const r=get(sku);Object.assign(r,{name:p.name,offerId:p.offer_id,productId:String(p.id),price:apiNumber(p.price),currency:p.currency_code,stock:(p.stocks?.stocks||[]).filter(x=>String(x.sku)===sku).reduce((n,x)=>n+Number(x.present||0),0)});}}}return true;});
+ if(!skus.length)sources.products={ok:false,skipped:true,reason:'no_skus_to_enrich'};
+ else await attempt('products',async()=>{for(let i=0;i<skus.length;i+=100){const d=await sellerRead('/v3/product/info/list',{sku:skus.slice(i,i+100)});if(!Array.isArray(d.items))throw Error('products_schema');for(const p of d.items){const aliases=new Set([String(p.sku),...(p.sources||[]).map(s=>String(s.sku))]);for(const sku of aliases){if(!rows.has(sku))continue;const r=get(sku);Object.assign(r,{name:p.name,offerId:p.offer_id,productId:String(p.id),price:apiNumber(p.price),currency:p.currency_code,stock:(p.stocks?.stocks||[]).filter(x=>String(x.sku)===sku).reduce((n,x)=>n+Number(x.present||0),0)});}}}return true;});
  for(const r of rows.values()){
   if(analyticsComplete&&r.orderRevenue===null){r.orderRevenue=0;r.orderedUnits=0;}
   if(finance&&r.netAccrued===null)r.netAccrued={};
