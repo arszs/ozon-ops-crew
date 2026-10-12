@@ -52,3 +52,7 @@ Validation: 90 tests passed, including platform-specific mixed assortments, miss
 ## Form continuity
 
 Failed actions preserve editable form values when the page and SKU job context remain the same. Background live refresh preserves home form inputs and product search. Values are held only temporarily in page memory; passwords/files are excluded, and successful actions retain normal reset behavior. Linked experiment plan IDs and their explanatory label survive validation failures. Chrome verification: submitting intentionally malformed import JSON displayed the error while retaining the exact draft and keeping the migration queue unchanged. Cross-page navigation and browser reload are not persistent draft storage.
+
+## SKU cost profiles
+
+Product economics now has persistent, store-scoped RUB cost profiles, with evidence/source text, immutable versions and optimistic revision checks. The seller supplies price, product cost, commission, fulfilment, allocated advertising per unit, taxes and returns reserve. Results are unit contribution and break-even price under these assumptions; they are not actual settled profit. API product rows open the matching cost profile (only an explicit RUB price is prefilled). Missing amounts are rejected, not coerced to zero, and saving never creates a marketplace operation. This is a foundation for experiment margin guards; API financial reconciliation and additional expense categories remain required before claiming complete store profit. Validation: 104 tests passed.
