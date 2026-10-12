@@ -2,7 +2,7 @@ import {hash} from '../core/repository.mjs';
 import {ApiCooldown} from '../core/api-cooldown.mjs';
 import {storeCredentials} from './marketplaces.mjs';
 export function wbRegion(store){const region=store.wbRegion||'ru';if(!['ru','cn'].includes(region))throw Error('WB 连接地区必须为 ru 或 cn');return region;}
-const owner=(store,c)=>{if(store.mode!=='live'||store.marketplace!=='wb'||typeof c.WB_API_TOKEN!=='string'||!c.WB_API_TOKEN.trim())throw Error('未配置此店铺的 WB Content API token');return hash({region:wbRegion(store),token:c.WB_API_TOKEN});};
+const owner=(store,c)=>{if(store.mode!=='live'||store.marketplace!=='wb'||typeof c.WB_API_TOKEN!=='string'||!c.WB_API_TOKEN.trim())throw Error('未配置此店铺的 WB API token');return hash({region:wbRegion(store),token:c.WB_API_TOKEN});};
 export async function wbAccount(store,{getCredentials=storeCredentials}={}){return owner(store,await getCredentials(store));}
 export function wbPriceInterval(store){const type=store.wbPriceTokenType||'base';if(!['personal','service','base-with-secret','base'].includes(type))throw Error('WB 价格 token 类型无效');return type==='base'?900050:650;}
 // Read-only methods share a queue per token + region + API category, including store aliases.

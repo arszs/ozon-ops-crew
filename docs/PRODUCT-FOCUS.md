@@ -214,3 +214,6 @@ WB economics now starts with explicit daily financial-report reads, separately f
 
 
 WB store contribution now combines the published report total with explicitly entered period costs in the report currency. Source changes invalidate the current headline and retain the old calculation for review. This supports the seller question “what remains after my costs?” without equating revenue or platform payouts with profit. Missing report days, unfinished checks and other currencies stay visible. The calculation is not a per-SKU attribution model or evidence that a price/ad strategy caused a profit change; those experiments and validation with a real Chinese seller are still outstanding.
+
+
+WB Promotion reads now expose per-product spend, views, clicks and attributed orders alongside financial-report economics. The seller can inspect CPC/CPM, bid mode and placements as read, and see missing campaigns or unreconciled allocations. This supplies evidence for designing experiments; it does not execute a strategy or prove its historical effect. Remaining work includes real Chinese-account validation, verified advertising-period attribution, guarded WB operations and comparative business measurements.

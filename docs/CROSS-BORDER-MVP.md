@@ -38,7 +38,7 @@
 ```json
 {
   "stores": [
-    {"id":"wb-live","name":"我的 WB 店铺","marketplace":"wb","mode":"live","envFile":"/absolute/private/wb.env"}
+    {"id":"wb-live","name":"我的 WB 店铺","marketplace":"wb","mode":"live","wbRegion":"cn","envFile":"/absolute/private/wb.env"}
   ]
 }
 ```
