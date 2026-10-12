@@ -1,3 +1,4 @@
+import {assetPath,saveImage} from '../adapters/media.mjs';
 import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {homedir} from 'node:os';
@@ -18,6 +19,9 @@ export async function createWorkspaceAPI(root,live){
    const [, ,resource,id,action,index]=parts;
    if(req.method==='GET'){
     if(!resource)return send(await ws.view());
+    if(resource==='assets'&&id){res.setHeader('Content-Type','image/png');res.end(await readFile(assetPath(id)));return true;}
+    if(resource==='stores'&&action==='attributes')return send(await ws.attributes(id,url.searchParams.get('categoryId'),url.searchParams.get('typeId')));
+    if(resource==='stores'&&action==='values')return send(await ws.values(id,Object.fromEntries(url.searchParams)));
     if(resource==='sample')return send(DEMO_PRODUCT);
     if(resource==='digest')return send(await ws.digest());
     if(resource==='stores'&&action==='dictionary')return send(await ws.dictionary(id,url.searchParams.get('q')||''));
@@ -35,6 +39,8 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='jobs'&&!id)return send(await ws.importProduct(body));
     if(resource==='jobs'&&action==='step')return send(await ws.step(id));
     if(resource==='jobs'&&action==='retry')return send(await ws.retry(id,body.stage));
+    if(resource==='jobs'&&action==='setup')return send(await ws.setup(id,body));
+    if(resource==='assets'&&!id){if(typeof body.base64!=='string'||body.base64.length>1_800_000)throw Error('Image too large (max 1.3 MB)');return send(await saveImage(Buffer.from(body.base64,'base64')));}
     if(resource==='jobs'&&action==='edit')return send(await ws.edit(id,body));
     if(resource==='jobs'&&action==='category-approval')return send(await ws.approveCategory(id,body.revision));
     if(resource==='jobs'&&action==='publish-plan')return send(await ws.preparePublish(id));
