@@ -3,6 +3,7 @@ import {AdReadingService,planAdRange} from './ad-reading-service.mjs';
 import {ledgerTrialStatus} from './finance-reconciliation.mjs';
 import {FinanceService} from './finance-service.mjs';
 import {CatalogueService} from './catalogue-service.mjs';
+import {WbFinanceService} from './wb-finance-service.mjs';
 import {WbPriceService} from './wb-price-service.mjs';
 import {WbInventoryService} from './wb-inventory-service.mjs';
 import {assetPath,saveImage} from '../adapters/media.mjs';
@@ -16,6 +17,7 @@ export async function createWorkspaceAPI(root,live){
  let config={};try{config=JSON.parse(await readFile(join(homedir(),'.config/ozon-ops-crew/connection.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
  const ws=new Workspace(join(root,'runtime/workspace.json'),{stores:config.stores||[],liveSnapshot:()=>live.get().data});await ws.init();
  const catalogue=new CatalogueService(join(root,'runtime/catalogue.sqlite'));
+ const wbFinance=new WbFinanceService(join(root,'runtime/wb-finance.sqlite'));
  const wbPrices=new WbPriceService(join(root,'runtime/wb-prices.sqlite'),{catalogue});
  const wbInventory=new WbInventoryService(join(root,'runtime/wb-inventory.sqlite'),{catalogue});
  const advertising=new AdReadingService(join(root,'runtime/advertising.json'));await advertising.ready;
@@ -31,10 +33,11 @@ export async function createWorkspaceAPI(root,live){
    let body={};if(req.method!=='GET'){let text='';for await(const chunk of req){text+=chunk;if(Buffer.byteLength(text)>2_000_000)return send({error:'Payload too large'},413);}body=JSON.parse(text||'{}');}
    const [, ,resource,id,action,index]=parts;
    if(req.method==='GET'){
-    if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&['ozon','wb'].includes(s.marketplace)).map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));view.adMonitors=await monitoring.list();view.adMonitorWorker=monitoring.status;view.adReadings=await advertising.list(view.stores.map(s=>ws.resolveStore(db,s.id)));view.financeReadings=await finance.list(view.stores.map(s=>ws.resolveStore(db,s.id)));for(const t of view.trials)if(t.source==='api_accruals_seller_costs')t.sourceStatus=ledgerTrialStatus(t,view.financeReadings,view.adReadings,view.trialPlans.find(p=>p.id===t.planId));return send(view);}
+    if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&['ozon','wb'].includes(s.marketplace)).map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));view.wbFinance=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbFinance.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 财务连接不可用'}];}})));view.adMonitors=await monitoring.list();view.adMonitorWorker=monitoring.status;view.adReadings=await advertising.list(view.stores.map(s=>ws.resolveStore(db,s.id)));view.financeReadings=await finance.list(view.stores.map(s=>ws.resolveStore(db,s.id)));for(const t of view.trials)if(t.source==='api_accruals_seller_costs')t.sourceStatus=ledgerTrialStatus(t,view.financeReadings,view.adReadings,view.trialPlans.find(p=>p.id===t.planId));return send(view);}
     if(resource==='assets'&&id){res.setHeader('Content-Type','image/png');res.end(await readFile(assetPath(id)));return true;}
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.query(store,{q:url.searchParams.get('q')||'',offset:Number(url.searchParams.get('offset')||0)}));}
     if(resource==='stores'&&action==='wb-characteristics')return send(await ws.wbCharacteristics(id,url.searchParams.get('subjectId')));
+    if(resource==='stores'&&action==='wb-finance')return send(await wbFinance.get(ws.resolveStore(await ws.repo.read(),id),{sku:url.searchParams.get('sku')}));
     if(resource==='stores'&&action==='wb-prices')return send(await wbPrices.get(ws.resolveStore(await ws.repo.read(),id),url.searchParams.get('nmID')));
     if(resource==='stores'&&action==='wb-inventory')return send(await wbInventory.get(ws.resolveStore(await ws.repo.read(),id),url.searchParams.get('nmID')));
     if(resource==='stores'&&action==='attributes')return send(await ws.attributes(id,url.searchParams.get('categoryId'),url.searchParams.get('typeId')));
@@ -51,6 +54,7 @@ export async function createWorkspaceAPI(root,live){
    }
    if(req.method==='POST'){
     if(resource==='stores'&&!id)return send(await ws.addStore(body));
+    if(resource==='stores'&&action==='wb-finance')return send(await wbFinance.start(ws.resolveStore(await ws.repo.read(),id),body));
     if(resource==='stores'&&action==='wb-prices')return send(await wbPrices.refresh(ws.resolveStore(await ws.repo.read(),id),body.nmID));
     if(resource==='stores'&&action==='wb-inventory')return send(await wbInventory.start(ws.resolveStore(await ws.repo.read(),id),body.nmID,{restart:body.restart===true}));
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.start(store,{restart:body.restart===true}));}

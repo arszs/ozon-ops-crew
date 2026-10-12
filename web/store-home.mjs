@@ -1,3 +1,4 @@
+import {wbFinancePanel,wbFinanceProducts,wbReportAmounts} from './wb-finance.mjs';
 import {syncStatus} from './sync-status.mjs';
 import {decisionPanel} from './decisions.mjs';
 import {adCoverage} from './ad-coverage.mjs';
@@ -26,6 +27,7 @@ function skuTable(m){return `<section class="card home-skus"><div class="section
 export function storeHome(data,live,storeId){
  const m=homeModel(data,live,storeId),d=m.report;
  if(!m.store)return '<section class="card"><h2>连接第一家店铺</h2><p>接入真实店铺后，查看经营数据和商品实验。演示数据不计入店铺经济结果。</p><button class="primary" data-nav="stores">管理店铺与连接</button></section>';
+ if(m.store.marketplace==='wb')return wbHome(data,m);
  const primary=m.store.id==='ozon-live',source=d?.sources||{},orders=source.analytics?.ok===false?null:d?.orders,finance=source.finance?.ok===false?null:d?.finance;
  const metric=(label,value,hint,extra='')=>`<article class="metric ${extra}"><small>${label}</small><strong>${value}</strong><span>${hint}</span></article>`;
  const stamp=d?.fetchedAt?new Date(d.fetchedAt).toLocaleString('zh-CN',{timeZone:'Europe/Moscow',hour12:false}):null;
@@ -37,3 +39,5 @@ export function storeHome(data,live,storeId){
  ${pending||uncertain?`<div class="home-profit-note"><span>此店铺：${pending} 项待确认 / 执行 · ${uncertain} 项结果待核对</span><button class="text-button" data-nav="gates">查看确认队列 →</button></div>`:''}${decisionPanel(m.scope,{limit:3})}${skuTable(m)}
  <details class="card home-evidence"><summary>数据范围与计算口径${m.stale?' · 旧快照':''}</summary><p>订购金额、平台记账与广告报表按不同事件统计，不能直接相减作为利润。平台记账已包含的广告费用不会再次扣除。不同币种分别显示，不自动换算。</p>${catalog!=null?`<p>此店铺目录已读取 ${esc(catalog)}${m.catalogue.complete?' 件 · 读取完成':' / '+esc(m.catalogue.total??'未知')+' 件 · 尚未完成'}；目录完整不代表财务或广告覆盖完整。</p>`:''}${adCoverage(d)}<p class="muted">所有外部操作仍需确认。当前预算与亏损上限需要人工监控，不会自动执行。</p></details>`;
 }
+
+function wbHome(data,m){const v=data.wbFinance?.[m.store.id],s=v?.snapshot;return `<section class="home-toolbar"><label>当前店铺<select id="home-store">${m.stores.map(t=>`<option value="${esc(t.id)}" ${t.id===m.store.id?'selected':''}>${esc(t.name)} · ${t.marketplace.toUpperCase()}</option>`).join('')}</select></label><div class="home-period"><b>${v?.period?`${esc(v.period.from)} — ${esc(v.period.to)}`:'经营数据尚未接入'}</b><small>WB 财务报表 · 莫斯科自然日</small></div><button class="quiet" data-nav="stores">管理店铺</button></section><div class="metrics home-metrics"><article class="metric profit-pending"><small>店铺利润</small><strong>待核算</strong><span>还需商品成本、外部费用与完整费用核对</span></article><article class="metric"><small>报告销售金额</small><strong>${wbReportAmounts(s,'retailAmountSum')}</strong><span>${s?.complete?'平台已返回的报表':'部分数据 / 尚未读取'}${s?.stale?' · 旧快照':''}</span></article><article class="metric"><small>WB 报告总额</small><strong>${wbReportAmounts(s,'bankPaymentSum')}</strong><span>非利润，也不表示已到账${s?.stale?' · 旧快照':''}</span></article><article class="metric"><small>广告支出</small><strong>—</strong><span>此店铺广告报表尚未接入</span></article></div>${wbFinancePanel(v,m.store.id)}${wbFinanceProducts(v,m.store.id)}${m.scope.trialPlans.length||m.scope.trials.length?decisionPanel(m.scope,{limit:3}):''}${m.scope.trialPlans.length||m.scope.trials.length?skuTable(m):''}`;}
