@@ -33,7 +33,7 @@ http.createServer(async(req,res)=>{
     const p=validatePolicy(JSON.parse(body));await writeFile(join(root,'runtime/policy.json'),JSON.stringify(p,null,2));res.end(JSON.stringify(p));return;
    }
   }
-  if(path==='/api/status'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({mode:'live',sellerConfigured:Boolean((await credentials()).key),performanceConfigured:await performanceConfigured(),externalWritesEnabled:true,externalWriteScope:['ozon.product.create.human-gated'],autopilotWritesEnabled:false}));return;}
+  if(path==='/api/status'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({mode:'live',sellerConfigured:Boolean((await credentials()).key),performanceConfigured:await performanceConfigured(),externalWritesEnabled:true,externalWriteScope:['ozon.product.create.human-gated','ozon.price.trial.human-gated'],autopilotWritesEnabled:false}));return;}
   if(req.method!=='GET'){res.writeHead(405);res.end();return;}
   const allowed=['/','/index.html','/style.css','/app.mjs','/engine.mjs','/demo.mjs','/mark.svg','/planning.mjs','/autopilot.mjs','/ad-optimizer.mjs','/stress.mjs','/experiments.mjs','/live-dashboard.mjs','/portal.mjs','/profit-trials.mjs','/sku-economy.mjs','/catalogue.mjs','/decisions.mjs','/assortment.mjs','/form-state.mjs','/sku-costs.mjs','/migration-setup.mjs','/portal.css','/legacy.html'];
   if(!allowed.includes(path)){res.writeHead(404);res.end('Not found');return;}
