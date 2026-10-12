@@ -30,20 +30,45 @@ export function summarizeAccruals(accruals){
  }
  return {totals,bySku,daily,unallocated,count:seen.size};
 }
-export function normalizeAdReports(cpc,cpo){
- const bySku={};let cpcSpend=0,cpoSpend=0;
- const row=(sku)=>bySku[String(sku)]??={cpcSpend:0,cpoSpend:0,cpcOrders:0,cpoOrders:0,cpcRevenue:0,cpoRevenue:0,campaignIds:[]};
+// Reports are validated independently: one unavailable instrument must not erase another.
+export function normalizeCpcReport(cpc,expectedIds){
+ if(!cpc||typeof cpc!=='object'||Array.isArray(cpc))throw Error('cpc_report_schema');
+ if(expectedIds&&(Object.keys(cpc).length!==new Set(expectedIds).size||expectedIds.some(id=>!Object.hasOwn(cpc,id))))throw Error('cpc_report_incomplete');
+ const bySku={};let spend=0,allocated=0;
  for(const [id,c] of Object.entries(cpc)){
-  if(!c.report||!Array.isArray(c.report.rows))throw Error('cpc_report_schema');
-  cpcSpend+=apiNumber(c.report.totals.moneySpent);
-  for(const r of c.report.rows){const sku=r.sku;if(!sku)continue;const s=row(sku);s.cpcSpend+=apiNumber(r.moneySpent);s.cpcOrders+=apiNumber(r.orders??'0');s.cpcRevenue+=apiNumber(r.ordersMoney??'0');if(!s.campaignIds.includes(id))s.campaignIds.push(id);}
+  if(!c?.report||!Array.isArray(c.report.rows))throw Error('cpc_report_schema');
+  spend+=apiNumber(c.report.totals?.moneySpent);
+  for(const r of c.report.rows){
+   const cost=apiNumber(r.moneySpent);if(!/^[1-9]\d*$/.test(String(r.sku)))continue;
+   const s=bySku[String(r.sku)]??={spend:0,orders:0,revenue:0,campaignIds:[]};
+   s.spend+=cost;allocated+=cost;s.orders+=apiNumber(r.orders??'0');s.revenue+=apiNumber(r.ordersMoney??'0');if(!s.campaignIds.includes(id))s.campaignIds.push(id);
+  }
  }
- if(!Array.isArray(cpo.rows))throw Error('cpo_report_schema');
- for(const r of cpo.rows){if(!r.SKU)continue;const s=row(r.SKU);const cost=apiNumber(r.MoneySpent);s.cpoSpend+=cost;cpoSpend+=cost;s.cpoOrders+=apiNumber(r.Orders);s.cpoRevenue+=apiNumber(r.OrdersMoney);s.name=r.Title;s.offerId=r.OfferID;
+ return {bySku,spend:round(spend),unallocated:round(spend-allocated)};
+}
+export function normalizeCpoReport(cpo){
+ if(!Array.isArray(cpo?.rows))throw Error('cpo_report_schema');
+ const bySku={};let spend=0,allocated=0;
+ for(const r of cpo.rows){
+  const cost=apiNumber(r.MoneySpent);spend+=cost;
+  if(!/^[1-9]\d*$/.test(String(r.SKU)))continue;
+  const s=bySku[String(r.SKU)]??={spend:0,orders:0,revenue:0};
+  s.spend+=cost;allocated+=cost;s.orders+=apiNumber(r.Orders);s.revenue+=apiNumber(r.OrdersMoney);s.name=r.Title;s.offerId=r.OfferID;
   // MoneySpentFromCPC is already in the CPC report; do not add it again.
  }
- return {bySku,cpcSpend:round(cpcSpend),cpoSpend:round(cpoSpend),totalSpend:round(cpcSpend+cpoSpend)};
+ return {bySku,spend:round(spend),unallocated:round(spend-allocated)};
 }
+function adRow(cpc,cpo,sku){
+ const a=cpc?.bySku[sku],b=cpo?.bySku[sku];
+ const value=(report,row,key)=>row?round(row[key]):report&&report.unallocated===0?0:null;
+ return {cpcSpend:value(cpc,a,'spend'),cpoSpend:value(cpo,b,'spend'),cpcOrders:value(cpc,a,'orders'),cpoOrders:value(cpo,b,'orders'),cpcRevenue:value(cpc,a,'revenue'),cpoRevenue:value(cpo,b,'revenue'),campaignIds:a?.campaignIds||[],name:b?.name,offerId:b?.offerId};
+}
+const knownSum=(a,b)=>a===null&&b===null?null:round((a??0)+(b??0));
+function combineAds(cpc,cpo){
+ const bySku={};for(const sku of new Set([...Object.keys(cpc?.bySku||{}),...Object.keys(cpo?.bySku||{})]))bySku[sku]=adRow(cpc,cpo,sku);
+ return {bySku,cpcSpend:cpc?.spend??null,cpoSpend:cpo?.spend??null,totalSpend:knownSum(cpc?.spend??null,cpo?.spend??null),unallocated:{cpc:cpc?.unallocated??null,cpo:cpo?.unallocated??null},selectedReportsComplete:Boolean(cpc&&cpo),allAssortmentVerified:false};
+}
+export function normalizeAdReports(cpc,cpo){return combineAds(normalizeCpcReport(cpc),normalizeCpoReport(cpo));}
 export async function synchronizeLive(progress=()=>{},{seller=sellerRead,catalogue=fullCatalog,performance=performanceRead,report=performanceReport}={}){
  const period=lastCompleteWeek(),warnings=[],sources={};const result={mode:'live',period,startedAt:new Date().toISOString(),sources,warnings};
  const attempt=async(name,fn)=>{try{const value=await fn();sources[name]={ok:true};return value;}catch(e){sources[name]={ok:false,error:e.message};warnings.push({source:name,code:e.message});return null;}};
@@ -81,17 +106,21 @@ export async function synchronizeLive(progress=()=>{},{seller=sellerRead,catalog
  }
  for(const [sku,net] of Object.entries(finance?.bySku||{}))get(sku).netAccrued=net;
  progress('Получаю рекламные отчёты и состав кампаний…');
- let adReport=null;
- if(campaignList){
+ let adReport=null,cpcReport=null,cpoReport=null;
+ {
   const cpcIds=campaigns.filter(c=>c.type==='SKU').map(c=>c.id);
-  const cpc=await attempt('cpc',async()=>cpcIds.length?report('/api/client/statistics/json',{campaigns:cpcIds,dateFrom:period.from,dateTo:period.to,groupBy:'NO_GROUP_BY'},progress):{});
-  const cpo=await attempt('cpo',()=>report('/api/client/statistic/products/generate/json',{from:period.from+'T00:00:00+03:00',to:period.to+'T23:59:59+03:00'},progress));
+  cpcReport=await attempt('cpc',async()=>{if(!campaignList)throw Error('campaign_list_unavailable');return normalizeCpcReport(cpcIds.length?await report('/api/client/statistics/json',{campaigns:cpcIds,dateFrom:period.from,dateTo:period.to,groupBy:'NO_GROUP_BY'},progress):{},cpcIds);});
+  cpoReport=await attempt('cpo',async()=>normalizeCpoReport(await report('/api/client/statistic/products/generate/json',{from:period.from+'T00:00:00+03:00',to:period.to+'T23:59:59+03:00'},progress)));
   const expenses=await attempt('adExpenses',()=>performance('/api/client/statistics/expense/json?'+new URLSearchParams({dateFrom:period.from,dateTo:period.to})));
   // This supplementary endpoint covers the separate all-assortment CPO instrument.
   const allCpo=await attempt('allCpo',()=>report('/api/client/statistics/all_sku_promo/products/generate/json?'+new URLSearchParams({'timeBounds.from':period.from+'T00:00:00+03:00','timeBounds.to':period.to+'T23:59:59+03:00'}),undefined,progress));
   result.allCpoReport=allCpo;
-  if(cpc&&cpo){adReport=await attempt('adMetrics',async()=>normalizeAdReports(cpc,cpo));}if(adReport){for(const [sku,ad] of Object.entries(adReport.bySku)){Object.assign(get(sku),{adSpend:round(ad.cpcSpend+ad.cpoSpend),adOrders:ad.cpcOrders+ad.cpoOrders,adRevenue:round(ad.cpcRevenue+ad.cpoRevenue),adBreakdown:ad});if(ad.name)get(sku).name=ad.name;}}
-  result.ads=adReport?{cpcSpend:adReport.cpcSpend,cpoSpend:adReport.cpoSpend,selectedProductsSpend:adReport.totalSpend,allAssortmentVerified:false}:null;
+  if(cpcReport||cpoReport){
+   adReport=combineAds(cpcReport,cpoReport);
+   sources.adMetrics={ok:true,partial:!adReport.selectedReportsComplete};
+   for(const [sku,ad] of Object.entries(adReport.bySku)){const r=get(sku);if(ad.name)r.name=ad.name;}
+  }
+  result.ads=adReport?{...adReport,bySku:undefined,selectedProductsSpend:adReport.totalSpend}:null;
   result.expenseReport=expenses;
   const membership=await attempt('membership',async()=>{
    const members=[];for(let page=1;page<=100;page++){const d=await performance('/api/client/campaign/search_promo/v2/products',{page,pageSize:1000});if(!Array.isArray(d.products))throw Error('membership_schema');members.push(...d.products);if(members.length>=Number(d.total))return members;if(!d.products.length)throw Error('membership_incomplete');}throw Error('membership_too_large');
@@ -107,7 +136,10 @@ export async function synchronizeLive(progress=()=>{},{seller=sellerRead,catalog
  for(const r of rows.values()){
   if(analyticsComplete&&r.orderRevenue===null){r.orderRevenue=0;r.orderedUnits=0;}
   if(finance&&r.netAccrued===null)r.netAccrued={};
-  if(adReport&&r.adSpend===null){r.adSpend=0;r.adOrders=0;r.adRevenue=0;}
+  if(adReport){
+   const ad=adRow(cpcReport,cpoReport,r.sku);
+   Object.assign(r,{adSpend:knownSum(ad.cpcSpend,ad.cpoSpend),adOrders:knownSum(ad.cpcOrders,ad.cpoOrders),adRevenue:knownSum(ad.cpcRevenue,ad.cpoRevenue),adBreakdown:ad});
+  }
  }
  result.rows=[...rows.values()].sort((a,b)=>(b.orderRevenue||0)-(a.orderRevenue||0));result.analyticsComplete=analyticsComplete;result.fetchedAt=new Date().toISOString();
  return result;
