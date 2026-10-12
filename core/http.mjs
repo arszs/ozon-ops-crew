@@ -22,6 +22,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='assets'&&id){res.setHeader('Content-Type','image/png');res.end(await readFile(assetPath(id)));return true;}
     if(resource==='stores'&&action==='attributes')return send(await ws.attributes(id,url.searchParams.get('categoryId'),url.searchParams.get('typeId')));
     if(resource==='stores'&&action==='values')return send(await ws.values(id,Object.fromEntries(url.searchParams)));
+    if(resource==='benchmark')return send(await ws.benchmark());
     if(resource==='sample')return send(DEMO_PRODUCT);
     if(resource==='digest')return send(await ws.digest());
     if(resource==='stores'&&action==='dictionary')return send(await ws.dictionary(id,url.searchParams.get('q')||''));
