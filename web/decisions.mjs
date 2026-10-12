@@ -1,0 +1,14 @@
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export function sellerDecisions(data,today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())){
+ const plans=data.trialPlans||[],trials=data.trials||[],items=[];
+ // One latest recorded observation per store/SKU; never add overlapping periods together.
+ const latest=new Map();for(const t of trials){const key=JSON.stringify([t.storeId,t.sku]);const old=latest.get(key);if(!old||t.at>=old.at)latest.set(key,t);}
+ for(const p of plans.filter(p=>p.status==='planned')){items.push({target:"plan-"+p.id,storeId:p.storeId,sku:p.sku,mode:p.mode,kind:p.bEnd<today?'due':'planned',priority:p.bEnd<today?1:4,title:p.bEnd<today?'计划日期已结束，请核对结果':'待执行的测试计划',detail:p.bEnd<today?'日期已过不代表测试实际执行。若未执行，请取消原计划。':'只保存了计划；请勿视为广告或价格已经生效。'});}
+ for(const t of latest.values()){
+  const incomplete=t.result.verdict==='insufficient',loss=t.result.after<0;
+  const kind=incomplete?'evidence':loss?'loss':t.result.verdict==='repeat_candidate'?'repeat':'review';
+  items.push({target:"trial-"+t.id,storeId:t.storeId,sku:t.sku,mode:t.mode,kind,priority:incomplete||loss?0:kind==='repeat'?3:2,title:({evidence:'补齐证据，再作决定',loss:'观察期仍亏损，先检查成本',repeat:'正向观察，值得重复验证',review:'未观察到改善，请调整假设'})[kind],detail:incomplete?t.result.blockers.join('；'):loss?'利润即使有所改善，也不等于已盈利；不建议据此扩大投入。':'人工观察；不证明因果关系，也不代表系统已改变投放。'});
+ }
+ return items.sort((a,b)=>a.priority-b.priority);
+}
+export function decisionPanel(data){const all=sellerDecisions(data),real=all.filter(x=>x.mode!=='mock'),demo=all.filter(x=>x.mode==='mock');const rows=items=>items.slice(0,8).map(x=>`<article class="decision-row"><div><span class="badge ${x.mode==='mock'?'mock':''}">${x.mode==='mock'?'DEMO':'人工计划 / 观察'}</span><h3>${esc(x.title)}</h3><p>${esc(data.stores.find(s=>s.id===x.storeId)?.name||x.storeId)} · ${esc(x.sku)}</p><small>${esc(x.detail)}</small></div><button class="quiet" data-nav="trials" data-record="${esc(x.target)}">查看实验 →</button></article>`).join('');return `<section class="card"><div class="section-head"><h2>今天需要决定什么？</h2><button class="quiet" data-nav="trials">全部实验 →</button></div><p class="muted">仅汇总已加载的计划和每个商品最新记录。未执行计划不算运行中的广告；不累加重复观察的利润。</p>${real.length?rows(real):'<p>真实店铺暂无实验决策。先从一个商品建立价格或广告计划。</p>'}${real.length>8?'<p class="muted">显示前 8 项；其余请查看全部实验。</p>':''}${demo.length?`<details><summary>演示决策（${demo.length}）· 不计入真实店铺</summary>${rows(demo)}</details>`:''}</section>`;}

@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {sellerDecisions,decisionPanel} from '../web/decisions.mjs';
+const observation=(extra={})=>({storeId:'live',sku:'A',mode:'live',at:'2026-10-01',result:{verdict:'repeat_candidate',after:100,blockers:[]},...extra});
+test('decision list uses latest record per store/SKU and keeps store identity',()=>{const d=sellerDecisions({trials:[observation(),observation({at:'2026-10-02',result:{verdict:'no_improvement',after:20,blockers:[]}}),observation({storeId:'other'})]});assert.equal(d.length,2);assert.equal(d.find(x=>x.storeId==='live').kind,'review');});
+test('positive change while losing money never invites scaling',()=>{const d=sellerDecisions({trials:[observation({result:{verdict:'repeat_candidate',after:-5,blockers:[]}})]});assert.equal(d[0].kind,'loss');});
+test('expired planned dates request verification rather than imply execution; cancelled omitted',()=>{const d=sellerDecisions({trialPlans:[{status:'planned',bEnd:'2026-10-01'},{status:'cancelled',bEnd:'2026-10-01'}]},'2026-10-02');assert.equal(d.length,1);assert.equal(d[0].kind,'due');});
+test('demo decisions remain in separate section and names are escaped',()=>{const html=decisionPanel({stores:[],trials:[observation({mode:'mock',sku:'<script>bad</script>'})]});assert.ok(html.includes('真实店铺暂无实验决策'));assert.ok(html.includes('演示决策（1）'));assert.ok(!html.includes('<script>'));});
