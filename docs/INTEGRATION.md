@@ -6,7 +6,7 @@ Local adapter: `POST https://api-seller.ozon.ru/v3/product/list`, read-only JSON
 ## Needed next
 Seller API: actual prices, inventory, FBO/FBS orders, financial operations and settlement reports. Confirm current schema and permissions for this Chinese account before implementation. Performance API uses separate authorization: do not reuse the Seller key or assume advertising rights. Verify campaign membership and campaign-level vs SKU-level controls before pausing.
 
-Procurement: Excel batches need SKU, batch/date, quantity, CNY amount, FX/date, inbound and other costs, arrival estimate. Keep historical currency rates with each batch; support partial receipts and returns. Actual storage cost must use the correct account/warehouse tariff.
+The product is for a Chinese seller, not a Russian importer. No procurement/import workflow is required. Seller-provided product costs and actual marketplace fees are reconciled separately; currencies stay explicit and are not converted automatically. See LIVE-API.md for the current implemented scope.
 
 ## Secret handling
 Use an external permission-restricted env file. Do not add it to source control or public deployment. The API server binds only to localhost and rejects nonlocal Host headers. The prototype lacks production identity management and must not be exposed publicly with real credentials. Rotate a credential if it is disclosed outside the intended private channel.

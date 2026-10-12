@@ -1,3 +1,5 @@
+import {wbRead,wbRegion} from './wb-api.mjs';
+import {wbCataloguePage} from './wb-catalogue.mjs';
 import {readFile} from 'node:fs/promises';
 import {readOzonCatalogue} from './ozon-catalogue.mjs';
 const timeout=()=>AbortSignal.timeout(20000);
@@ -8,7 +10,7 @@ export async function storeCredentials(store){return envFile(store.envFile);}
 export async function readStore(store){
  if(store.mode==='mock')return store.snapshot?structuredClone(store.snapshot):{mode:'mock',products:[{sku:'DEMO-STORAGE-01',name:'Складной короб, 30 л',price:1290,stock:48}],orders:12,orderedAmount:15480,profit:null,currency:'RUB',source:'固定演示数据，不是真实销售'};
  if(store.marketplace==='ozon')return readOzonCatalogue(store);
- const c=await storeCredentials(store);if(!c.WB_API_TOKEN)throw Error('未配置 WB_API_TOKEN');const d=await json('https://content-api.wildberries.ru/content/v2/get/cards/list',{method:'POST',headers:{Authorization:c.WB_API_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({settings:{cursor:{limit:100},filter:{withPhoto:-1}}})});if(d.error)throw Error('wb_content_error');return {mode:'live',products:(d.cards||[]).map(p=>({sku:String(p.nmID),offerId:p.vendorCode,name:p.title})),cursor:d.cursor,source:'WB Content API · 前100个商品，非完整库存'};
+ const page=await wbCataloguePage(store);return {mode:'live',products:page.rows,catalogTotal:page.complete?page.rows.length:null,catalogueComplete:page.complete,source:'WB Content API · 单页快照；完整目录请使用后台同步'};
 }
 export async function dictionaries(store,search=''){
  if(store.mode==='mock')return {mode:'mock',verified:false,source:'演示规则快照，不是当前平台规则',items:[{id:'mock-storage',name:'Короба для хранения',required:['Материал','Цвет','Объём'],titleLimit:store.marketplace==='wb'?60:200}]};
@@ -17,7 +19,7 @@ export async function dictionaries(store,search=''){
   if(store.id==='ozon-live'){const {credentials}=await import('../ozon.mjs');const v=await credentials();headers['Client-Id']=v.client;headers['Api-Key']=v.key;}
   const data=await json('https://api-seller.ozon.ru/v1/description-category/tree',{method:'POST',headers,body:JSON.stringify({language:'DEFAULT'})});const items=[];function walk(nodes,parent=null){for(const n of nodes||[]){if(n.type_id&&(!search||n.type_name?.toLowerCase().includes(search.toLowerCase())))items.push({id:String(n.type_id),categoryId:parent,name:n.type_name});walk(n.children,n.description_category_id||parent);}}walk(data.result);return {mode:'live',verified:true,source:'Ozon description-category/tree',items:items.slice(0,100),truncated:items.length>100};
  }
- const c=await storeCredentials(store);if(!c.WB_API_TOKEN)throw Error('未配置 WB_API_TOKEN');const d=await json('https://content-api.wildberries.ru/content/v2/object/all?'+new URLSearchParams({limit:100,offset:0,name:search}),{headers:{Authorization:c.WB_API_TOKEN}});if(d.error)throw Error('wb_dictionary_error');return {mode:'live',verified:true,source:'WB object/all',items:d.data||[]};
+ const d=await wbRead(store,'/content/v2/object/all?'+new URLSearchParams({limit:100,offset:0,name:search,locale:'zh'}));if(!Array.isArray(d.data))throw Error('wb_dictionary_schema');return {mode:'live',verified:true,source:'WB object/all · '+wbRegion(store),items:d.data};
 }
 export async function executeMarketplace(store,operation){
  if(store.mode==='mock')return {mode:'mock',externalWrite:false,receipt:'SIM-'+operation.id,platform:store.marketplace,status:'simulated',payloadHash:operation.payloadHash};
@@ -29,6 +31,7 @@ export async function readMessages(store){
  if(store.mode==='mock')return {items:[],mode:'mock',partial:false};
  const c=await storeCredentials(store);let headers,requests;
  if(store.marketplace==='wb'){
+  if(wbRegion(store)==='cn')throw Error('WB 中国站买家消息尚未接入');
   if(!c.WB_API_TOKEN)throw Error('未配置 WB_API_TOKEN');headers={Authorization:c.WB_API_TOKEN};requests=[['review','https://feedbacks-api.wildberries.ru/api/v1/feedbacks?isAnswered=false&take=100&skip=0'],['question','https://feedbacks-api.wildberries.ru/api/v1/questions?isAnswered=false&take=100&skip=0']].map(([kind,url])=>({kind,url,options:{headers}}));
  }else{
   if(store.id==='ozon-live'){const {credentials}=await import('../ozon.mjs');const v=await credentials();c.OZON_CLIENT_ID=v.client;c.OZON_API_KEY=v.key;}
