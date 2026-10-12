@@ -11,4 +11,5 @@ jobs:
         with:
           node-version: '22'
       - run: npm test
-      - run: node --check web/app.mjs
+      - run: |
+          for file in server.mjs core/*.mjs adapters/*.mjs web/*.mjs; do node --check "$file"; done
