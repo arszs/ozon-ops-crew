@@ -1,3 +1,4 @@
+import {wbCharacteristics} from '../adapters/wb-content.mjs';
 import {draftBuyerMessage,translateReplyForApproval} from '../adapters/review-draft.mjs';
 import {migrationBenchmark} from './benchmark.mjs';
 import {evaluateTrial,planTrial,checkPlanResult} from './profit-trials.mjs';
@@ -24,6 +25,7 @@ export class Workspace{
  async getJob(id){const db=await this.repo.read();return find(db.jobs,id);}
  async addStore(input){return this.repo.mutate(db=>{if(!['ozon','wb'].includes(input.marketplace)||typeof input.name!=='string'||!input.name.trim()||input.name.length>80)throw Error('Invalid store');const s={id:randomUUID(),name:input.name.trim(),marketplace:input.marketplace,mode:'mock',writesEnabled:false};db.stores.push(s);audit(db,{kind:'store.created',storeId:s.id,mode:s.mode});return s;});}
  async synchronize(storeId){const db=await this.repo.read(),store=this.resolveStore(db,storeId);const live=storeId==='ozon-live'?this.liveSnapshot():null;const result=live?{mode:'live',products:live.rows.map(p=>({sku:p.sku,name:p.name,price:p.price,stock:p.stock})),orders:live.orders?.units??null,orderedAmount:live.orders?.amount??null,period:live.period,catalogTotal:live.catalogTotal,profit:null,source:'Ozon Seller API + Performance API'}:await readStore(store);return this.repo.mutate(db=>{const s=find(db.stores,storeId);s.snapshot={...result,fetchedAt:now()};audit(db,{kind:'store.sync',storeId,outputHash:hash(result),mode:store.mode});return s.snapshot;});}
+ async wbCharacteristics(storeId,subjectId){const db=await this.repo.read();return wbCharacteristics(this.resolveStore(db,storeId),subjectId);}
  async attributes(storeId,categoryId,typeId){const db=await this.repo.read();return categoryAttributes(this.resolveStore(db,storeId),categoryId,typeId);}
  async values(storeId,input){const db=await this.repo.read();return attributeValues(this.resolveStore(db,storeId),input);}
  async setup(id,input){return this.repo.mutate(db=>{const j=find(db.jobs,id);if(['running','publishing','submitted','imported','published','synced'].includes(j.state))throw Error('Cannot change submitted or running job');if(input.mapping)j.mapping=structuredClone(input.mapping);if(input.publishConfig)j.publishConfig=structuredClone(input.publishConfig);j.revision++;j.gates={};for(const s of ['map_attributes','validate'])delete j.artifacts[s];if(j.artifacts.image_edit)j.state='map_attributes';delete j.error;delete j.failedStage;audit(db,{kind:'job.setup',jobId:id,revision:j.revision,inputHash:hash(input)});return j;});}

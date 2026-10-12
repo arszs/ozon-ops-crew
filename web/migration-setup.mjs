@@ -3,6 +3,7 @@ const labels={'Тип':'商品类型','Бренд':'品牌','ТН ВЭД код�
 let current=null,results=[],schema=null,selection=null,values={};
 export function setupPanel(job){
  if(job.mode==='mock')return '';
+ if(job.marketplace==='wb')return '<section class="card"><h3>Wildberries</h3><p>可在店铺总览查询真实类目必填特征。WB 映射保存与发布尚未接入；这里不会显示 Ozon 发布表单。</p></section>';
  if(['publishing','submitted','imported','published','synced'].includes(job.state))return '<section class="card"><p>已提交的版本已锁定。请查看发布与审核状态。</p></section>';
  if(current!==job.id){current=job.id;results=[];schema=job.artifacts.map_attributes?.output.schema||null;selection=job.mapping?{id:job.mapping.typeId,categoryId:job.mapping.categoryId,name:job.mapping.name}:null;values=Object.fromEntries((job.mapping?.attributes||[]).map(a=>[a.id,a.values]));}
  const fields=(schema?.attributes||[]).filter(a=>a.is_required||a.id===4191||a.name==='Аннотация'||Object.hasOwn(job.artifacts.translate?.output.attributes||{},a.name));
@@ -11,7 +12,7 @@ export function setupPanel(job){
  <details><summary>真实发布资料（价格、包装、俄语图片）</summary><form id="publish-config"><div class="form-grid">${[['price','销售价格'],['currency','店铺币种 RUB / CNY / USD / EUR'],['vat','税率，例如 0 或 0.2'],['width','包装宽 mm'],['height','包装高 mm'],['depth','包装深 mm'],['weight','包装重量 g']].map(([k,l])=>`<label>${l}<input name="${k}" value="${esc(job.publishConfig?.[k]??'')}" required></label>`).join('')}</div><label>最终俄语图片 HTTPS 地址（每行一个）<textarea name="images" rows="3" required>${esc(job.publishConfig?.images?.join('\n')||'')}</textarea></label><p class="muted">先下载处理后的图片，放到你授权的公开图片存储，再填写地址。本机链接不能发给 Ozon。</p>${[['rightsConfirmed','我确认商品、品牌与图片使用权'],['complianceConfirmed','我已核验此商品所需认证与平台限制'],['imagesReviewed','我已检查最终图片文字和商品外观']].map(([k,l])=>`<label><input type="checkbox" name="${k}" required ${job.publishConfig?.[k]?'checked':''}> ${l}</label>`).join('')}<button class="quiet">保存发布资料</button></form></details></section>`;
 }
 export function bindSetup({job,api,action,setJob,render}){
- if(!job||job.mode==='mock')return;
+ if(!job||job.mode==='mock'||job.marketplace==='wb')return;
  const store=job.mode==='sample'?'ozon-live':job.storeId;
  const search=document.querySelector('#category-search');if(search)search.onsubmit=e=>{e.preventDefault();const q=new FormData(search).get('q');action(async()=>{results=(await api('/stores/'+store+'/dictionary?q='+encodeURIComponent(q))).items;});};
  document.querySelectorAll('[data-select-category]').forEach(b=>b.onclick=()=>action(async()=>{selection=results[Number(b.dataset.selectCategory)];schema=await api('/stores/'+store+'/attributes?'+new URLSearchParams({categoryId:selection.categoryId,typeId:selection.id}));values={};}));
