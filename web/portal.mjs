@@ -1,3 +1,4 @@
+import {captureForms,restoreForms} from './form-state.mjs';
 import {assortmentTable,sampleAssortment} from './assortment.mjs';
 import {decisionPanel} from './decisions.mjs';
 import {skuEconomy,bindSkuEconomy} from './sku-economy.mjs';
@@ -11,7 +12,8 @@ let state={page:'home',data:null,job:null,live:null,digest:null,assessment:null,
 async function api(path='',body){const r=await fetch('/api/workspace'+path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});let d;try{d=await r.json();}catch{throw Error('本地服务未启动；公开 GitHub Pages 不提供私有 API。');}if(!r.ok)throw Error(d.error||'请求失败');return d;}
 function say(text,bad=false){$('#notice').textContent=text;$('#notice').className=bad?'error':'success';}
 async function load(){state.data=await api();state.digest=await api('/digest');}
-async function action(fn,message){if(state.busy)return;state.busy=true;say('正在处理… AI 阶段可能需要数分钟；结果会保存，请勿重复提交。');document.querySelectorAll('button').forEach(b=>b.disabled=true);try{await fn();await load();if(message)say(message);}catch(e){say(e.message,true);}finally{state.busy=false;render();}}
+async function action(fn,message){if(state.busy)return;const page=state.page,jobId=state.job?.id;let failed=false;state.busy=true;say('正在处理… AI 阶段可能需要数分钟；结果会保存，请勿重复提交。');document.querySelectorAll('button').forEach(b=>b.disabled=true);try{await fn();await load();if(message)say(message);}catch(e){failed=true;say(e.message,true);}finally{const keep=failed&&page===state.page&&jobId===state.job?.id,forms=keep?captureForms($('#portal')):null,linked=keep?$('#linked-plan')?.textContent:null;state.busy=false;render();if(forms){restoreForms($('#portal'),forms);if(linked&&$('#linked-plan'))$('#linked-plan').textContent=linked;}}}
+
 function badge(mode){return `<span class="badge ${mode==='live'?'live':'mock'}">${mode==='live'?'真实 API':mode==='manual'?'人工导出':mode==='sample'?'AI 实测 · 合成商品':'DEMO · 模拟'}</span>`;}
 function storeOptions(mockOnly=false){return state.data.stores.filter(s=>!mockOnly||s.mode==='mock').map(s=>`<option value="${esc(s.id)}">${esc(s.name)} · ${s.marketplace.toUpperCase()} · ${s.mode==='live'?'API':'DEMO'}</option>`).join('');}
 function storeName(id){return state.data.stores.find(s=>s.id===id)?.name||id;}
@@ -55,6 +57,6 @@ function bind(){const bm=$('#benchmark-load');if(bm)bm.onclick=()=>action(async(
  const dr=$('#digest-refresh');if(dr)dr.onclick=()=>action(async()=>{state.digest=await api('/digest');},'摘要已更新');
 }
 document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>navigate(b.dataset.page));
-async function live(force=false){clearTimeout(liveTimer);try{const r=await fetch('/api/live'+(force?'?refresh=1':''),{signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error('local_api_unavailable');state.live=await r.json();if(state.live.state==='syncing')liveTimer=setTimeout(()=>live(),3000);}catch{state.live={...state.live,state:'error',stale:true,error:'local_api_unavailable'};}if(['home','products'].includes(state.page)&&!state.busy)render();}
+async function live(force=false){clearTimeout(liveTimer);try{const r=await fetch('/api/live'+(force?'?refresh=1':''),{signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error('local_api_unavailable');state.live=await r.json();if(state.live.state==='syncing')liveTimer=setTimeout(()=>live(),3000);}catch{state.live={...state.live,state:'error',stale:true,error:'local_api_unavailable'};}if(['home','products'].includes(state.page)&&!state.busy){const forms=captureForms($('#portal')),query=$('#sku-query')?.value;render();restoreForms($('#portal'),forms);if(query&&$('#sku-query')){$('#sku-query').value=query;$('#sku-query').dispatchEvent(new Event('input'));}}}
 
 try{await load();render();live();}catch(e){$('#portal').innerHTML=`<section class="card"><h2>需要本地服务</h2><p>${esc(e.message)}</p><code>npm start → http://127.0.0.1:4173</code><p>GitHub Pages 不连接真实店铺，也不保存 API 密钥。</p></section>`;}

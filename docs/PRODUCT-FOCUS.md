@@ -48,3 +48,7 @@ Validation: 87 tests pass, including catalogue-only products when analytics/fina
 Structured samples may now supply independent economics in each item's `targets.ozon` and `targets.wb`. The assessment counts conditional economic candidates, revise-cost/price items and missing inputs per marketplace, and displays every SKU separately. Store-level scenario fields never fill missing SKU costs. The per-order advertising allowance is calculated at a stated 15% contribution margin; it is not a bid or a forecast of achievable acquisition cost. A format example is explicitly synthetic and will not overwrite existing input. Evidence retains the per-SKU assumptions for auditing.
 
 Validation: 90 tests passed, including platform-specific mixed assortments, missing costs, duplicate SKU rejection and the advertising allowance equation. No demand research, Taobao fetch or real pilot outcome is implied by this calculator.
+
+## Form continuity
+
+Failed actions preserve editable form values when the page and SKU job context remain the same. Background live refresh preserves home form inputs and product search. Values are held only temporarily in page memory; passwords/files are excluded, and successful actions retain normal reset behavior. Linked experiment plan IDs and their explanatory label survive validation failures. Chrome verification: submitting intentionally malformed import JSON displayed the error while retaining the exact draft and keeping the migration queue unchanged. Cross-page navigation and browser reload are not persistent draft storage.
