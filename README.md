@@ -55,7 +55,7 @@ A control room for Chinese Ozon Global sellers: compare pricing and advertising 
 
 ## Run in 30 seconds
 
-Node.js 20+; no npm dependencies required.
+Node.js 22.13+; run `npm install` (image processing uses Sharp). The large-catalogue cache uses built-in `node:sqlite`.
 
 ```sh
 npm test

@@ -1,3 +1,4 @@
+import {cataloguePanel} from './catalogue.mjs';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=(n,currency='RUB')=>typeof n==='number'&&Number.isFinite(n)?new Intl.NumberFormat('zh-CN',{style:'currency',currency}).format(n):'—';
 function primaryEconomy(live){
@@ -17,11 +18,12 @@ export function storeProductView(data,storeId){
   return {...p,storeId:store.id,sku:catalogueOnly||p.sku==null||String(p.sku).trim()===''?null:String(p.sku),productId:catalogueOnly?String(p.productId??p.sku):p.productId,currency:p.currency??(store.mode==='mock'?snapshot.currency:null)};
  })};
 }
-export function skuEconomy(live,data,storeId='ozon-live'){
+export function skuEconomy(live,data,storeId='ozon-live',catalogue){
  if(!data)return primaryEconomy(live);
  const v=storeProductView(data,storeId);if(!v)return '<section class="card">店铺不存在</section>';
  const selector=`<section class="card"><label>选择店铺<select id="sku-store">${data.stores.map(s=>`<option value="${esc(s.id)}" ${s.id===storeId?'selected':''}>${esc(s.name)} · ${s.marketplace.toUpperCase()} · ${s.mode==='mock'?'DEMO':'API'}</option>`).join('')}</select></label><p class="muted">每家店铺单独查看；成本与实验跟随所选店铺。</p></section>`;
- if(storeId==='ozon-live')return selector+primaryEconomy(live);
+ if(storeId==='ozon-live')return selector+primaryEconomy(live)+(catalogue?cataloguePanel(catalogue,storeId):'');
+ if(catalogue&&v.store.mode==='live'&&v.store.marketplace==='ozon')return selector+cataloguePanel(catalogue,storeId);
  const {store,snapshot,rows}=v;
  return selector+`<section class="card"><div class="section-head"><h2>${esc(store.name)} · 商品</h2><button class="quiet" id="sku-refresh">同步此店铺</button></div>${store.mode==='mock'?'<p class="warning">DEMO · 固定模拟数据，不是真实销售。</p>':'<p class="warning">此页面提供目录快照；销售、结算与广告尚未接入，无法判断实际利润。</p>'}<p class="muted">${snapshot?`${esc(snapshot.source)} · 读取时间：${esc(snapshot.fetchedAt||'未知')}`:'尚未同步；请先读取此店铺数据。'}</p><label>查找商品<input id="sku-query" type="search" placeholder="商品名称 / 平台编号 / 商家编码"></label><div class="table-wrap"><table><thead><tr><th>商品</th><th>当前售价</th><th>库存</th><th>下一步</th></tr></thead><tbody>${rows.map(r=>`<tr data-sku-row="${esc([r.name,r.sku,r.productId,r.offerId].join(' ').toLowerCase())}"><td><b>${esc(r.name||r.offerId||'名称未读取')}</b><br><small>${r.sku?`${store.marketplace==='wb'&&store.mode==='live'?'nmID':'SKU'} ${esc(r.sku)}`:`product_id ${esc(r.productId)} · SKU 尚未读取`} · ${esc(r.offerId)}</small></td><td>${r.currency?esc(money(r.price,r.currency)):'—'}</td><td>${esc(r.stock??'—')}</td><td>${r.sku?`<button class="quiet" data-cost-store="${esc(storeId)}" data-cost-sku="${esc(r.sku)}" data-cost-price="${r.currency==='RUB'&&Number.isFinite(r.price)?r.price:''}">填写成本</button><button class="quiet" data-observe-store="${esc(storeId)}" data-observe-sku="${esc(r.sku)}">记录比较 →</button>`:'请先核实平台 SKU，避免把商品 ID 当作 SKU'}</td></tr>`).join('')||'<tr><td colspan="4">尚无已读取商品；不代表店铺没有商品。</td></tr>'}</tbody></table></div><p class="muted">已读取 ${rows.length} 条 · 目录总量 ${snapshot?.catalogTotal??'未知'}${snapshot?.catalogueComplete?' · 目录分页读取完成':' · 目录完整性未核实'}${snapshot?.productsWithoutSku?` · ${snapshot.productsWithoutSku} 个商品尚无 SKU`:''}。缺失价格与库存不会显示为零。</p></section>`;
 }

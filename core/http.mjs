@@ -1,3 +1,4 @@
+import {CatalogueService} from './catalogue-service.mjs';
 import {assetPath,saveImage} from '../adapters/media.mjs';
 import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
@@ -8,6 +9,7 @@ const esc=s=>String(s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'
 export async function createWorkspaceAPI(root,live){
  let config={};try{config=JSON.parse(await readFile(join(homedir(),'.config/ozon-ops-crew/connection.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
  const ws=new Workspace(join(root,'runtime/workspace.json'),{stores:config.stores||[],liveSnapshot:()=>live.get().data});await ws.init();
+ const catalogue=new CatalogueService(join(root,'runtime/catalogue.sqlite'));
  return async(req,res,url)=>{
   const parts=url.pathname.split('/').filter(Boolean);if(parts[0]!=='api'||parts[1]!=='workspace')return false;
   res.setHeader('Content-Type','application/json');
@@ -20,6 +22,7 @@ export async function createWorkspaceAPI(root,live){
    if(req.method==='GET'){
     if(!resource)return send(await ws.view());
     if(resource==='assets'&&id){res.setHeader('Content-Type','image/png');res.end(await readFile(assetPath(id)));return true;}
+    if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.query(store,{q:url.searchParams.get('q')||'',offset:Number(url.searchParams.get('offset')||0)}));}
     if(resource==='stores'&&action==='wb-characteristics')return send(await ws.wbCharacteristics(id,url.searchParams.get('subjectId')));
     if(resource==='stores'&&action==='attributes')return send(await ws.attributes(id,url.searchParams.get('categoryId'),url.searchParams.get('typeId')));
     if(resource==='stores'&&action==='values')return send(await ws.values(id,Object.fromEntries(url.searchParams)));
@@ -35,6 +38,7 @@ export async function createWorkspaceAPI(root,live){
    }
    if(req.method==='POST'){
     if(resource==='stores'&&!id)return send(await ws.addStore(body));
+    if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.start(store,{restart:body.restart===true}));}
     if(resource==='stores'&&action==='sync')return send(await ws.synchronize(id));
     if(resource==='stores'&&action==='reviews')return send(await ws.syncMessages(id));
     if(resource==='stores'&&action==='demo-review')return send(await ws.demoReview(id));
