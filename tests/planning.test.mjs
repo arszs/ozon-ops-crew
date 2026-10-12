@@ -11,3 +11,12 @@ test('invalid CSV import leaves source intact',()=>{const before=JSON.stringify(
 test('malicious identifiers, duplicate SKUs and bad commissions rejected',()=>{assert.throws(()=>validateProducts([{...demoProducts[0],id:'<img src=x>'}]));assert.throws(()=>validateProducts([demoProducts[0],demoProducts[0]]));assert.throws(()=>validateProducts([{...demoProducts[0],commission:1}]));});
 test('horizon bounded to protect forecast and requires whole days',()=>{assert.throws(()=>validatePolicy({...defaults,horizon:366}));assert.throws(()=>validatePolicy({...defaults,horizon:2.5}));});
 test('rounded price never violates configured step',()=>{const p={...demoProducts[2],price:4290.01};const r=evaluate(p,defaults);assert.ok(Math.abs(r.proposedPrice/p.price-1)*100<=defaults.maxPriceChange+1e-7);});
+
+test('ad assumptions survive workspace validation round-trip',()=>{
+ const round=validateProducts(structuredClone(demoProducts));
+ const cn4=round.find(p=>p.id==='CN-004');
+ assert.equal(cn4.cpa,200);assert.equal(cn4.maxOrders,6);assert.equal(cn4.incrementality,0.7);
+ const stripped=validateProducts([{...structuredClone(demoProducts[0]),cpa:undefined}]);
+ assert.equal(stripped[0].cpa,undefined);
+ assert.throws(()=>validateProducts([{...structuredClone(demoProducts[0]),incrementality:1.5}]));
+});

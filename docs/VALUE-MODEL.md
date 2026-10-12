@@ -18,14 +18,16 @@ node scripts/value-model.mjs
 
 ## 模型输出（种子 20261011）
 
-| 指标 | 全组合（10,000 SKU） | 折算每卖家/月 |
+亏损指标按**观测窗口**计（每 SKU 最近 5 笔已结算销售），因为销售记录不含日期，不做月度外推。
+
+| 指标 | 全组合（10,000 SKU） | 折算每卖家 |
 |---|---:|---:|
-| 滚动亏损止损（含广告费） | 136,579,770 ₽ | 682,899 ₽ |
-| 无订单广告空烧拦截 | 1,043,555 ₽ | 5,218 ₽ |
+| 观测窗口内拦截的滚动亏损（含广告费） | 22,763,295 ₽ | 113,816 ₽ / 窗口 |
+| 无订单广告空烧拦截 | 1,043,555 ₽ | 5,218 ₽ / 窗口 |
 | 清仓决策覆盖的 30 天仓储敞口 | 8,793,931 ₽ | 43,970 ₽ |
-| 断货保护覆盖的收入风险 | 250,099,380 ₽ | 1,250,497 ₽ |
+| 断货保护覆盖的收入风险（30 天预测） | 250,099,380 ₽ | 1,250,497 ₽ |
 | 运营人力节省 | 7,525 小时/月 | 37.6 小时/月 |
-| 决策吞吐 | ≈353,000 SKU/秒（单核） | 全组合一轮 28 ms |
+| 决策吞吐 | ≈360,000 SKU/秒（单核） | 全组合一轮 28 ms |
 
 决策分布：止损 30.8% · 断货保护 23.3% · 旺季持有 20.6% · 小额测试 14.1% · 清仓 4.0% · 等待结算 7.2%。
 
@@ -38,4 +40,4 @@ node scripts/value-model.mjs
 
 ## English summary
 
-Reproducible value model: the real deterministic engine evaluates a seeded synthetic portfolio of 200 sellers × 50 SKUs in ~28 ms single-core. Aggregated monthly exposure addressed by engine decisions: ≈683k ₽ rolling-loss protection, ≈44k ₽ storage exposure, ≈1.25M ₽ stockout revenue-at-risk flagged per seller, plus ≈37.6 operator hours saved per seller per month under stated assumptions. All figures are modeled exposures under documented assumptions — credible basis for a pilot, not claimed live uplift.
+Reproducible value model: the real deterministic engine evaluates a seeded synthetic portfolio of 200 sellers × 50 SKUs in ~28 ms single-core. Aggregated exposure addressed by engine decisions per observation window (last 5 settled sales; no monthly extrapolation because sales records carry no dates): ≈114k ₽ rolling-loss stopped per seller per window, ≈44k ₽ storage exposure and ≈1.25M ₽ stockout revenue-at-risk flagged per seller, plus ≈37.6 operator hours saved per seller per month under stated assumptions. All figures are modeled exposures under documented assumptions — credible basis for a pilot, not claimed live uplift.

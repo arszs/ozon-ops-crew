@@ -53,7 +53,7 @@ const agg={sellers:SELLERS,skus:SELLERS*SKUS_PER_SELLER,elapsedMs:Math.round(ela
  strategies:{},protectedLossRub:0,adsBurnStoppedRub:0,storageExposureRub:0,stockoutRevenueProtectedRub:0};
 for(const seller of sellers)for(const {p,r,f} of seller){
  agg.strategies[r.strategy]=(agg.strategies[r.strategy]||0)+1;
- if(r.strategy==='stop'&&r.reason==='loss')agg.protectedLossRub+=Math.max(0,-r.net)*(30/POLICY.window); // monthly extrapolation of the observed window
+ if(r.strategy==='stop'&&r.reason==='loss')agg.protectedLossRub+=Math.max(0,-r.net); // loss over the observation window (last N settled sales), NOT extrapolated to a month
  if(r.strategy==='stop'&&r.reason==='ads')agg.adsBurnStoppedRub+=(p.unallocatedAds||0);
  if(r.strategy==='clear')agg.storageExposureRub+=f.storage; // 30-day storage cost the clearance decision addresses
  if(r.strategy==='protect')agg.stockoutRevenueProtectedRub+=f.missed*p.price; // revenue at risk from stockout the price-hold protects
@@ -62,13 +62,15 @@ for(const seller of sellers)for(const {p,r,f} of seller){
 const MANUAL_MIN=12,ASSISTED_MIN=1.5;
 agg.operatorHoursSavedPerMonth=Math.round(agg.skus*4.3*(MANUAL_MIN-ASSISTED_MIN)/60);
 for(const k of ['protectedLossRub','adsBurnStoppedRub','storageExposureRub','stockoutRevenueProtectedRub'])agg[k]=Math.round(agg[k]);
-// Normalized figures for credible communication.
+// Normalized figures for credible communication. Loss is per observation window
+// (last 5 settled sales per SKU), because sales records carry no dates.
 agg.decisionsPerSecond=Math.round(agg.skus/(agg.elapsedMs/1000));
-agg.perSellerMonth={
- protectedLossRub:Math.round(agg.protectedLossRub/SELLERS),
+agg.perSellerWindow={
+ stoppedLossRub:Math.round(agg.protectedLossRub/SELLERS),
  adsBurnStoppedRub:Math.round(agg.adsBurnStoppedRub/SELLERS),
  storageExposureRub:Math.round(agg.storageExposureRub/SELLERS),
  stockoutRevenueProtectedRub:Math.round(agg.stockoutRevenueProtectedRub/SELLERS),
- operatorHoursSaved:Math.round(agg.operatorHoursSavedPerMonth/SELLERS*10)/10,
+ operatorHoursSavedPerMonth:Math.round(agg.operatorHoursSavedPerMonth/SELLERS*10)/10,
 };
+delete agg.perSellerMonth;
 console.log(JSON.stringify(agg,null,2));

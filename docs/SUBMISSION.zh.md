@@ -63,6 +63,9 @@
 ## 0.6 更新（2026-10-11）
 新增可复现业务价值模型（scripts/value-model.mjs，种子固定，直接调用真实引擎，10,000 SKU 一轮决策约 28 ms）；规模化架构文档 SCALING.md（多租户隔离、密钥保险库、平台复制路线图）；架构文档补充智能体契约表；合规文档 COMPLIANCE.md；2000 SKU 规模基准测试与 500 SKU 压测组合生成器。36 项自动化检查通过。所有写入仍为本地模拟，价值数字为模型化敞口而非实盘收益。
 
+## 0.7 更新（2026-10-12）
+自动闭环与「广告回报」页现在共用同一边际回报优化分配（此前为两套不同逻辑）；回报页新增同预算对比表：均等分配 vs 优化分配的支出、额外利润、利润/₽ 与未用余额。亏损指标改为按观测窗口报告（销售记录不含日期，不再做月度外推），价值模型同步修正。循环日志只保存摘要与变更（2,000 SKU × 30 循环不再产生约 14 MB 快照）。广告响应假设（CPA/订单上限/增量比例）随商品数据在导入导出与本地恢复中原样保留。41 项自动化检查通过。
+
 ## Version 0.3 — economics-driven advertising loop
 The Autopilot screen runs a deterministic agent workflow every 30 seconds while the browser tab is open: data validation → unit economics → stock constraints → budget allocation → risk checks → local simulated campaign execution → receipts. Repeated unchanged decisions are idempotent. Data older than one hour pauses the simulated campaigns. Reload does not auto-resume the loop. 22 automated tests pass.
 

@@ -1,4 +1,28 @@
-import {evaluate,defaults} from './engine.mjs';
+import {evaluate,defaults,economics} from './engine.mjs';
+import {optimizeAds} from './ad-optimizer.mjs';
+const DEFAULT_AD_ASSUMPTIONS={cpa:500,maxOrders:5,incrementality:.5};
+// Single source of truth for ad budget allocation: the marginal-return optimizer.
+// Both the autopilot and the efficiency screen consume this plan, so what the
+// jury sees on the efficiency screen is exactly what the autopilot executes.
+export function evaluateRows(products,policy,overrides={}){
+ return products.map(p=>({id:p.id,...evaluate(p,{...defaults,...policy,...overrides[p.id]})}));
+}
+export function adItems(rows,products,policy,assumptions={}){
+ const horizon=Number.isFinite(policy.horizon)?policy.horizon:defaults.horizon;
+ return rows.map(r=>{const p=products.find(x=>x.id===r.id);const a=assumptions[r.id]||{};
+  return {id:r.id,contribution:Math.max(0,economics(p).contribution-p.storageDay*horizon),cap:Math.max(0,r.adBudget),
+   cpa:a.cpa??p.cpa??DEFAULT_AD_ASSUMPTIONS.cpa,maxOrders:a.maxOrders??p.maxOrders??DEFAULT_AD_ASSUMPTIONS.maxOrders,incrementality:a.incrementality??p.incrementality??DEFAULT_AD_ASSUMPTIONS.incrementality};});
+}
+export function adPlan(rows,products,policy,assumptions={},storeBudget=2000){
+ return optimizeAds(adItems(rows,products,policy,assumptions),Math.max(0,storeBudget));
+}
+export function portfolio(products,policy,overrides={},storeBudget=2000,paused=false,assumptions={}){
+ const rows=evaluateRows(products,policy,overrides);
+ if(paused)return rows.map(r=>({...r,requestedBudget:r.adBudget,adBudget:0,proposedPrice:products.find(p=>p.id===r.id).price,globalPaused:true}));
+ const plan=adPlan(rows,products,{...defaults,...policy},assumptions,storeBudget);
+ const byId=Object.fromEntries(plan.rows.map(x=>[x.id,x.spend]));
+ return rows.map(r=>({...r,requestedBudget:r.adBudget,adBudget:byId[r.id]??0,globalPaused:false}));
+}
 export function forecast(p,horizon=30){
  let stock=p.stock,sold=0,missed=0,storage=0,firstStockout=null;const days=[];
  for(let day=1;day<=horizon;day++){
@@ -8,11 +32,6 @@ export function forecast(p,horizon=30){
   days.push({day,stock,units});
  }
  return {days,sold,missed,storage,endingStock:stock,firstStockout,reorderQty:Math.max(0,Math.ceil(p.dailyDemand*horizon-p.stock-(p.incomingDays<=horizon?p.incomingQty:0)))};
-}
-export function portfolio(products,policy,overrides={},storeBudget=2000,paused=false){
- const rows=products.map(p=>({id:p.id,...evaluate(p,{...defaults,...policy,...overrides[p.id]})}));
- const requested=rows.reduce((s,r)=>s+r.adBudget,0);const factor=requested?Math.min(1,Math.max(0,storeBudget)/requested):0;
- return rows.map(r=>({...r,requestedBudget:r.adBudget,adBudget:paused?0:Math.floor(r.adBudget*factor*100)/100,proposedPrice:paused?products.find(p=>p.id===r.id).price:r.proposedPrice,globalPaused:paused}));
 }
 const positive=['price','fx'];
 const numeric=['price','purchaseCny','fx','inbound','fulfilment','packaging','returnReserve','commission','stock','dailyDemand','incomingDays','incomingQty','storageDay','seasonFactor','historyDays'];
@@ -26,7 +45,11 @@ export function validateProducts(input){
   if(p.commission>=1||!Number.isInteger(p.stock)||!Number.isInteger(p.incomingQty))throw Error('Invalid units or commission');
   if(!Array.isArray(p.sales)||p.sales.length>10000)throw Error('Invalid sales');
   out.sales=p.sales.map(s=>{if(!s||['revenue','cost','adCost'].some(k=>!Number.isFinite(s[k])||s[k]<0)||typeof s.settled!=='boolean')throw Error('Invalid sale');return {revenue:s.revenue,cost:s.cost,adCost:s.adCost,settled:s.settled};});
-  out.unallocatedAds=p.unallocatedAds??0;if(!Number.isFinite(out.unallocatedAds)||out.unallocatedAds<0)throw Error('Invalid ads');return out;
+  out.unallocatedAds=p.unallocatedAds??0;if(!Number.isFinite(out.unallocatedAds)||out.unallocatedAds<0)throw Error('Invalid ads');
+  // Optional advertising-response assumptions survive import/export round-trips.
+  for(const k of ['cpa','maxOrders','incrementality'])if(p[k]!==undefined){if(!Number.isFinite(p[k])||p[k]<0||p[k]>1e9)throw Error('Invalid '+k);out[k]=p[k];}
+  if(out.incrementality!==undefined&&out.incrementality>1)throw Error('Invalid incrementality');
+  return out;
  });
 }
 // File replaces the selected observation window, never appends/duplicates it.

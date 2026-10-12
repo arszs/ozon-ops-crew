@@ -5,3 +5,15 @@ test('more productive item receives first scarce rubles',()=>{const r=optimizeAd
 test('saturation causes diversification and respects caps',()=>{const r=optimizeAds([{...item,cap:100},{...item,id:'b'}],500);assert.ok(r.rows[0].spend<=100);assert.ok(r.rows[1].spend>0);assert.ok(r.spent<=500);});
 test('zero incrementality and invalid inputs are excluded',()=>{assert.equal(optimizeAds([{...item,incrementality:0},{...item,id:'b',cpa:NaN}],500).spent,0);});
 test('minimum return leaves inefficient surplus unused',()=>{const r=optimizeAds([item],10000);assert.ok(r.unused>0);assert.ok(r.profit>0);});
+
+test('optimized allocation beats or matches uniform at equal budget',async()=>{
+ const {uniformAds,optimizeAds}=await import('../web/ad-optimizer.mjs');
+ const items=[
+  {id:'a',contribution:800,cpa:150,maxOrders:8,incrementality:.8,cap:2000},
+  {id:'b',contribution:300,cpa:400,maxOrders:3,incrementality:.3,cap:2000},
+  {id:'c',contribution:1200,cpa:250,maxOrders:5,incrementality:.6,cap:500}];
+ const budget=3000;
+ const opt=optimizeAds(items,budget),uni=uniformAds(items,budget);
+ assert.ok(opt.spent<=budget&&uni.spent<=budget);
+ assert.ok(opt.profit>=uni.profit-1e-9,`optimized ${opt.profit} < uniform ${uni.profit}`);
+});

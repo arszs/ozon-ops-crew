@@ -9,7 +9,7 @@
 
 [![Engine checks](https://github.com/arszs/ozon-ops-crew/actions/workflows/ci.yml/badge.svg)](https://github.com/arszs/ozon-ops-crew/actions/workflows/ci.yml)
 [![Demo deploy](https://github.com/arszs/ozon-ops-crew/actions/workflows/pages.yml/badge.svg)](https://github.com/arszs/ozon-ops-crew/actions/workflows/pages.yml)
-[![Tests](https://img.shields.io/badge/tests-36%20passed-brightgreen)](#run-in-30-seconds)
+[![Tests](https://img.shields.io/badge/tests-41%20passed-brightgreen)](#run-in-30-seconds)
 [![Demo](https://img.shields.io/badge/demo-live-blue)](https://arszs.github.io/ozon-ops-crew/)
 
 </div>
@@ -44,8 +44,11 @@ OZON_ENV_FILE=/absolute/private/ozon.env npm start
 
 Never paste credentials into the portal, source code, commits, screenshots or issue reports. GitHub Pages runs only the synthetic demo; it cannot call the local API. No credentials are included in this repository.
 
-## Version 0.6.2
+## Version 0.7.0
 
+- The autopilot now executes the same marginal-return allocation shown on the efficiency screen; equal-budget uniform-vs-optimized comparison is displayed side by side.
+- Loss protection is reported per observation window (sales records carry no dates); no monthly extrapolation.
+- Cycle journal stores summaries and diffs only — no full campaign snapshots in browser storage.
 - Reproducible business-value model (`node scripts/value-model.mjs`): the real engine scores a seeded 10,000-SKU portfolio in ~28 ms and aggregates the exposure its decisions address.
 - Scale benchmark: full 2,000-SKU decision and autopilot cycles inside strict time budgets; decisions are deterministic.
 - New jury documents: [scaling architecture](docs/SCALING.md), [value model](docs/VALUE-MODEL.md), [compliance](docs/COMPLIANCE.md), agent contract table in [architecture](docs/ARCHITECTURE.md).
@@ -56,7 +59,7 @@ Never paste credentials into the portal, source code, commits, screenshots or is
 - Demo snapshot stays fresh across reloads; imported datasets keep their own snapshot time.
 - Bounded browser storage with safe persistence, plus a recorded 3-minute demo video.
 - One-click 500-SKU stress portfolio in the Data page proves console fluency at scale; server allowlist regression guard.
-- Export product data and decision records; 36 automated checks.
+- Export product data and decision records; 41 automated checks.
 
 ## Included
 

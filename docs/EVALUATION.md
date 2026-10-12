@@ -11,7 +11,7 @@
 | Safety/compliance | 5% | COMPLIANCE.md; read-only allowlist, secret isolation, no external writes |
 
 ## Automated checks
-`npm test`: negative rolling profit including advertising; unsettled fees; low-sample season guard; expensive storage; stockout/replenishment; invalid policy; profit floor vs price cap; currency calculation; autopilot idempotency and staleness; 2000-SKU scale benchmark with deterministic decisions. CI executes the same tests.
+`npm test`: negative rolling profit including advertising; unsettled fees; low-sample season guard; expensive storage; stockout/replenishment; invalid policy; profit floor vs price cap; currency calculation; autopilot idempotency and staleness; autopilot allocation identical to the marginal-return optimizer plan; optimized ≥ uniform allocation at equal budget; cycle journal stores summaries/diffs only; ad assumptions survive import round-trip; 2000-SKU scale benchmark with deterministic decisions. CI executes the same tests.
 
 ## Pilot plan
 1. Collect and reconcile at least one full settlement cycle; classify orders/returns/fees by SKU and batch.
