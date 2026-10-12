@@ -70,12 +70,12 @@ function bind(){const hs=$('#home-store');if(hs)hs.onchange=()=>{state.homeStore
 
 function scheduleFinance(){
  clearTimeout(financeTimer);
- if([...(state.data?.financeReadings||[]),...(state.data?.adReadings||[])].some(r=>['queued','running'].includes(r.state)))financeTimer=setTimeout(pollFinance,3000);
+ if([...(state.data?.financeReadings||[]),...(state.data?.adReadings||[])].some(r=>['queued','running'].includes(r.state)))financeTimer=setTimeout(pollFinance,3000);else if(state.data?.adMonitors?.some(m=>m.enabled))financeTimer=setTimeout(pollFinance,60000);
 }
 async function pollFinance(){
  try{
-  const d=await api(),changed=JSON.stringify([d.financeReadings,d.adReadings])!==JSON.stringify([state.data.financeReadings,state.data.adReadings]);
-  state.data.adReadings=d.adReadings;state.data.financeReadings=d.financeReadings;state.data.trials=d.trials;
+  const d=await api(),changed=JSON.stringify([d.financeReadings,d.adReadings,d.adMonitors])!==JSON.stringify([state.data.financeReadings,state.data.adReadings,state.data.adMonitors]);
+  state.data.adMonitors=d.adMonitors;state.data.adMonitorWorker=d.adMonitorWorker;state.data.adReadings=d.adReadings;state.data.financeReadings=d.financeReadings;state.data.trials=d.trials;
   if(changed&&!state.busy&&['home','products','trials'].includes(state.page)){
    const root=$('#portal'),forms=captureForms(root),query=$('#sku-query')?.value;
    const open=[...root.querySelectorAll('.plan-details,.plan-finance,.plan-ads')].map(e=>({id:e.id,open:e.open}));

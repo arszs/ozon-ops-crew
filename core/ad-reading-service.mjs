@@ -20,7 +20,7 @@ export class AdReadingService{
  public(r){const {owner,key,...out}=r;return {...out,summary:advertisingSummary(r.slices)};}
  async list(stores){await this.ready;const db=await this.repo.read(),out=[];for(const s of stores.filter(s=>s.id==='ozon-live'&&s.mode==='live'&&s.marketplace==='ozon')){let owner;try{owner=await this.account(s);}catch{continue;}out.push(...db.adRuns.filter(r=>r.storeId===s.id&&r.owner===owner).slice(-100).map(r=>this.public(r)));}return out;}
  async start(store,input){
-  await this.ready;const period=financeRange(input,this.clock()),owner=await this.account(store),key=hash({owner,storeId:store.id,period});
+  await this.ready;const period=financeRange(input,this.clock()),owner=await this.account(store),key=hash({owner,storeId:store.id,period});if(input.expectedOwner&&input.expectedOwner!==owner)throw Error('advertising_account_changed');
   const {run,launch}=await this.repo.mutate(db=>{let r=db.adRuns.findLast(r=>r.key===key);if(r&&(['running','queued'].includes(r.state)||['complete','partial'].includes(r.state)&&input.refresh!==true))return {run:r,launch:false};
    if(r?.retryAt&&Date.parse(r.retryAt)>Date.now())throw Error('Ozon 限制读取频率，请在提示时间后重试');
    if(!r||['complete','partial'].includes(r.state)||input.refresh===true){r={id:randomUUID(),key,owner,storeId:store.id,...period,state:'queued',slices:[],startedAt:now(),updatedAt:now()};db.adRuns.push(r);}else{r.state='queued';r.error=null;}

@@ -23,6 +23,7 @@ export function experimentProgress(data,p,today=experimentToday()){
   return step(operation.kind==='price'?'price_check':'cpo_check',operation.state==='pending'?'核对并确认此版本':'确认完成，等待手动执行',today<p.bStart?'测试期尚未开始；只能在计划测试期内执行。':'到确认队列核对具体变更；系统不会自动执行。',{target:'operation-'+operation.id,page:'gates',focus:null,priority:1});
  }
  const budget=adBudgetSignal(data,p);if(budget?.over)return step('ad_budget',budget.stale?'上次广告读取超限，需重新核对':'已读取广告支出超过计划上限','请先核对投放与支出；其他广告、今天费用及后续更正仍需计入。不会自动停止。',{focus:'ads-'+p.id,priority:0});
+ const monitor=data.adMonitors?.find(m=>m.planId===p.id);if(monitor&&(['error','connection_changed','interrupted','unavailable'].includes(monitor.lastState)||monitor.enabled&&data.adMonitorWorker?.error))return step('monitor_check','每日广告检查未完成，请核对','最新广告支出可能缺失。查看连接与报表，必要时手动读取；不会自动改变广告。',{focus:'ads-'+p.id,priority:1});
  if(api){
   // Baseline and test evidence are independent: never sum unrelated periods or use old cost revisions.
   for(const [key,r] of [['a',a],['b',b]]){

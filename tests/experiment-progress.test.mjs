@@ -38,3 +38,4 @@ test('home and plan share next action; collapsed plan retains finance and execut
  const h=trialsPage(db());for(const id of ['execution-p','finance-p','finance-p-a','finance-p-b','comparison-p'])assert.ok(h.includes('id="'+id+'"'),id);
  assert.match(h,/<details class="plan-details" id="plan-details-p">/);assert.match(progressCard(db(),{...p,id:'<bad>'}),/plan-&lt;bad&gt;|execution-&lt;bad&gt;|finance-&lt;bad&gt;/);assert.ok(!progressCard(db(),{...p,id:'<bad>'}).includes('id="<bad>'));
 });
+test('failed daily monitoring becomes an actionable home decision instead of implying fresh data',()=>{const d=db({adMonitors:[{planId:p.id,lastState:'connection_changed',enabled:false}]});assert.equal(step(d).kind,'monitor_check');assert.equal(step(d).focus,'ads-p');assert.equal(sellerDecisions(d,'2026-09-15')[0].kind,'monitor_check');});
