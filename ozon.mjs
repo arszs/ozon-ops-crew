@@ -21,6 +21,7 @@ export async function fullCatalog({read=sellerRead}={}){
  const items=new Map(),seen=new Set();let cursor='',total=null;
  for(let page=0;page<100;page++){
   const next=await catalog(cursor,{read,limit:100});
+  if(next.total>10000)throw Error('目录超过当前单次同步上限（10000 个商品）；需要分批同步 / catalog_capacity_exceeded');
   if(total!==null&&total!==next.total)throw Error('catalog_changed_during_sync');total=next.total;
   for(const p of next.items){if(!p.productId)throw Error('catalog_product_id_missing');items.set(String(p.productId),p);}
   if(items.size===total)return {total,items:[...items.values()],complete:true,fetchedAt:next.fetchedAt};

@@ -14,3 +14,5 @@ test('catalog-only SKU remains visible without analytics, finance or ads; missin
 test('products missing SKU are counted, not fabricated as undefined or zero identifiers',async()=>{
  const s=await synchronizeLive(()=>{},{catalogue:async()=>({total:1,items:[{productId:42}]}),seller:async path=>{if(path!=='/v3/product/info/list')throw Error('unavailable');return {items:[{id:42,sku:0,sources:[{}],price:'1500'}]};},performance:async()=>{throw Error('unavailable');}});assert.equal(s.rows.length,0);assert.equal(s.catalogProductsWithoutSku,1);
 });
+
+test('oversized live catalogue stops after the first page with explicit capacity status',async()=>{let calls=0;await assert.rejects(()=>fullCatalog({read:async()=>{calls++;return {result:{total:10001,items:[{product_id:1}],last_id:'next'}};}}),/catalog_capacity_exceeded/);assert.equal(calls,1);});
