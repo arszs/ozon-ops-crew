@@ -40,6 +40,10 @@ export function experimentProgress(data,p,today=experimentToday()){
  if(api){
   const common=reviewedCurrencies(a).filter(c=>reviewedCurrencies(b).includes(c));
   if(!common.length)return step('currency_review','统一两个期间的核对币种','请核对同一币种的最新成本版本；不自动换汇。',{focus:'finance-'+p.id,priority:1});
+  if(p.storeId==='ozon-live')for(const key of ['a','b']){
+   const r=(data.adReadings||[]).findLast(r=>r.storeId===p.storeId&&r.sku===p.sku&&r.from===p[key+'Start']&&r.to===p[key+'End']),days=(Date.parse(p[key+'End'])-Date.parse(p[key+'Start']))/86400000+1;
+   if(r?.state!=='complete'||!r.evidenceHash||r.days!==days||!['cpc','cpo'].every(k=>Number.isFinite(r.summary?.[k]?.spend)&&r.summary[k].coveredDays===days))return step('advertising_review','核对'+(key==='a'?'基准期':'测试期')+'广告 API 支出','需要对应完整日期的 CPC / CPO 报表，再与已填广告总额和计划限额核对。',{focus:'ads-'+p.id,priority:1});
+  }
   return step('compare','核对执行条件，保存贡献比较','两期报表与成本已准备好；仍需确认实际执行及库存、促销等可比条件。',{focus:'comparison-'+p.id,priority:1});
  }
  return step('due','计划日期已结束，请核对结果','日期已过不代表测试实际执行。若未执行，请取消原计划。',{priority:1});

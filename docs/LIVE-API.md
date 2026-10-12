@@ -122,3 +122,9 @@ Read-адаптер Seller API и транспорт Performance API учиты�
 Неполный свежий отчёт или отчёт с более коротким периодом не снимает ранее прочитанное превышение бюджета. Старое предупреждение отмечается как относящееся к предыдущему чтению, суммы разных версий не складываются. Полное обновление CPC/выбранного CPO может заменить прежние суммы, но всё равно не доказывает полноту всех рекламных расходов.
 
 Проверка: тесты с управляемыми часами на суточное расписание, повторные вызовы, перезапуск, смену подключения, отмену плана и отключение во время чтения. Chrome: включение на изолированном синтетическом плане запустило один отчёт и показало следующее время; отключение сохранило отчёт. Ноль операций изменения магазина в тестовом сценарии. Для реального аккаунта расписания не включались.
+
+### Advertising evidence in experiment comparisons
+
+`POST /api/workspace/trial-plans/:id/ledger-result` derives primary-Ozon advertising proof on the server from the latest account-bound report matching each original SKU/date period. Client-supplied advertising proof is not trusted. Both CPC and selected-product CPO must cover the complete period with consistent RUB totals before the financial comparison can produce a substantive verdict. Missing coverage, seller ad totals below observed spend, and API-observed budget overruns yield `insufficient`; observed ads are never deducted again from accrual-based contribution.
+
+Comparisons freeze report IDs, hashes, dates, coverage, state and amounts. Advertising-only refreshes invalidate old recommendations and enter the revision fingerprint. Credential rotation hides old evidence; an account change during proof collection rejects the operation. Missing Seller/Performance configuration yields missing proof instead of a fabricated zero. Historical comparisons without advertising proof return `unverified_advertising`. Other Ozon stores still rely on manual ad reconciliation. No new marketplace write scope is introduced.

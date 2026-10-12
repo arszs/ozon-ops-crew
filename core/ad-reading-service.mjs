@@ -28,6 +28,11 @@ export class AdReadingService{
   if(launch){const task=this.queue.then(()=>this.pump(store,run)).catch(async e=>{await this.repo.mutate(db=>{const r=db.adRuns.find(r=>r.id===run.id);r.state='error';r.error=/^[a-z0-9_]{1,100}$/.test(e.message)?e.message:'advertising_read_failed';r.updatedAt=now();audit(db,{kind:'advertising.read.failed',runId:r.id,error:r.error});});}).finally(()=>this.pending.delete(run.id));this.pending.set(run.id,task);this.queue=task.catch(()=>{});}
   return this.public(run);
  }
+ async comparisonEvidence(store,plan){
+  await this.ready;let owner;try{owner=await this.account(store);}catch(e){if(['seller_not_configured','performance_not_configured'].includes(e.message))return {a:null,b:null};throw e;}const db=await this.repo.read(),out={};
+  for(const key of ['a','b']){const r=db.adRuns.findLast(r=>r.storeId===store.id&&r.owner===owner&&r.sku===plan.sku&&r.from===plan[key+'Start']&&r.to===plan[key+'End']);out[key]=r?this.public(r):null;}
+  if(await this.account(store)!==owner)throw Error('advertising_account_changed');return out;
+ }
  async pump(store,run){
   const checkAccount=async()=>{if(await this.account(store)!==run.owner)throw Error('advertising_account_changed');};
   const onTool=event=>this.repo.mutate(db=>audit(db,{kind:'advertising.tool',runId:run.id,...event}));

@@ -4,7 +4,7 @@ import {sellerDecisions} from '../web/decisions.mjs';
 import {trialsPage} from '../web/profit-trials.mjs';
 const p={id:'p',storeId:'ozon-live',mode:'live',sku:'101',status:'planned',lever:'ads',baseline:'on',variant:'off',aStart:'2026-09-01',aEnd:'2026-09-07',bStart:'2026-09-08',bEnd:'2026-09-14'};
 const store={id:p.storeId,mode:'live',marketplace:'ozon'};
-const db=(patch={})=>({stores:[store],trialPlans:[p],operations:[],trials:[],financeReadings:[],...patch});
+const db=(patch={})=>({stores:[store],trialPlans:[p],operations:[],trials:[],financeReadings:[],adReadings:['a','b'].map(k=>({storeId:p.storeId,sku:p.sku,from:p[k+'Start'],to:p[k+'End'],days:7,state:'complete',evidenceHash:k,summary:{cpc:{spend:0,coveredDays:7},cpo:{spend:0,coveredDays:7}}})),...patch});
 const report=(k,patch={})=>({id:k,storeId:p.storeId,sku:p.sku,from:p[k+'Start'],to:p[k+'End'],state:'complete',evidenceHash:k,summary:{totals:{RUB:1000}},reconciliations:[{id:'cost-'+k,reportId:k,currency:'RUB',reportHash:k,result:{reviewed:true}}],...patch});
 const step=(d,plan=p,today='2026-09-15')=>experimentProgress(d,plan,today);
 test('guide follows exact reports, latest cost versions and shared currencies before comparison',()=>{
@@ -39,3 +39,7 @@ test('home and plan share next action; collapsed plan retains finance and execut
  assert.match(h,/<details class="plan-details" id="plan-details-p">/);assert.match(progressCard(db(),{...p,id:'<bad>'}),/plan-&lt;bad&gt;|execution-&lt;bad&gt;|finance-&lt;bad&gt;/);assert.ok(!progressCard(db(),{...p,id:'<bad>'}).includes('id="<bad>'));
 });
 test('failed daily monitoring becomes an actionable home decision instead of implying fresh data',()=>{const d=db({adMonitors:[{planId:p.id,lastState:'connection_changed',enabled:false}]});assert.equal(step(d).kind,'monitor_check');assert.equal(step(d).focus,'ads-p');assert.equal(sellerDecisions(d,'2026-09-15')[0].kind,'monitor_check');});
+test('completed financial periods lead to missing full-period advertising before comparison',()=>{
+ const data=db({financeReadings:[report('a'),report('b')],adReadings:[]});assert.equal(step(data).kind,'advertising_review');assert.equal(step(data).focus,'ads-p');
+ const complete=db().adReadings;for(const change of [{state:'queued'},{state:'partial'},{to:'2026-09-13'},{evidenceHash:null}])assert.equal(step({...data,adReadings:[complete[0],{...complete[1],...change}]}).kind,'advertising_review');
+});

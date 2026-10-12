@@ -25,7 +25,7 @@ export function financePanel(data,store,sku,period){
 export function planFinance(data,p){
  const store=data.stores.find(s=>s.id===p.storeId);if(store?.mode!=='live'||store.marketplace!=='ozon')return '';
  const a=financeReading(data,p.storeId,p.sku,p.aStart,p.aEnd),b=financeReading(data,p.storeId,p.sku,p.bStart,p.bEnd);
- return `<details class="plan-finance" id="finance-${esc(p.id)}"><summary>按实验日期读取实际记账</summary><p class="warning">补齐成本并核对执行后，可以保存两个期间的贡献比较。记账差额不证明策略的因果效果。</p><div class="diff-grid">${['a','b'].map((k,i)=>`<div id="finance-${esc(p.id)}-${k}"><h4>${i?'测试期':'基准期'}</h4>${readButton(data,p.storeId,p.sku,p[k+'Start'],p[k+'End'],i?'测试期':'基准期')}${financeResult(financeReading(data,p.storeId,p.sku,p[k+'Start'],p[k+'End']),p.id+'-'+k)}</div>`).join('')}</div><div id="comparison-${esc(p.id)}">${ledgerComparisonForm(p,a,b)}</div></details>`;
+ return `<details class="plan-finance" id="finance-${esc(p.id)}"><summary>按实验日期读取实际记账</summary><p class="warning">补齐成本并核对执行后，可以保存两个期间的贡献比较。记账差额不证明策略的因果效果。</p><div class="diff-grid">${['a','b'].map((k,i)=>`<div id="finance-${esc(p.id)}-${k}"><h4>${i?'测试期':'基准期'}</h4>${readButton(data,p.storeId,p.sku,p[k+'Start'],p[k+'End'],i?'测试期':'基准期')}${financeResult(financeReading(data,p.storeId,p.sku,p[k+'Start'],p[k+'End']),p.id+'-'+k)}</div>`).join('')}</div><div id="comparison-${esc(p.id)}">${ledgerComparisonForm(p,a,b,data)}</div></details>`;
 }
 export function bindFinance({api,action}){
  document.querySelectorAll('[data-finance-store]').forEach(b=>b.onclick=()=>action(()=>api('/stores/'+encodeURIComponent(b.dataset.financeStore)+'/finance',{sku:b.dataset.financeSku,from:b.dataset.financeFrom,to:b.dataset.financeTo,refresh:b.dataset.financeRefresh==='true'}),'财务读取已排队；不会改变平台数据'));

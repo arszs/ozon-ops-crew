@@ -1,3 +1,4 @@
+import {compareAdvertising,advertisingProofStatus} from './advertising-proof.mjs';
 import {hash,maskPII} from './repository.mjs';
 const round=n=>Math.round(n*100)/100;
 const text=v=>{if(typeof v!=='string'||!v.trim()||v.length>1000)throw Error('请填写报表来源与成本核对说明');return maskPII(v.trim());};
@@ -32,12 +33,13 @@ export function evaluateLedgerTrial(plan,proof,input){
  if([a,b].some(p=>Object.entries(p.report.summary.totals).some(([c,n])=>c!==currency&&n!==0)))blockers.push('SKU 还有其他币种记账，当前比较不覆盖全部结果');
  if(currency!=='RUB')blockers.push('原计划限额为 RUB，无法核对当前币种的广告与亏损上限');
  else {if(periods.b.ads>plan.adBudget)blockers.push('卖家核对的测试期广告总支出超过计划上限');if(periods.b.profit < -plan.maxLoss)blockers.push('测试期贡献亏损超过计划上限');}
+ const advertising=compareAdvertising(plan,proof.advertising,periods,currency);blockers.push(...advertising.blockers);
  const planDate=new Date(Date.parse(plan.at)+3*3600000).toISOString().slice(0,10);
  if(planDate>=plan.bStart)blockers.push('计划未在测试开始前保存；此结果是回顾观察');
  const before=round(periods.a.profit/periods.a.days),after=round(periods.b.profit/periods.b.days),delta=round(periods.b.profit/periods.b.days-periods.a.profit/periods.a.days);
- return {sku:plan.sku,lever:plan.lever,baseline:plan.baseline,variant:plan.variant,currency,evidence:text(input.evidence),comparable:input.comparable===true,executionConfirmed:input.executionConfirmed===true,source:'api_accruals_seller_costs',basis:'accrual_date',...periods,result:{before,after,delta,blockers,verdict:blockers.length?'insufficient':delta>0?'repeat_candidate':'no_improvement',causal:false},provenance:{a:structuredClone(a),b:structuredClone(b)}};
+ return {sku:plan.sku,lever:plan.lever,baseline:plan.baseline,variant:plan.variant,currency,evidence:text(input.evidence),comparable:input.comparable===true,executionConfirmed:input.executionConfirmed===true,source:'api_accruals_seller_costs',basis:'accrual_date',advertisingProof:advertising.proof,...periods,result:{before,after,delta,blockers,verdict:blockers.length?'insufficient':delta>0?'repeat_candidate':'no_improvement',causal:false},provenance:{a:structuredClone(a),b:structuredClone(b)}};
 }
-export function ledgerTrialStatus(trial,readings){
+export function ledgerTrialStatus(trial,readings,adReadings=[]){
  if(trial.source!=='api_accruals_seller_costs')return null;
  for(const key of ['a','b']){
   const p=trial[key],latest=readings.findLast(r=>r.storeId===trial.storeId&&r.sku===trial.sku&&r.from===p.start&&r.to===p.end);
@@ -45,5 +47,5 @@ export function ledgerTrialStatus(trial,readings){
   const cost=latest.reconciliations?.findLast(c=>c.currency===trial.currency);
   if(latest.id!==p.reportId||latest.state!=='complete'||latest.evidenceHash!==p.reportHash||cost?.id!==p.reconciliationId||hash(cost)!==p.reconciliationHash)return 'superseded';
  }
- return 'current';
+ return advertisingProofStatus(trial,adReadings);
 }
