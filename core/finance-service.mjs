@@ -1,6 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {Repository,hash,audit} from './repository.mjs';
 import {financeAccount,financeRange,readFinanceDay,readFinanceTypes,summarizeFinanceDays} from '../adapters/ozon-finance.mjs';
+import {reconcileFinance} from './finance-reconciliation.mjs';
 const now=()=>new Date().toISOString();
 const nextDay=date=>new Date(Date.parse(date)+86400000).toISOString().slice(0,10);
 // A local serialized worker; each complete day is an atomic resumable checkpoint.
@@ -42,6 +43,31 @@ export class FinanceService{
   }
   return this.public(run);
  }
+ async reconcile(store,id,input){
+  await this.ready;const owner=await this.account(store);
+  return this.repo.mutate(async db=>{
+   const r=db.financeRuns.find(r=>r.id===id&&r.storeId===store.id&&r.owner===owner);
+   if(!r||await this.account(store)!==owner)throw Error('财务记录不属于当前账户');
+   if(db.financeRuns.findLast(x=>x.key===r.key).id!==id)throw Error('已有更新的财务读取，请核对最新版本');
+   const value=reconcileFinance(this.public(r),input),prior=r.reconciliations?.findLast(c=>c.currency===value.currency);
+   if(input.revision!==(prior?.revision||0))throw Error('核对成本已变化，请重新打开最新版本');
+   const record={...value,id:randomUUID(),revision:(prior?.revision||0)+1,at:now(),previousHash:prior?hash(prior):null};
+   r.reconciliations??=[];r.reconciliations.push(record);
+   audit(db,{kind:'finance.costs.reconciled',runId:id,reconciliationId:record.id,outputHash:hash(record)});return record;
+  });
+ }
+ async comparisonEvidence(store,input){
+  await this.ready;const owner=await this.account(store),db=await this.repo.read(),out={};
+  for(const key of ['a','b']){
+   const r=db.financeRuns.find(r=>r.id===input[key+'ReportId']&&r.storeId===store.id&&r.owner===owner);
+   if(!r||r.state!=='complete'||db.financeRuns.findLast(x=>x.key===r.key).id!==r.id)throw Error('请使用当前账户最新且完整的财务报告');
+   const cost=r.reconciliations?.find(c=>c.id===input[key+'CostId']);
+   if(!cost||r.reconciliations.findLast(c=>c.currency===cost.currency).id!==cost.id)throw Error('请使用最新成本核对版本');
+   const {reconciliations,...report}=this.public(r);out[key]={report,cost:structuredClone(cost)};
+  }
+  if(await this.account(store)!==owner)throw Error('店铺 API 账户已改变，请重新读取');
+  return out;
+ }
  async pump(store,run){
   const checkAccount=async()=>{if(await this.account(store)!==run.owner)throw Error('店铺 API 账户已改变，请重新读取');};
   await this.repo.mutate(db=>{db.financeRuns.find(r=>r.id===run.id).state='running';});
@@ -54,7 +80,10 @@ export class FinanceService{
    await checkAccount();const day=await this.readDay(store,{sku:run.sku,date},{checkAccount});await checkAccount();
    if(day.date!==date)throw Error('finance_day_mismatch');
    await this.repo.mutate(db=>{
-    const r=db.financeRuns.find(r=>r.id===run.id);r.days.push(day);r.updatedAt=now();
+    const r=db.financeRuns.find(r=>r.id===run.id);
+    if(r.days.some(d=>!Array.isArray(d.accrualKeys)))throw Error('旧版检查点缺少跨日标识，请从头读取新版本');
+    const seen=new Set(r.days.flatMap(d=>d.accrualKeys));if(day.accrualKeys?.some(k=>seen.has(k)))throw Error('记账标识跨日重复或发生移动，请从头读取新版本');
+    r.days.push(day);r.updatedAt=now();
     audit(db,{kind:'finance.day.read',runId:r.id,date,outputHash:hash(day)});
     if(date===run.to){r.state='complete';r.completedAt=now();r.evidenceHash=hash(r.days.map(d=>({date:d.date,hash:d.evidenceHash})));audit(db,{kind:'finance.read.complete',runId:r.id,outputHash:r.evidenceHash});}
    });

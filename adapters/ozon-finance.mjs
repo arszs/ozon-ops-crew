@@ -52,7 +52,7 @@ export function financeDay(accruals,{sku,date}){
   for(const c of new Set([total.currency,...Object.keys(allocated)]))add(unallocated,c,(c===total.currency?total.cents:0)-(allocated[c]||0));
   if(belongs)matched++;
  }
- return {date,totals:decimal(totals),components:Object.fromEntries(Object.entries(components).map(([k,v])=>[k,decimal(v)])),storeTotals:decimal(storeTotals),storeUnallocated:decimal(unallocated),storeAccruals:seen.size,matchedAccruals:matched};
+ return {date,accrualKeys:[...seen.keys()].map(id=>hash(id)),totals:decimal(totals),components:Object.fromEntries(Object.entries(components).map(([k,v])=>[k,decimal(v)])),storeTotals:decimal(storeTotals),storeUnallocated:decimal(unallocated),storeAccruals:seen.size,matchedAccruals:matched};
 }
 export async function readFinanceDay(store,{sku,date},{call=ozonCall,checkAccount=async()=>{}}={}){
  const all=[],pages=[],cursors=new Set();let cursor='';

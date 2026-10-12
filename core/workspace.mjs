@@ -1,4 +1,5 @@
 import {readPrice,priceBody,submitPrice} from '../adapters/ozon-prices.mjs';
+import {evaluateLedgerTrial} from './finance-reconciliation.mjs';
 import {costProfile,latestCosts,priceTrialEconomics} from './sku-costs.mjs';
 import {wbCharacteristics} from '../adapters/wb-content.mjs';
 import {draftBuyerMessage,translateReplyForApproval} from '../adapters/review-draft.mjs';
@@ -149,6 +150,20 @@ export class Workspace{
  if(plan){if(db.operations.some(o=>o.payload.planId===plan.id&&['executing','submitted','unknown'].includes(o.state)))throw Error('先核对调价结果，再记录计划结果');if(plan.storeId!==store.id)throw Error('计划属于其他店铺');if(plan.status!=='planned')throw Error('计划已完成或取消');checkPlanResult(plan,evaluated);}
  const trial={id:randomUUID(),at:now(),storeId:store.id,mode:store.mode,planId:plan?.id||null,...evaluated};db.trials??=[];db.trials.push(trial);if(plan){plan.status='completed';plan.trialId=trial.id;plan.completedAt=trial.at;}
  audit(db,{kind:'profit.trial.recorded',trialId:trial.id,planId:trial.planId,storeId:store.id,evidenceHash:hash(trial),source:trial.source});return trial;});}
+ async recordLedgerTrial(planId,input,finance){return this.repo.mutate(async db=>{
+  const plan=find(db.trialPlans||[],planId),store=this.resolveStore(db,plan.storeId);
+  if(store.mode!=='live'||store.marketplace!=='ozon'||plan.status==='cancelled')throw Error('需要未取消的真实 Ozon 实验计划');
+  const previous=(db.trials||[]).find(t=>t.id===plan.trialId);
+  if(plan.status==='completed'&&previous?.source!=='api_accruals_seller_costs')throw Error('此计划已有人工观察结果');
+  if(db.operations.some(o=>o.payload.planId===plan.id&&['executing','submitted','unknown'].includes(o.state)))throw Error('先核对调价结果，再保存结果');
+  const proof=await finance.comparisonEvidence(store,input),evaluated=evaluateLedgerTrial(plan,proof,input);
+  const fingerprint=hash({a:evaluated.a,b:evaluated.b,comparable:evaluated.comparable,executionConfirmed:evaluated.executionConfirmed,evidence:evaluated.evidence});
+  if(previous?.inputHash===fingerprint)return previous;
+  const trial={id:randomUUID(),at:now(),storeId:store.id,mode:'live',planId:plan.id,inputHash:fingerprint,revision:(previous?.revision||0)+1,previousTrialId:previous?.id||null,...evaluated};
+  db.trials??=[];db.trials.push(trial);plan.status='completed';plan.trialId=trial.id;plan.completedAt=trial.at;
+  for(const o of db.operations.filter(o=>o.payload.planId===plan.id&&['pending','approved'].includes(o.state))){o.state='superseded';audit(db,{kind:'price.approval.superseded',operationId:o.id});}
+  audit(db,{kind:'profit.ledger.compared',trialId:trial.id,planId:plan.id,evidenceHash:hash(trial),source:trial.source});return trial;
+ });}
  async assessment(input){const result=assessStore(input);return this.repo.mutate(db=>{const a={id:randomUUID(),at:now(),...result};db.assessments.push(a);audit(db,{kind:'market.assessed',assessmentId:a.id,evidenceHash:hash(a.evidence)});return a;});}
  async digest(){const db=await this.repo.read();return {at:now(),language:'zh',stores:db.stores.map(s=>({storeId:s.id,name:s.name,mode:s.mode,source:s.snapshot?.source||'尚未同步',orders:s.snapshot?.orders??null,orderedAmount:s.snapshot?.orderedAmount??null,lowStock:s.snapshot?.products?s.snapshot.products.filter(p=>Number.isFinite(p.stock)&&p.stock<5).map(p=>p.sku):null,negativeReviews:s.mode==='mock'||s.messagesSynced?.complete?db.reviews.filter(r=>r.storeId===s.id&&r.rating!==null&&r.rating<=2&&r.status!=='answered').length:null,pending:db.operations.filter(o=>o.storeId===s.id&&['pending','approved'].includes(o.state)).length})),alerts:[...db.jobs.filter(j=>j.state==='needs_input').map(j=>({kind:'pipeline_blocked',jobId:j.id,message:j.error})),...db.operations.filter(o=>o.state==='unknown').map(o=>({kind:'execution_unknown',operationId:o.id,message:o.error}))],disclaimer:'按需摘要；未连接的退货、评分历史与投诉不视为零，定时推送未启用。'};}
 }

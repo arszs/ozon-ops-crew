@@ -10,7 +10,7 @@ import {financeReading,financeResult,financePanel,planFinance} from '../web/fina
 const m=(amount,currency='RUB')=>({amount:String(amount),currency});
 const date='2026-08-01',sku='1',store={id:'test',marketplace:'ozon',mode:'live'};
 const a=()=>({accrual_id:1,date,unit_number:'PRIVATE-POSTING',total_amount:m(620),posting:{products:[{sku:1,commission:{sale_amount:m(1000),commission:m(-300),bonus:m(100),sale_commission:m(-400)},delivery:{total_accrued:m(-50),services:[{type_id:1,accrued:m(-50)}]}},{sku:2,delivery:{total_accrued:m(-30)}}]}});
-const day=(d=date)=>({...financeDay([{...a(),date:d}],{sku,date:d}),pages:[{inputHash:'a',outputHash:'b',at:'2026-09-01'}],evidenceHash:'hash'});
+const day=(d=date)=>({...financeDay([{...a(),date:d,accrual_id:Number(d.replaceAll('-',''))}],{sku,date:d}),pages:[{inputHash:'a',outputHash:'b',at:'2026-09-01'}],evidenceHash:'hash'});
 test('ledger reconciles SKU components against store totals without duplicating subcomponents',()=>{
  const other={accrual_id:2,date,total_amount:m(-100),non_item_fee:{accrued:m(-100)}};
  const fee={accrual_id:3,date,total_amount:m(-20),item_fees:{fees:[{sku:1,fees:[{type_id:42,accrued:m(-20)}]}]}};
@@ -69,3 +69,5 @@ test('expense dictionary preserves official names and a dictionary failure does 
  await assert.rejects(()=>readFinanceTypes(store,{call:async()=>({accrual_types:[{id:1,name:'Acquiring'}]})}),/type_schema/);
  const {service}=await setup(t,{readDay:async()=>day(),readTypes:async()=>{throw Error('dictionary_unavailable');}});const r=await service.start(store,{sku,from:date,to:date});await service.wait(r.id);const saved=(await service.list([store]))[0];assert.equal(saved.state,'complete');assert.equal(saved.typeError,'dictionary_unavailable');assert.equal(saved.summary.totals.RUB,650);
 });
+
+test('an accrual repeated across dates cannot be counted twice in a completed period',async t=>{const {service}=await setup(t,{readDay:async(_s,q)=>({...day(q.date),accrualKeys:['same-accrual']})});const r=await service.start(store,{sku,from:date,to:'2026-08-02'});await service.wait(r.id);const saved=(await service.list([store]))[0];assert.equal(saved.state,'error');assert.equal(saved.loadedDays,1);assert.match(saved.error,/跨日重复/);});

@@ -1,3 +1,4 @@
+import {ledgerTrialStatus} from './finance-reconciliation.mjs';
 import {FinanceService} from './finance-service.mjs';
 import {CatalogueService} from './catalogue-service.mjs';
 import {assetPath,saveImage} from '../adapters/media.mjs';
@@ -22,7 +23,7 @@ export async function createWorkspaceAPI(root,live){
    let body={};if(req.method!=='GET'){let text='';for await(const chunk of req){text+=chunk;if(Buffer.byteLength(text)>2_000_000)return send({error:'Payload too large'},413);}body=JSON.parse(text||'{}');}
    const [, ,resource,id,action,index]=parts;
    if(req.method==='GET'){
-    if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='ozon').map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));view.financeReadings=await finance.list(view.stores.map(s=>ws.resolveStore(db,s.id)));return send(view);}
+    if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='ozon').map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));view.financeReadings=await finance.list(view.stores.map(s=>ws.resolveStore(db,s.id)));for(const t of view.trials)if(t.source==='api_accruals_seller_costs')t.sourceStatus=ledgerTrialStatus(t,view.financeReadings);return send(view);}
     if(resource==='assets'&&id){res.setHeader('Content-Type','image/png');res.end(await readFile(assetPath(id)));return true;}
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.query(store,{q:url.searchParams.get('q')||'',offset:Number(url.searchParams.get('offset')||0)}));}
     if(resource==='stores'&&action==='wb-characteristics')return send(await ws.wbCharacteristics(id,url.searchParams.get('subjectId')));
@@ -42,6 +43,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='stores'&&!id)return send(await ws.addStore(body));
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.start(store,{restart:body.restart===true}));}
     if(resource==='stores'&&action==='finance'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await finance.start(store,body));}
+    if(resource==='stores'&&action==='finance-reconcile'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await finance.reconcile(store,body.runId,body));}
     if(resource==='stores'&&action==='sync')return send(await ws.synchronize(id));
     if(resource==='stores'&&action==='reviews')return send(await ws.syncMessages(id));
     if(resource==='stores'&&action==='demo-review')return send(await ws.demoReview(id));
@@ -60,6 +62,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='reviews'&&action==='draft')return send(await ws.draftMessage(id));
     if(resource==='cost-profiles'&&!id)return send(await ws.saveCosts(body));
     if(resource==='trial-plans'&&!id)return send(await ws.planTrial(body));
+    if(resource==='trial-plans'&&action==='ledger-result')return send(await ws.recordLedgerTrial(id,body,finance));
     if(resource==='trial-plans'&&action==='price-operation')return send(await ws.prepareTrialPrice(id));
     if(resource==='operations'&&action==='price-status')return send(await ws.reconcilePrice(id));
     if(resource==='trial-plans'&&action==='cancel')return send(await ws.cancelTrialPlan(id));
