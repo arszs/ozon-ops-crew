@@ -65,7 +65,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='operations'&&action==='execute')return send(await ws.executeOperation(id));
     if(resource==='reviews'&&action==='draft')return send(await ws.draftMessage(id));
     if(resource==='cost-profiles'&&!id)return send(await ws.saveCosts(body));
-    if(resource==='trial-plans'&&!id)return send(await ws.planTrial(body));
+    if(resource==='trial-plans'&&!id)return send(await ws.planTrial(body,{finance,advertising}));
     if(resource==='trial-plans'&&action==='ad-monitor')return send(await monitoring.configure(id,body.enabled));
     if(resource==='trial-plans'&&action==='ad-read'){const db=await ws.repo.read(),plan=db.trialPlans?.find(p=>p.id===id);if(!plan)throw Error('Plan not found');return send(await advertising.start(ws.resolveStore(db,plan.storeId),{...planAdRange(plan,body.period),refresh:body.refresh===true}));}
     if(resource==='trial-plans'&&action==='ledger-result')return send(await ws.recordLedgerTrial(id,body,finance,advertising));

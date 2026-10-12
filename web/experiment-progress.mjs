@@ -35,6 +35,7 @@ export function experimentProgress(data,p,today=experimentToday()){
    if(!reviewedCurrencies(r).length)return step('cost_review','核对'+label+'商品成本与费用','补齐商品成本、外部费用、公共分摊和跨期退货；API 记账本身不是利润。',{focus:(r.summary&&Object.keys(r.summary.totals||{}).length)?'costs-'+r.id+'-'+p.id+'-'+key:focus,priority:1});
   }
  }
+ if(today<p.bStart&&p.repeatOf)return step('scheduled','核对重复测试的基准方案','基准期 '+p.aStart+' — '+p.aEnd+'：请人工核对并恢复基准方案。上次测试结束不代表已恢复；系统不会自动还原价格或开启广告。');
  if(today<p.bStart)return step('scheduled','等待测试期开始','先保持基准方案；计划中的广告与价格不会自动生效。');
  if(p.bEnd>=today)return step(observed?'observe':'planned',observed?'观察测试期，人工检查限额':'核实并执行测试方案',observed?'平台仅曾观察到目标状态；检查库存、其他广告、延迟费用、预算和亏损，期末核对贡献。':'保存计划不代表执行。请记录实际开始时间及库存、促销变化。',{priority:observed?3:2});
  if(api){

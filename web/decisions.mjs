@@ -8,6 +8,7 @@ export function sellerDecisions(data,today=new Intl.DateTimeFormat('en-CA',{time
  for(const t of latest.values()){
   const outdated=t.source==='api_accruals_seller_costs'&&t.sourceStatus!=='current',incomplete=outdated||t.result.verdict==='insufficient',loss=t.result.after<0;
   const kind=incomplete?'evidence':loss?'loss':t.result.verdict==='repeat_candidate'?'repeat':'review';
+  if(kind==='repeat'&&plans.some(p=>p.storeId===t.storeId&&p.sku===t.sku&&p.status==='planned'))continue;
   items.push({target:outdated&&t.planId?"plan-"+t.planId:"trial-"+t.id,focus:outdated&&t.planId?"finance-"+t.planId:null,storeId:t.storeId,sku:t.sku,mode:t.mode,source:t.source,kind,priority:incomplete||loss?0:kind==='repeat'?3:2,title:({evidence:'补齐证据，再作决定',loss:'观察期仍亏损，先检查成本',repeat:'正向观察，值得重复验证',review:'未观察到改善，请调整假设'})[kind],detail:outdated?'财务、成本或广告证据未核对 / 已更新 / 暂不可用，请重新核对原计划结果。':incomplete?t.result.blockers.join('；'):loss?'利润即使有所改善，也不等于已盈利；不建议据此扩大投入。':t.source==='api_accruals_seller_costs'?'API 记账 + 卖家核对成本；按记账日期比较，不证明因果关系。':'人工观察；不证明因果关系，也不代表系统已改变投放。'});
  }
  return items.sort((a,b)=>a.priority-b.priority);
