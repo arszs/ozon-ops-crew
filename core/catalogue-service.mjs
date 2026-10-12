@@ -58,6 +58,7 @@ export class CatalogueService{
    }catch(e){this.db.exec('ROLLBACK');throw e;}
   }
  }
+ async status(store){this.validate(store);return this.public(this.latest(store,await this.accountRef(store)));}
  async query(store,{q='',offset=0,limit=50}={}){
   this.validate(store);if(typeof q!=='string'||q.length>160||!Number.isSafeInteger(offset)||offset<0||!Number.isSafeInteger(limit)||limit<1||limit>100)throw Error('catalogue_query_invalid');
   const run=this.latest(store,await this.accountRef(store));if(!run)return {status:this.public(null),rows:[],matched:0,offset,limit};

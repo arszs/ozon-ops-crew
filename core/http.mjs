@@ -20,7 +20,7 @@ export async function createWorkspaceAPI(root,live){
    let body={};if(req.method!=='GET'){let text='';for await(const chunk of req){text+=chunk;if(Buffer.byteLength(text)>2_000_000)return send({error:'Payload too large'},413);}body=JSON.parse(text||'{}');}
    const [, ,resource,id,action,index]=parts;
    if(req.method==='GET'){
-    if(!resource)return send(await ws.view());
+    if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='ozon').map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));return send(view);}
     if(resource==='assets'&&id){res.setHeader('Content-Type','image/png');res.end(await readFile(assetPath(id)));return true;}
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.query(store,{q:url.searchParams.get('q')||'',offset:Number(url.searchParams.get('offset')||0)}));}
     if(resource==='stores'&&action==='wb-characteristics')return send(await ws.wbCharacteristics(id,url.searchParams.get('subjectId')));
