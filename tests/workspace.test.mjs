@@ -1,5 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {mkdtemp,readFile} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
-import {Workspace} from '../core/workspace.mjs';import {verifyAudit,maskPII} from '../core/repository.mjs';import {sourceURL} from '../core/canonical.mjs';import {assessStore,unitEconomics} from '../core/assessment.mjs';
+import {Workspace as BaseWorkspace} from '../core/workspace.mjs';
+class Workspace extends BaseWorkspace {constructor(file,options={}){super(file,{translateReply:async text=>({provider:'test',prompt:text,output:{replyZh:'测试翻译：'+text}}),...options});}}
+import {verifyAudit,maskPII} from '../core/repository.mjs';import {sourceURL} from '../core/canonical.mjs';import {assessStore,unitEconomics} from '../core/assessment.mjs';
 async function make(options={}){const dir=await mkdtemp(join(tmpdir(),'ops-workspace-'));const ws=new Workspace(join(dir,'workspace.json'),options);await ws.init();return ws;}
 async function ready(ws){let j=await ws.importProduct({storeId:'ozon-demo',demo:true});for(let i=0;i<5;i++)j=await ws.step(j.id);assert.equal(j.state,'review_gate');return j;}
 test('full demo pipeline, three gates, evidence persistence and repeat-safe execution',async()=>{
