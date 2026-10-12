@@ -48,6 +48,8 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='operations'&&!id)return send(await ws.planOperation(body));
     if(resource==='operations'&&action==='approve')return send(await ws.approveOperation(id,body.payloadHash));
     if(resource==='operations'&&action==='execute')return send(await ws.executeOperation(id));
+    if(resource==='trial-plans'&&!id)return send(await ws.planTrial(body));
+    if(resource==='trial-plans'&&action==='cancel')return send(await ws.cancelTrialPlan(id));
     if(resource==='trials'&&!id)return send(await ws.recordTrial(body));
     if(resource==='assessments')return send(await ws.assessment(body));
    }
