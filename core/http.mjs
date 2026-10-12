@@ -3,6 +3,7 @@ import {AdReadingService,planAdRange} from './ad-reading-service.mjs';
 import {ledgerTrialStatus} from './finance-reconciliation.mjs';
 import {FinanceService} from './finance-service.mjs';
 import {CatalogueService} from './catalogue-service.mjs';
+import {WbPriceService} from './wb-price-service.mjs';
 import {assetPath,saveImage} from '../adapters/media.mjs';
 import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
@@ -14,6 +15,7 @@ export async function createWorkspaceAPI(root,live){
  let config={};try{config=JSON.parse(await readFile(join(homedir(),'.config/ozon-ops-crew/connection.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
  const ws=new Workspace(join(root,'runtime/workspace.json'),{stores:config.stores||[],liveSnapshot:()=>live.get().data});await ws.init();
  const catalogue=new CatalogueService(join(root,'runtime/catalogue.sqlite'));
+ const wbPrices=new WbPriceService(join(root,'runtime/wb-prices.sqlite'),{catalogue});
  const advertising=new AdReadingService(join(root,'runtime/advertising.json'));await advertising.ready;
  const monitoring=new AdMonitor(join(root,'runtime/ad-monitoring.json'),{workspace:ws,advertising});await monitoring.ready;monitoring.start();
  const finance=new FinanceService(join(root,'runtime/finance.json'));await finance.ready;
@@ -31,6 +33,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='assets'&&id){res.setHeader('Content-Type','image/png');res.end(await readFile(assetPath(id)));return true;}
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.query(store,{q:url.searchParams.get('q')||'',offset:Number(url.searchParams.get('offset')||0)}));}
     if(resource==='stores'&&action==='wb-characteristics')return send(await ws.wbCharacteristics(id,url.searchParams.get('subjectId')));
+    if(resource==='stores'&&action==='wb-prices')return send(await wbPrices.get(ws.resolveStore(await ws.repo.read(),id),url.searchParams.get('nmID')));
     if(resource==='stores'&&action==='attributes')return send(await ws.attributes(id,url.searchParams.get('categoryId'),url.searchParams.get('typeId')));
     if(resource==='stores'&&action==='values')return send(await ws.values(id,Object.fromEntries(url.searchParams)));
     if(resource==='benchmark')return send(await ws.benchmark());
@@ -45,6 +48,7 @@ export async function createWorkspaceAPI(root,live){
    }
    if(req.method==='POST'){
     if(resource==='stores'&&!id)return send(await ws.addStore(body));
+    if(resource==='stores'&&action==='wb-prices')return send(await wbPrices.refresh(ws.resolveStore(await ws.repo.read(),id),body.nmID));
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.start(store,{restart:body.restart===true}));}
     if(resource==='stores'&&action==='finance'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await finance.start(store,body));}
     if(resource==='stores'&&action==='finance-reconcile'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await finance.reconcile(store,body.runId,body));}

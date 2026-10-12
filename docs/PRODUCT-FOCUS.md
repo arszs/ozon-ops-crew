@@ -200,3 +200,7 @@ Chrome на синтетическом магазине проверил под�
 Первые 100 карточек WB не покрывали целевые 500–5000 SKU. Китайское и российское подключения теперь имеют отдельные адреса Content API, а каталог загружается в фоне с сохранением каждой страницы. Продавец может искать по названию, nmID, артикулу, размерному ID и штрихкоду, открыть конкретный товар и связать его с собственными затратами и наблюдением. Число размеров не превращается в число карточек или остатки.
 
 На синтетических данных проверены 5000 карточек и восстановление после сбоя. Реальный китайский WB-аккаунт пока не подключён; продажи, финансы, рекламные расходы, цены и остатки WB остаются следующим функциональным разрывом. Конкурсное демо должно показывать синтетическую проверку как техническое доказательство работы, а не подтверждённый бизнес-результат.
+
+### WB size-price visibility
+
+A seller can now open a WB card and explicitly read native-currency prices per size, including the seller and WB Club discounts. This reduces a concrete source of bad margin assumptions: collapsing multiple size prices or treating the displayed price as seller revenue. Failed updates keep visibly dated evidence. The next missing WB economic inputs are actual sales/returns, stock and settlement fees; price visibility alone does not establish profit or enable a safe automated price experiment. Real WB credential validation is still outstanding.

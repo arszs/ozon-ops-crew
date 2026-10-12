@@ -28,6 +28,7 @@ export class CatalogueService{
  latest(store,owner){return this.db.prepare('SELECT * FROM catalogue_runs WHERE store=? AND owner=? ORDER BY rowid DESC LIMIT 1').get(store.id,owner);}
  public(run){return run?{id:run.id,state:run.state,total:run.total,loaded:run.loaded,pages:run.pages,...(run.retry_after?{retryAt:run.retry_after}:{}),error:run.error,startedAt:run.started,updatedAt:run.updated,complete:run.state==='complete'}:{state:'idle',total:null,loaded:0,pages:0,complete:false};}
  validate(store){if(store.mode!=='live'||!['ozon','wb'].includes(store.marketplace))throw Error('live_catalogue_store_required');}
+ async product(store,sku,owner){this.validate(store);const current=await this.accountRef(store);if(owner&&current!==owner)throw Error('WB 账户已变化，请重新同步');const run=this.latest(store,current);const row=run&&this.db.prepare('SELECT json FROM catalogue_rows WHERE run=? AND sku=?').get(run.id,String(sku));if(!row)throw Error('请先同步此店铺目录并选择商品');return JSON.parse(row.json);}
  async start(store,{restart=false}={}){
   this.validate(store);const owner=await this.accountRef(store);let run=this.latest(store,owner);
   if(this.pending.has(store.id))return this.public(run);
