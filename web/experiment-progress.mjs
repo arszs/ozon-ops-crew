@@ -1,3 +1,4 @@
+import {adBudgetSignal} from './experiment-ads.mjs';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const experimentToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const latestReport=(data,p,k)=>(data.financeReadings||[]).findLast(r=>r.storeId===p.storeId&&r.sku===p.sku&&r.from===p[k+'Start']&&r.to===p[k+'End']);
@@ -21,6 +22,7 @@ export function experimentProgress(data,p,today=experimentToday()){
   if(expired||today>p.bEnd)return step('prepare_again','原确认已过期，请重新核对计划','过期确认不能执行；测试期结束后请核实是否实际执行。',{priority:1});
   return step(operation.kind==='price'?'price_check':'cpo_check',operation.state==='pending'?'核对并确认此版本':'确认完成，等待手动执行',today<p.bStart?'测试期尚未开始；只能在计划测试期内执行。':'到确认队列核对具体变更；系统不会自动执行。',{target:'operation-'+operation.id,page:'gates',focus:null,priority:1});
  }
+ const budget=adBudgetSignal(data,p);if(budget?.over)return step('ad_budget',budget.stale?'上次广告读取超限，需重新核对':'已读取广告支出超过计划上限','请先核对投放与支出；其他广告、今天费用及后续更正仍需计入。不会自动停止。',{focus:'ads-'+p.id,priority:0});
  if(api){
   // Baseline and test evidence are independent: never sum unrelated periods or use old cost revisions.
   for(const [key,r] of [['a',a],['b',b]]){

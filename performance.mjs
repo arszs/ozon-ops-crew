@@ -36,12 +36,12 @@ export async function performanceRead(path,body,{accountRef}={}){
  if(res.status===429)cooldown.reject(quota(c),res,'performance_http_429');if(!res.ok){if(res.status===401)cached=null;throw Error('performance_http_'+res.status);}
  try{return await res.json();}catch{throw Error('performance_invalid_response');}
 }
-export async function performanceReport(path,body,onProgress=()=>{}){
- const job=await performanceRead(path,body);if(!/^[a-f0-9-]{36}$/i.test(job.UUID||''))throw Error('performance_invalid_report_id');
+export async function performanceReport(path,body,onProgress=()=>{},{read=performanceRead,accountRef}={}){
+ const job=await read(path,body,{accountRef});if(!/^[a-f0-9-]{36}$/i.test(job.UUID||''))throw Error('performance_invalid_report_id');
  for(let i=0;i<30;i++){
-  const status=await performanceRead('/api/client/statistics/'+job.UUID);
-  if(status.state==='OK')return performanceRead('/api/client/statistics/report?UUID='+encodeURIComponent(job.UUID));
-  if(['ERROR','FAILED'].includes(status.state))throw Error('performance_report_failed');
+  const status=await read('/api/client/statistics/'+job.UUID,undefined,{accountRef});
+  if(status.state==='OK')return read('/api/client/statistics/report?UUID='+encodeURIComponent(job.UUID),undefined,{accountRef});
+  if(['ERROR','FAILED','TIMEOUT','CANCEL'].includes(status.state))throw Error('performance_report_failed');
   onProgress('Ozon формирует рекламный отчёт…');await new Promise(r=>setTimeout(r,2000));
  }
  throw Error('performance_report_timeout');
