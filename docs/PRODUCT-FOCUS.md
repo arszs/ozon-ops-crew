@@ -42,3 +42,9 @@ Home now combines actual Ozon headline metrics with a decision queue derived fro
 Live synchronization now reads product catalogue pages (100 per page, bounded to 100 pages), rejects looping cursors/changing totals/incomplete pages, deduplicates product IDs and loads product details by product ID before enriching report-only SKU rows. This makes zero-history catalogue products eligible for the product dashboard instead of relying only on sales/advertising membership. Products without a valid SKU are counted separately. Missing stock data remains unknown; skipped enrichment is not shown as an API failure.
 
 Validation: 87 tests pass, including catalogue-only products when analytics/finance/ads fail. The live verification request failed with `UND_ERR_CONNECT_TIMEOUT`; full catalogue traversal is therefore not yet verified against the current account. The official Seller API documentation fetch also failed (redirect loop). Existing endpoint contracts are reused; no claim of a fresh official schema validation is made.
+
+## Assortment-level entry assessment
+
+Structured samples may now supply independent economics in each item's `targets.ozon` and `targets.wb`. The assessment counts conditional economic candidates, revise-cost/price items and missing inputs per marketplace, and displays every SKU separately. Store-level scenario fields never fill missing SKU costs. The per-order advertising allowance is calculated at a stated 15% contribution margin; it is not a bid or a forecast of achievable acquisition cost. A format example is explicitly synthetic and will not overwrite existing input. Evidence retains the per-SKU assumptions for auditing.
+
+Validation: 90 tests passed, including platform-specific mixed assortments, missing costs, duplicate SKU rejection and the advertising allowance equation. No demand research, Taobao fetch or real pilot outcome is implied by this calculator.
