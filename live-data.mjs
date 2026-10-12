@@ -1,4 +1,4 @@
-import {sellerRead,catalog} from './ozon.mjs';
+import {sellerRead,fullCatalog} from './ozon.mjs';
 import {performanceRead,performanceReport} from './performance.mjs';
 export function apiNumber(value){
  if(typeof value==='number'&&Number.isFinite(value))return value;
@@ -44,20 +44,34 @@ export function normalizeAdReports(cpc,cpo){
  }
  return {bySku,cpcSpend:round(cpcSpend),cpoSpend:round(cpoSpend),totalSpend:round(cpcSpend+cpoSpend)};
 }
-export async function synchronizeLive(progress=()=>{}){
+export async function synchronizeLive(progress=()=>{},{seller=sellerRead,catalogue=fullCatalog,performance=performanceRead,report=performanceReport}={}){
  const period=lastCompleteWeek(),warnings=[],sources={};const result={mode:'live',period,startedAt:new Date().toISOString(),sources,warnings};
  const attempt=async(name,fn)=>{try{const value=await fn();sources[name]={ok:true};return value;}catch(e){sources[name]={ok:false,error:e.message};warnings.push({source:name,code:e.message});return null;}};
  progress('Читаю заказы, начисления и кампании Ozon…');
  // Independent source reads; accrual pages themselves remain sequential.
  const [catalogData,analytics,finance,campaignList]=await Promise.all([
-  attempt('catalog',()=>catalog()),
-  attempt('analytics',async()=>{const d=await sellerRead('/v1/analytics/data',{date_from:period.from,date_to:period.to,metrics:['revenue','ordered_units'],dimension:['sku'],sort:[{key:'revenue',order:'DESC'}],limit:1000,offset:0});if(!Array.isArray(d.result?.data)||!Array.isArray(d.result?.totals))throw Error('analytics_schema');return d.result;}),
-  attempt('finance',async()=>{const rows=[];for(let date=period.from;date<=period.to;){let cursor='';const seen=new Set();for(let page=0;page<100;page++){progress('Начисления Ozon: '+date);const d=await sellerRead('/v1/finance/accrual/by-day',{date,last_id:cursor});if(!Array.isArray(d.accruals))throw Error('finance_schema');rows.push(...d.accruals);if(!d.last_id)break;if(page===99||seen.has(d.last_id))throw Error('finance_incomplete_pagination');seen.add(d.last_id);cursor=d.last_id;}const next=new Date(date+'T00:00:00Z');next.setUTCDate(next.getUTCDate()+1);date=next.toISOString().slice(0,10);}return summarizeAccruals(rows);}),
-  attempt('campaigns',async()=>{const d=await performanceRead('/api/client/campaign');if(!Array.isArray(d.list))throw Error('campaign_schema');if(Number(d.total??d.list.length)>d.list.length)throw Error('campaigns_incomplete');return d.list;})
+  attempt('catalog',()=>catalogue({read:seller})),
+  attempt('analytics',async()=>{const d=await seller('/v1/analytics/data',{date_from:period.from,date_to:period.to,metrics:['revenue','ordered_units'],dimension:['sku'],sort:[{key:'revenue',order:'DESC'}],limit:1000,offset:0});if(!Array.isArray(d.result?.data)||!Array.isArray(d.result?.totals))throw Error('analytics_schema');return d.result;}),
+  attempt('finance',async()=>{const rows=[];for(let date=period.from;date<=period.to;){let cursor='';const seen=new Set();for(let page=0;page<100;page++){progress('Начисления Ozon: '+date);const d=await seller('/v1/finance/accrual/by-day',{date,last_id:cursor});if(!Array.isArray(d.accruals))throw Error('finance_schema');rows.push(...d.accruals);if(!d.last_id)break;if(page===99||seen.has(d.last_id))throw Error('finance_incomplete_pagination');seen.add(d.last_id);cursor=d.last_id;}const next=new Date(date+'T00:00:00Z');next.setUTCDate(next.getUTCDate()+1);date=next.toISOString().slice(0,10);}return summarizeAccruals(rows);}),
+  attempt('campaigns',async()=>{const d=await performance('/api/client/campaign');if(!Array.isArray(d.list))throw Error('campaign_schema');if(Number(d.total??d.list.length)>d.list.length)throw Error('campaigns_incomplete');return d.list;})
  ]);
  const campaigns=(campaignList||[]).map(c=>({id:String(c.id),title:c.title,state:c.state,type:c.advObjectType,payment:c.PaymentType,strategy:c.productAutopilotStrategy,mode:c.productCampaignMode}));
  result.catalogTotal=catalogData?.total??null;result.finance=finance;result.campaigns=campaigns;
  const rows=new Map();const get=sku=>{sku=String(sku);if(!rows.has(sku))rows.set(sku,{sku,name:'SKU '+sku,orderRevenue:null,orderedUnits:null,netAccrued:null,adSpend:null,adOrders:null,adRevenue:null,strategies:[]});return rows.get(sku);};
+ const applyProduct=p=>{
+  const aliases=[...new Set([p.sku,...(p.sources||[]).map(s=>s.sku)].map(String).filter(s=>/^[1-9]\d*$/.test(s)))];
+  for(const sku of aliases){const r=get(sku);const stocks=p.stocks?.stocks;const matching=Array.isArray(stocks)?stocks.filter(x=>String(x.sku)===sku):null;
+   Object.assign(r,{name:p.name||r.name,offerId:p.offer_id,productId:String(p.id),price:p.price==null||p.price===''?null:apiNumber(p.price),currency:p.currency_code,stock:matching?.length?matching.reduce((n,x)=>n+apiNumber(x.present),0):null});
+  }
+  return aliases.length;
+ };
+ const hydrated=new Set();
+ if(catalogData?.items.length)await attempt('catalogProducts',async()=>{
+  let withoutSku=0;for(let i=0;i<catalogData.items.length;i+=100){const ids=catalogData.items.slice(i,i+100).map(p=>String(p.productId));const d=await seller('/v3/product/info/list',{product_id:ids});if(!Array.isArray(d.items))throw Error('products_schema');const returned=new Set();
+   for(const p of d.items){if(!ids.includes(String(p.id)))throw Error('products_unexpected_id');returned.add(String(p.id));const count=applyProduct(p);if(!count)withoutSku++;else for(const r of rows.values())if(r.productId===String(p.id))hydrated.add(r.sku);}
+   if(ids.some(id=>!returned.has(id)))throw Error('products_incomplete_response');
+  }result.catalogProductsWithoutSku=withoutSku;return true;
+ });
  let analyticsComplete=false;
  if(analytics){
   let revenue=0,units=0;for(const r of analytics.data){const sku=r.dimensions?.[0]?.id;if(!sku)continue;const rev=apiNumber(r.metrics[0]),u=apiNumber(r.metrics[1]);revenue+=rev;units+=u;if(rev||u)Object.assign(get(sku),{name:r.dimensions[0].name,orderRevenue:rev,orderedUnits:u});}
@@ -70,26 +84,26 @@ export async function synchronizeLive(progress=()=>{}){
  let adReport=null;
  if(campaignList){
   const cpcIds=campaigns.filter(c=>c.type==='SKU').map(c=>c.id);
-  const cpc=await attempt('cpc',async()=>cpcIds.length?performanceReport('/api/client/statistics/json',{campaigns:cpcIds,dateFrom:period.from,dateTo:period.to,groupBy:'NO_GROUP_BY'},progress):{});
-  const cpo=await attempt('cpo',()=>performanceReport('/api/client/statistic/products/generate/json',{from:period.from+'T00:00:00+03:00',to:period.to+'T23:59:59+03:00'},progress));
-  const expenses=await attempt('adExpenses',()=>performanceRead('/api/client/statistics/expense/json?'+new URLSearchParams({dateFrom:period.from,dateTo:period.to})));
+  const cpc=await attempt('cpc',async()=>cpcIds.length?report('/api/client/statistics/json',{campaigns:cpcIds,dateFrom:period.from,dateTo:period.to,groupBy:'NO_GROUP_BY'},progress):{});
+  const cpo=await attempt('cpo',()=>report('/api/client/statistic/products/generate/json',{from:period.from+'T00:00:00+03:00',to:period.to+'T23:59:59+03:00'},progress));
+  const expenses=await attempt('adExpenses',()=>performance('/api/client/statistics/expense/json?'+new URLSearchParams({dateFrom:period.from,dateTo:period.to})));
   // This supplementary endpoint covers the separate all-assortment CPO instrument.
-  const allCpo=await attempt('allCpo',()=>performanceReport('/api/client/statistics/all_sku_promo/products/generate/json?'+new URLSearchParams({'timeBounds.from':period.from+'T00:00:00+03:00','timeBounds.to':period.to+'T23:59:59+03:00'}),undefined,progress));
+  const allCpo=await attempt('allCpo',()=>report('/api/client/statistics/all_sku_promo/products/generate/json?'+new URLSearchParams({'timeBounds.from':period.from+'T00:00:00+03:00','timeBounds.to':period.to+'T23:59:59+03:00'}),undefined,progress));
   result.allCpoReport=allCpo;
   if(cpc&&cpo){adReport=await attempt('adMetrics',async()=>normalizeAdReports(cpc,cpo));}if(adReport){for(const [sku,ad] of Object.entries(adReport.bySku)){Object.assign(get(sku),{adSpend:round(ad.cpcSpend+ad.cpoSpend),adOrders:ad.cpcOrders+ad.cpoOrders,adRevenue:round(ad.cpcRevenue+ad.cpoRevenue),adBreakdown:ad});if(ad.name)get(sku).name=ad.name;}}
   result.ads=adReport?{cpcSpend:adReport.cpcSpend,cpoSpend:adReport.cpoSpend,selectedProductsSpend:adReport.totalSpend,allAssortmentVerified:false}:null;
   result.expenseReport=expenses;
   const membership=await attempt('membership',async()=>{
-   const members=[];for(let page=1;page<=100;page++){const d=await performanceRead('/api/client/campaign/search_promo/v2/products',{page,pageSize:1000});if(!Array.isArray(d.products))throw Error('membership_schema');members.push(...d.products);if(members.length>=Number(d.total))return members;if(!d.products.length)throw Error('membership_incomplete');}throw Error('membership_too_large');
+   const members=[];for(let page=1;page<=100;page++){const d=await performance('/api/client/campaign/search_promo/v2/products',{page,pageSize:1000});if(!Array.isArray(d.products))throw Error('membership_schema');members.push(...d.products);if(members.length>=Number(d.total))return members;if(!d.products.length)throw Error('membership_incomplete');}throw Error('membership_too_large');
   });
   for(const p of membership||[]){const r=get(p.sku);r.name=p.title||r.name;r.offerId=p.sourceSku;r.strategies.push({instrument:'CPO',campaignId:p.hint?.campaignId,active:p.searchPromoStatus===true,available:p.isSearchPromoAvailable===true,bidPercent:apiNumber(p.bid),status:p.searchPromoStatus?'Включено':'Выключено'});}
   for(const c of campaigns.filter(c=>c.type==='SKU'&&c.state==='CAMPAIGN_STATE_RUNNING')){
-   await attempt('membership:'+c.id,async()=>{let count=0;for(let page=1;page<=100;page++){const d=await performanceRead(`/api/client/campaign/${c.id}/v2/products?page=${page}&pageSize=1000`);const items=d.products;if(!Array.isArray(items))throw Error('cpc_membership_schema');for(const p of items)get(p.sku).strategies.push({instrument:'CPC',campaignId:c.id,active:true,strategy:c.strategy});count+=items.length;if(count>=Number(d.total)||items.length<1000)return true;}throw Error('membership_too_large');});
+   await attempt('membership:'+c.id,async()=>{let count=0;for(let page=1;page<=100;page++){const d=await performance(`/api/client/campaign/${c.id}/v2/products?page=${page}&pageSize=1000`);const items=d.products;if(!Array.isArray(items))throw Error('cpc_membership_schema');for(const p of items)get(p.sku).strategies.push({instrument:'CPC',campaignId:c.id,active:true,strategy:c.strategy});count+=items.length;if(count>=Number(d.total)||items.length<1000)return true;}throw Error('membership_too_large');});
   }
  }
- const skus=[...rows.keys()];progress('Читаю реальные цены и остатки товаров…');
- if(!skus.length)sources.products={ok:false,skipped:true,reason:'no_skus_to_enrich'};
- else await attempt('products',async()=>{for(let i=0;i<skus.length;i+=100){const d=await sellerRead('/v3/product/info/list',{sku:skus.slice(i,i+100)});if(!Array.isArray(d.items))throw Error('products_schema');for(const p of d.items){const aliases=new Set([String(p.sku),...(p.sources||[]).map(s=>String(s.sku))]);for(const sku of aliases){if(!rows.has(sku))continue;const r=get(sku);Object.assign(r,{name:p.name,offerId:p.offer_id,productId:String(p.id),price:apiNumber(p.price),currency:p.currency_code,stock:(p.stocks?.stocks||[]).filter(x=>String(x.sku)===sku).reduce((n,x)=>n+Number(x.present||0),0)});}}}return true;});
+ const skus=[...rows.keys()].filter(sku=>!hydrated.has(sku));progress('Читаю реальные цены и остатки товаров…');
+ if(!skus.length)sources.products={ok:false,skipped:true,reason:'no_additional_skus_to_enrich'};
+ else await attempt('products',async()=>{for(let i=0;i<skus.length;i+=100){const d=await seller('/v3/product/info/list',{sku:skus.slice(i,i+100)});if(!Array.isArray(d.items))throw Error('products_schema');for(const p of d.items)applyProduct(p);}return true;});
  for(const r of rows.values()){
   if(analyticsComplete&&r.orderRevenue===null){r.orderRevenue=0;r.orderedUnits=0;}
   if(finance&&r.netAccrued===null)r.netAccrued={};

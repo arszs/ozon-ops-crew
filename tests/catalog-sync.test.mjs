@@ -1,0 +1,16 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {fullCatalog} from '../ozon.mjs';
+import {synchronizeLive} from '../live-data.mjs';
+test('catalog cursor pagination deduplicates overlapping products and rejects loops or changing totals',async()=>{
+ let count=0;const c=await fullCatalog({read:async(path,b)=>{assert.equal(path,'/v3/product/list');assert.equal(b.limit,100);count++;return {result:count===1?{total:3,items:[{product_id:1},{product_id:2}],last_id:'next'}:{total:3,items:[{product_id:2},{product_id:3}],last_id:'end'}};}});assert.equal(c.items.length,3);assert.equal(count,2);
+ await assert.rejects(()=>fullCatalog({read:async()=>({result:{total:2,items:[{product_id:1}],last_id:'same'}})}),/incomplete_pagination/);
+ let calls=0;await assert.rejects(()=>fullCatalog({read:async()=>({result:{total:++calls===1?2:3,items:[{product_id:1}],last_id:'next'}})}),/changed_during_sync/);
+ await assert.rejects(()=>fullCatalog({read:async()=>({})}),/catalog_schema/);
+});
+test('catalog-only SKU remains visible without analytics, finance or ads; missing stock is unknown',async()=>{
+ const s=await synchronizeLive(()=>{},{catalogue:async()=>({total:1,items:[{productId:42}]}),seller:async(path,body)=>{if(path!=='/v3/product/info/list')throw Error('unavailable');assert.deepEqual(body,{product_id:['42']});return {items:[{id:42,sku:123,offer_id:'new',name:'New product',price:'1500',currency_code:'RUB'}]};},performance:async()=>{throw Error('unavailable');}});
+ assert.equal(s.rows.length,1);assert.equal(s.rows[0].sku,'123');assert.equal(s.rows[0].price,1500);for(const k of ['stock','orderRevenue','orderedUnits','adSpend','netAccrued'])assert.equal(s.rows[0][k],null);assert.equal(s.sources.catalogProducts.ok,true);
+});
+test('products missing SKU are counted, not fabricated as undefined or zero identifiers',async()=>{
+ const s=await synchronizeLive(()=>{},{catalogue:async()=>({total:1,items:[{productId:42}]}),seller:async path=>{if(path!=='/v3/product/info/list')throw Error('unavailable');return {items:[{id:42,sku:0,sources:[{}],price:'1500'}]};},performance:async()=>{throw Error('unavailable');}});assert.equal(s.rows.length,0);assert.equal(s.catalogProductsWithoutSku,1);
+});

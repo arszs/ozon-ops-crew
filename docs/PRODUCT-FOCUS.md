@@ -36,3 +36,9 @@ Validation: 79 automated tests pass, including persistence, cross-store rejectio
 ## Home decision queue
 
 Home now combines actual Ozon headline metrics with a decision queue derived from loaded experiment plans and each store/SKU's latest observation. It separates DEMO decisions, links directly to the record, prioritizes missing evidence and negative profit, and distinguishes expired planned dates from actual execution. A positive change with still-negative daily contribution is shown as a loss review, not a scale recommendation. Overlapping observations are never summed into store profit. The fourth headline metric is now available advertising spend with coverage disclosure; benchmark claims remain in project documentation instead of occupying store economics. Stale/error snapshots are labelled on home as well as the product page.
+
+## Catalogue coverage
+
+Live synchronization now reads product catalogue pages (100 per page, bounded to 100 pages), rejects looping cursors/changing totals/incomplete pages, deduplicates product IDs and loads product details by product ID before enriching report-only SKU rows. This makes zero-history catalogue products eligible for the product dashboard instead of relying only on sales/advertising membership. Products without a valid SKU are counted separately. Missing stock data remains unknown; skipped enrichment is not shown as an API failure.
+
+Validation: 87 tests pass, including catalogue-only products when analytics/finance/ads fail. The live verification request failed with `UND_ERR_CONNECT_TIMEOUT`; full catalogue traversal is therefore not yet verified against the current account. The official Seller API documentation fetch also failed (redirect loop). Existing endpoint contracts are reused; no claim of a fresh official schema validation is made.
