@@ -12,8 +12,9 @@ export async function createLiveService(root,{sync=synchronizeLive,getCredential
   state='syncing';error=null;progress='Подключаюсь к Ozon…';
   pending=sync(message=>progress=message).then(async next=>{
    if(!usableSnapshot(next))throw Error('all_sources_unavailable');
-   data=next;state='ready';progress='Данные обновлены';
+   data=next;
    try{await writeFile(file+'.tmp',JSON.stringify({version:1,accountRef,data}),{mode:0o600});await rename(file+'.tmp',file);}catch{error='cache_write_failed';}
+   state='ready';progress='Данные обновлены';
   }).catch(e=>{state='error';error=e.message;progress='Не удалось обновить данные';}).finally(()=>pending=null);
  }
  return {get(force=false){
