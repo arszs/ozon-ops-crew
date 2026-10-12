@@ -1,6 +1,6 @@
 import {credentials} from '../ozon.mjs';
 import {hash} from '../core/repository.mjs';
-const READ=new Set(['/v5/product/info/prices','/v3/product/list','/v1/description-category/tree','/v1/description-category/attribute','/v1/description-category/attribute/values/search','/v1/description-category/attribute/values','/v1/product/import/info','/v3/product/info/list']);
+const READ=new Set(['/v1/finance/accrual/types','/v1/finance/accrual/by-day','/v5/product/info/prices','/v3/product/list','/v1/description-category/tree','/v1/description-category/attribute','/v1/description-category/attribute/values/search','/v1/description-category/attribute/values','/v1/product/import/info','/v3/product/info/list']);
 let lastCall=0,queue=Promise.resolve();
 export async function ozonCall(store,path,body,{write=false,fetcher=fetch}={}){
  if(!READ.has(path)&&!(write&&['/v3/product/import','/v1/product/import/prices'].includes(path)))throw Error('Ozon method not allowed');

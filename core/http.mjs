@@ -1,3 +1,4 @@
+import {FinanceService} from './finance-service.mjs';
 import {CatalogueService} from './catalogue-service.mjs';
 import {assetPath,saveImage} from '../adapters/media.mjs';
 import {readFile} from 'node:fs/promises';
@@ -10,6 +11,7 @@ export async function createWorkspaceAPI(root,live){
  let config={};try{config=JSON.parse(await readFile(join(homedir(),'.config/ozon-ops-crew/connection.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
  const ws=new Workspace(join(root,'runtime/workspace.json'),{stores:config.stores||[],liveSnapshot:()=>live.get().data});await ws.init();
  const catalogue=new CatalogueService(join(root,'runtime/catalogue.sqlite'));
+ const finance=new FinanceService(join(root,'runtime/finance.json'));await finance.ready;
  return async(req,res,url)=>{
   const parts=url.pathname.split('/').filter(Boolean);if(parts[0]!=='api'||parts[1]!=='workspace')return false;
   res.setHeader('Content-Type','application/json');
@@ -20,7 +22,7 @@ export async function createWorkspaceAPI(root,live){
    let body={};if(req.method!=='GET'){let text='';for await(const chunk of req){text+=chunk;if(Buffer.byteLength(text)>2_000_000)return send({error:'Payload too large'},413);}body=JSON.parse(text||'{}');}
    const [, ,resource,id,action,index]=parts;
    if(req.method==='GET'){
-    if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='ozon').map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));return send(view);}
+    if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='ozon').map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));view.financeReadings=await finance.list(view.stores.map(s=>ws.resolveStore(db,s.id)));return send(view);}
     if(resource==='assets'&&id){res.setHeader('Content-Type','image/png');res.end(await readFile(assetPath(id)));return true;}
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.query(store,{q:url.searchParams.get('q')||'',offset:Number(url.searchParams.get('offset')||0)}));}
     if(resource==='stores'&&action==='wb-characteristics')return send(await ws.wbCharacteristics(id,url.searchParams.get('subjectId')));
@@ -39,6 +41,7 @@ export async function createWorkspaceAPI(root,live){
    if(req.method==='POST'){
     if(resource==='stores'&&!id)return send(await ws.addStore(body));
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.start(store,{restart:body.restart===true}));}
+    if(resource==='stores'&&action==='finance'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await finance.start(store,body));}
     if(resource==='stores'&&action==='sync')return send(await ws.synchronize(id));
     if(resource==='stores'&&action==='reviews')return send(await ws.syncMessages(id));
     if(resource==='stores'&&action==='demo-review')return send(await ws.demoReview(id));
