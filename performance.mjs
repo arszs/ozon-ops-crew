@@ -1,5 +1,8 @@
+import {ApiCooldown} from './core/api-cooldown.mjs';
+const cooldown=new ApiCooldown();
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
+const quota=c=>createHash('sha256').update(String(c.client||'')).digest('hex');
 const identity=c=>createHash('sha256').update(JSON.stringify(c)).digest('hex');
 let cached=null;
 async function config(){
@@ -9,16 +12,14 @@ async function config(){
 export async function performanceConfigured(){const c=await config();return Boolean(c.client&&c.secret);}
 export async function performanceAccount(){const c=await config();if(!c.client||!c.secret)throw Error('performance_not_configured');return identity(c);}
 async function token(c){
- c??=await config();const ref=identity(c);if(cached?.ref===ref&&cached.until>Date.now())return cached.value;
+ c??=await config();const ref=identity(c);cooldown.check(quota(c),'performance_http_429');if(cached?.ref===ref&&cached.until>Date.now())return cached.value;
  if(!c.client||!c.secret)throw Error('performance_not_configured');
  const res=await fetch('https://api-performance.ozon.ru/api/client/token',{method:'POST',signal:AbortSignal.timeout(15000),headers:{'Content-Type':'application/json'},body:JSON.stringify({client_id:c.client,client_secret:c.secret,grant_type:'client_credentials'})});
- if(!res.ok)throw Error('performance_auth_http_'+res.status);const d=await res.json();if(!d.access_token)throw Error('performance_invalid_token');cached={ref,value:d.access_token,until:Date.now()+Math.max(0,Number(d.expires_in||0)-60)*1000};return cached.value;
+ if(res.status===429)cooldown.reject(quota(c),res,'performance_auth_http_429');if(!res.ok)throw Error('performance_auth_http_'+res.status);const d=await res.json();if(!d.access_token)throw Error('performance_invalid_token');cached={ref,value:d.access_token,until:Date.now()+Math.max(0,Number(d.expires_in||0)-60)*1000};return cached.value;
 }
 // Reporting stays read-only. The separate disable transport is restricted to one approved SKU.
 export async function campaigns(){
- const res=await fetch('https://api-performance.ozon.ru/api/client/campaign',{signal:AbortSignal.timeout(15000),headers:{Authorization:'Bearer '+await token()}});
- if(!res.ok){if(res.status===401)cached=null;throw Error('performance_http_'+res.status);}
- const d=await res.json();return {readOnly:true,fetchedAt:new Date().toISOString(),items:(d.list||[]).map(c=>({id:String(c.id),title:c.title||'',state:c.state||'',type:c.advObjectType||''}))};
+ const d=await performanceRead('/api/client/campaign');return {readOnly:true,fetchedAt:new Date().toISOString(),items:(d.list||[]).map(c=>({id:String(c.id),title:c.title||'',state:c.state||'',type:c.advObjectType||''}))};
 }
 
 // Only reporting POSTs and explicitly listed read endpoints are permitted.
@@ -29,9 +30,10 @@ export function performanceReadAllowed(path,method){
 }
 export async function performanceRead(path,body,{accountRef}={}){
  const method=body===undefined?'GET':'POST';if(!performanceReadAllowed(path,method))throw Error('performance_method_not_allowed');
- const c=await config();if(accountRef&&identity(c)!==accountRef)throw Error('performance_account_changed');
- const res=await fetch('https://api-performance.ozon.ru'+path,{method,signal:AbortSignal.timeout(30000),headers:{Authorization:'Bearer '+await token(c),'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
- if(!res.ok){if(res.status===401)cached=null;throw Error('performance_http_'+res.status);}
+ const c=await config();cooldown.check(quota(c),'performance_http_429');if(accountRef&&identity(c)!==accountRef)throw Error('performance_account_changed');
+ const access=await token(c);cooldown.check(quota(c),'performance_http_429');
+ const res=await fetch('https://api-performance.ozon.ru'+path,{method,signal:AbortSignal.timeout(30000),headers:{Authorization:'Bearer '+access,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ if(res.status===429)cooldown.reject(quota(c),res,'performance_http_429');if(!res.ok){if(res.status===401)cached=null;throw Error('performance_http_'+res.status);}
  try{return await res.json();}catch{throw Error('performance_invalid_response');}
 }
 export async function performanceReport(path,body,onProgress=()=>{}){
@@ -47,12 +49,12 @@ export async function performanceReport(path,body,onProgress=()=>{}){
 
 // No generic write API: enable, bid changes and all-assortment changes are unavailable.
 export async function performanceDisable(sku,accountRef){
- let access;try{
+ let access,quotaRef;try{
   if(typeof sku!=='string'||! /^[1-9]\d*$/.test(sku)||!accountRef)throw Error('Invalid CPO disable target');
-  const c=await config();if(identity(c)!==accountRef)throw Error('performance_account_changed');access=await token(c);
+  const c=await config();if(identity(c)!==accountRef)throw Error('performance_account_changed');quotaRef=quota(c);access=await token(c);cooldown.check(quotaRef,'performance_http_429');
  }catch(e){e.noWrite=true;throw e;}
  const res=await fetch('https://api-performance.ozon.ru/api/client/search_promo/product/disable',{method:'POST',signal:AbortSignal.timeout(30000),headers:{Authorization:'Bearer '+access,'Content-Type':'application/json'},body:JSON.stringify({skus:[sku]})});
- if(!res.ok)throw Error('performance_disable_http_'+res.status);
+ if(res.status===429)cooldown.reject(quotaRef,res,'performance_disable_http_429');if(!res.ok)throw Error('performance_disable_http_'+res.status);
  // The documented success response is an empty object. A timeout/foreign response stays unknown.
  const d=await res.json();if(!d||Array.isArray(d)||typeof d!=='object'||Object.keys(d).length)throw Error('performance_disable_receipt_unknown');
  return d;

@@ -1,4 +1,4 @@
-import {sellerRead,fullCatalog} from './ozon.mjs';
+import {sellerRead,catalogSummary} from './ozon.mjs';
 import {performanceRead,performanceReport} from './performance.mjs';
 export function apiNumber(value){
  if(typeof value==='number'&&Number.isFinite(value))return value;
@@ -69,9 +69,9 @@ function combineAds(cpc,cpo){
  return {bySku,cpcSpend:cpc?.spend??null,cpoSpend:cpo?.spend??null,totalSpend:knownSum(cpc?.spend??null,cpo?.spend??null),unallocated:{cpc:cpc?.unallocated??null,cpo:cpo?.unallocated??null},selectedReportsComplete:Boolean(cpc&&cpo),allAssortmentVerified:false};
 }
 export function normalizeAdReports(cpc,cpo){return combineAds(normalizeCpcReport(cpc),normalizeCpoReport(cpo));}
-export async function synchronizeLive(progress=()=>{},{seller=sellerRead,catalogue=fullCatalog,performance=performanceRead,report=performanceReport}={}){
+export async function synchronizeLive(progress=()=>{},{seller=sellerRead,catalogue=catalogSummary,performance=performanceRead,report=performanceReport}={}){
  const period=lastCompleteWeek(),warnings=[],sources={};const result={mode:'live',period,startedAt:new Date().toISOString(),sources,warnings};
- const attempt=async(name,fn)=>{try{const value=await fn();sources[name]={ok:true};return value;}catch(e){sources[name]={ok:false,error:e.message};warnings.push({source:name,code:e.message});return null;}};
+ const attempt=async(name,fn)=>{try{const value=await fn();sources[name]={ok:true};return value;}catch(e){sources[name]={ok:false,error:e.message,...(Number.isFinite(e.retryAt)?{retryAt:new Date(e.retryAt).toISOString()}:{})};warnings.push({source:name,code:e.message});return null;}};
  progress('Читаю заказы, начисления и кампании Ozon…');
  // Independent source reads; accrual pages themselves remain sequential.
  const [catalogData,analytics,finance,campaignList]=await Promise.all([
@@ -81,7 +81,7 @@ export async function synchronizeLive(progress=()=>{},{seller=sellerRead,catalog
   attempt('campaigns',async()=>{const d=await performance('/api/client/campaign');if(!Array.isArray(d.list))throw Error('campaign_schema');if(Number(d.total??d.list.length)>d.list.length)throw Error('campaigns_incomplete');return d.list;})
  ]);
  const campaigns=(campaignList||[]).map(c=>({id:String(c.id),title:c.title,state:c.state,type:c.advObjectType,payment:c.PaymentType,strategy:c.productAutopilotStrategy,mode:c.productCampaignMode}));
- result.catalogTotal=catalogData?.total??null;result.finance=finance;result.campaigns=campaigns;
+ result.catalogTotal=catalogData?.total??null;result.catalogCoverage=catalogData?.coverage||(catalogData?'full':'unavailable');result.finance=finance;result.campaigns=campaigns;
  const rows=new Map();const get=sku=>{sku=String(sku);if(!rows.has(sku))rows.set(sku,{sku,name:'SKU '+sku,orderRevenue:null,orderedUnits:null,netAccrued:null,adSpend:null,adOrders:null,adRevenue:null,strategies:[]});return rows.get(sku);};
  const applyProduct=p=>{
   const aliases=[...new Set([p.sku,...(p.sources||[]).map(s=>s.sku)].map(String).filter(s=>/^[1-9]\d*$/.test(s)))];

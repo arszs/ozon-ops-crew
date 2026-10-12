@@ -11,3 +11,5 @@
 
 @media(max-width:600px){.home-metrics .metric strong{font-size:18px;letter-spacing:-.5px;overflow-wrap:normal}}
 @media(max-width:360px){.home-metrics{grid-template-columns:1fr}}
+
+.sync-status{margin:12px 0 20px;font-size:12px;color:var(--muted)}.sync-status ul{list-style:none;padding:0;margin:12px 0;display:grid;gap:8px}.sync-status li{display:flex;justify-content:space-between;gap:18px;padding:10px 12px;border-bottom:1px solid var(--line)}.sync-status b{font-weight:500;text-align:right}.sync-status p{font-size:12px}

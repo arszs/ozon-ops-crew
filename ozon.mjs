@@ -1,3 +1,6 @@
+import {ApiCooldown} from './core/api-cooldown.mjs';
+import {createHash} from 'node:crypto';
+const cooldown=new ApiCooldown();
 import {readFile} from 'node:fs/promises';
 export async function credentials(){
  const cfg={...process.env};
@@ -7,9 +10,9 @@ export async function credentials(){
 const READ_PATHS=new Set(['/v3/product/list','/v3/product/info/list','/v1/finance/accrual/by-day','/v1/finance/accrual/types','/v1/analytics/data']);
 export async function sellerRead(path,body){
  if(!READ_PATHS.has(path))throw Error('seller_method_not_allowed');
- const c=await credentials();if(!c.client||!c.key)throw Error('seller_not_configured');
+ const c=await credentials();if(!c.client||!c.key)throw Error('seller_not_configured');const ref=createHash('sha256').update(String(c.client)).digest('hex');cooldown.check(ref,'seller_http_429');
  const res=await fetch('https://api-seller.ozon.ru'+path,{method:'POST',signal:AbortSignal.timeout(30000),headers:{'Client-Id':c.client,'Api-Key':c.key,'Content-Type':'application/json'},body:JSON.stringify(body)});
- if(!res.ok)throw Error('seller_http_'+res.status);
+ if(res.status===429)cooldown.reject(ref,res,'seller_http_429');if(!res.ok)throw Error('seller_http_'+res.status);
  try{return await res.json();}catch{throw Error('seller_invalid_response');}
 }
 export async function catalog(cursor='',{read=sellerRead,limit=20}={}){
@@ -29,4 +32,9 @@ export async function fullCatalog({read=sellerRead}={}){
   seen.add(next.cursor);cursor=next.cursor;
  }
  throw Error('catalog_page_limit');
+}
+
+// Dashboard count only; the persistent catalogue worker owns full pagination.
+export async function catalogSummary({read=sellerRead}={}){
+ const d=await catalog('',{read,limit:1});return {total:d.total,items:[],complete:d.total===0,coverage:'count_only',fetchedAt:d.fetchedAt};
 }
