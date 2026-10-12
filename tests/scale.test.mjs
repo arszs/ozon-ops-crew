@@ -8,8 +8,8 @@ import {runCycle} from '../web/autopilot.mjs';
 function mulberry32(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function makeSku(i,rnd){
  const price=Math.round(200+rnd()*3000),dailyDemand=Math.round(rnd()*50)/10;
- return {id:`SKU-${i}`,name:`Bench ${i}`,scheme:i%2?'FBO':'FBS',price,purchaseCny:price/25,fx:12.5,
-  inbound:80,fulfilment:120,packaging:20,returnReserve:30,commission:0.1,
+ return {id:`SKU-${i}`,name:`Bench ${i}`,scheme:i%2?'FBO':'FBS',price,unitCost:price/2,
+  fulfilment:120,packaging:20,returnReserve:30,commission:0.1,
   stock:Math.floor(rnd()*300),dailyDemand,incomingDays:10,incomingQty:100,
   storageDay:1.5,seasonFactor:1+rnd()*0.4,historyDays:Math.floor(rnd()*400),
   sales:[{revenue:price*dailyDemand,cost:price*dailyDemand*0.6,adCost:price*dailyDemand*0.15,settled:true}],

@@ -33,11 +33,13 @@ export function forecast(p,horizon=30){
  }
  return {days,sold,missed,storage,endingStock:stock,firstStockout,reorderQty:Math.max(0,Math.ceil(p.dailyDemand*horizon-p.stock-(p.incomingDays<=horizon?p.incomingQty:0)))};
 }
-const positive=['price','fx'];
-const numeric=['price','purchaseCny','fx','inbound','fulfilment','packaging','returnReserve','commission','stock','dailyDemand','incomingDays','incomingQty','storageDay','seasonFactor','historyDays'];
+const positive=['price'];
+const numeric=['price','unitCost','fulfilment','packaging','returnReserve','commission','stock','dailyDemand','incomingDays','incomingQty','storageDay','seasonFactor','historyDays'];
 export function validateProducts(input){
  if(!Array.isArray(input)||!input.length||input.length>2000)throw Error('1–2000 products required');const seen=new Set();
  return input.map(p=>{
+  // Migrate historical files once; current economics never reads exchange rates or inbound costs.
+  if(p && p.unitCost===undefined && Number.isFinite(p.purchaseCny) && p.purchaseCny>=0 && Number.isFinite(p.fx) && p.fx>0){p={...p,unitCost:Math.round(p.purchaseCny*p.fx*100)/100};}
   if(!p||typeof p.id!=='string'||!/^[A-Za-z0-9_.-]{1,80}$/.test(p.id)||seen.has(p.id))throw Error('Invalid or duplicate SKU');seen.add(p.id);
   if(typeof p.name!=='string'||!p.name.trim()||p.name.length>200||!['FBO','FBS'].includes(p.scheme))throw Error('Invalid product');
   const out={id:p.id,name:p.name,scheme:p.scheme};

@@ -7,6 +7,6 @@ test('expensive storage favors liquidation',()=>assert.equal(evaluate(demoProduc
 test('stockout before next delivery protects stock',()=>assert.equal(evaluate(demoProducts[2],defaults).strategy,'protect'));
 test('invalid policies rejected',()=>{assert.throws(()=>validatePolicy({...defaults,window:2,minSales:3}));assert.throws(()=>validatePolicy({...defaults,lossLimit:-1}));});
 test('profit floor cannot override price-step safety',()=>{const r=evaluate(demoProducts[2],{...defaults,minUnitProfit:10000});assert.equal(r.blocked,true);assert.equal(r.adBudget,0);assert.equal(r.proposedPrice,demoProducts[2].price);});
-test('currency conversion and commission are separate',()=>{const e=economics(demoProducts[0]);assert.equal(e.cost,1250);assert.equal(e.contribution,742);});
+test('direct unit cost and commission are separate',()=>{const e=economics(demoProducts[0]);assert.equal(e.cost,1090);assert.equal(e.contribution,902);});
 test('cold-start SKU without sales receives only a bounded test budget',()=>{const p={...structuredClone(demoProducts[1]),sales:[],unallocatedAds:0,historyDays:0};const r=evaluate(p,defaults);assert.equal(r.strategy,'test');assert.ok(r.adBudget>0&&r.adBudget<=defaults.dailyBudget*0.2);});
 test('unallocated advertising above limit stops SKU even without sales',()=>{const p={...structuredClone(demoProducts[2]),sales:[],unallocatedAds:600};const r=evaluate(p,defaults);assert.equal(r.strategy,'stop');assert.equal(r.reason,'ads');assert.equal(r.adBudget,0);assert.equal(r.proposedPrice,p.price);});

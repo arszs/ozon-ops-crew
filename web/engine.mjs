@@ -1,6 +1,6 @@
 // Pure deterministic decision layer. All money is normalized to RUB.
 export function economics(p, price=p.price) {
- const cost=p.purchaseCny*p.fx+p.inbound+p.fulfilment+p.packaging+p.returnReserve;
+ const cost=p.unitCost+p.fulfilment+p.packaging+p.returnReserve;
  return {cost, contribution:price*(1-p.commission)-cost, breakEven:cost/(1-p.commission)};
 }
 export function evaluate(p, policy) {
