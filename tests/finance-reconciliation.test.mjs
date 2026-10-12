@@ -19,6 +19,20 @@ const costs=(extra={})=>({currency:'RUB',reportHash:'report',revision:0,cogs:'14
 const adProof=()=>Object.fromEntries(['a','b'].map(k=>[k,{id:'ad-'+k,storeId:store.id,sku:plan.sku,from:plan[k+'Start'],to:plan[k+'End'],days:7,state:'complete',evidenceHash:'ad-hash-'+k,summary:{currency:'RUB',observedSpend:30,cpc:{spend:10,coveredDays:7},cpo:{spend:20,coveredDays:7}}}]));
 const proof=()=>{const a=run(),b=run({id:'b',from:plan.bStart,to:plan.bEnd,summary:{totals:{RUB:700},storeUnallocated:{RUB:-210}}});return {advertising:adProof(),a:{report:a,cost:{...reconcileFinance(a,costs()),id:'ca',revision:1}},b:{report:b,cost:{...reconcileFinance(b,costs()),id:'cb',revision:1}}};};
 const confirmations={comparable:true,executionConfirmed:true,evidence:'Matched inventory and promotions; actual execution verified'};
+test('execution conditions invalidate frozen conclusions and create a new result without changing financial evidence',async t=>{
+ const {finance,advertising,runs,dir}=await setup(t),ws=new Workspace(join(dir,'ws.json'));await ws.init();
+ const p=await ws.planTrial({...plan,hypothesis:'candidate',controls:'same',acknowledged:true});await ws.repo.mutate(db=>db.trialPlans[0].at=plan.at);
+ const ca=await finance.reconcile(store,runs.a.id,costs({reportHash:runs.a.evidenceHash})),cb=await finance.reconcile(store,runs.b.id,costs({reportHash:runs.b.evidenceHash}));
+ const input={aReportId:runs.a.id,bReportId:runs.b.id,aCostId:ca.id,bCostId:cb.id,...confirmations},first=await ws.recordLedgerTrial(p.id,input,finance,advertising);
+ const reports=await finance.list([store]),ads=await advertising.list([store]);
+ assert.equal(first.result.verdict,'repeat_candidate');assert.equal(ledgerTrialStatus(first,reports,ads,p),'current');
+ await ws.repo.mutate(db=>{db.trialPlans[0].cpoQuoteChanged=true;db.trialPlans[0].baselineExecutedAt='2026-07-31T21:00:00Z';});
+ const changed=(await ws.view()).trialPlans[0];assert.equal(ledgerTrialStatus(first,reports,ads,changed),'superseded');
+ const revised=await ws.recordLedgerTrial(p.id,input,finance,advertising);assert.equal(revised.result.verdict,'insufficient');assert.equal(revised.result.blockers.length,2);assert.equal(revised.revision,2);assert.equal(revised.previousTrialId,first.id);assert.equal(revised.result.after,first.result.after);
+ assert.equal(ledgerTrialStatus(revised,reports,ads,changed),'current');assert.equal((await ws.recordLedgerTrial(p.id,input,finance,advertising)).id,revised.id);
+ assert.equal((await ws.view()).trials[0].result.verdict,'repeat_candidate');assert.equal((await ws.view()).auditValid,true);
+ const early={...plan,baselineExecutedAt:'2026-07-31T20:59:59Z'};assert.equal(evaluateLedgerTrial(early,proof(),confirmations).result.verdict,'repeat_candidate');
+});
 test('actual contribution uses API balance and signed shared allocation without deducting advertising twice',()=>{
  const c=reconcileFinance(run(),costs({netAccrued:999999,result:{contribution:999999}}));assert.equal(c.netAccrued,560);assert.equal(c.result.contribution,350);assert.equal(c.result.dailyContribution,50);assert.equal(c.result.reviewed,true);assert.equal(c.costs.adSpend,100);assert.equal(c.result.platformCostsDeductedAgain,false);
  assert.equal(reconcileFinance(run(),costs({sharedNet:10})).result.contribution,395);assert.equal(reconcileFinance(run(),costs({cogs:-140})).result.contribution,630);assert.throws(()=>reconcileFinance(run(),costs({adSpend:-1})));

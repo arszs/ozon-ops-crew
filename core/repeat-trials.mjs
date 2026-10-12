@@ -18,7 +18,7 @@ export async function repeatContext(db,store,plan,input,{finance,advertising,clo
   const proof=await finance.comparisonEvidence(store,{aReportId:source.a.reportId,aCostId:source.a.reconciliationId,bReportId:source.b.reportId,bCostId:source.b.reconciliationId});
   const ads=store.id==='ozon-live'&&advertising?await advertising.comparisonEvidence(store,parent):{};
   const reports=['a','b'].map(k=>({...proof[k].report,reconciliations:[proof[k].cost]}));
-  if(ledgerTrialStatus(source,reports,Object.values(ads).filter(Boolean))!=='current')throw Error('来源证据已更新或缺失，请先重新保存原计划比较');
+  if(ledgerTrialStatus(source,reports,Object.values(ads).filter(Boolean),parent)!=='current')throw Error('来源证据已更新或缺失，请先重新保存原计划比较');
  }
  return {trialId:source.id,planId:parent.id,sourceHash:hash(source),source:source.source,delta:source.result.delta,currency:source.currency||'RUB'};
 }

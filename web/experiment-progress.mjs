@@ -5,10 +5,10 @@ const latestReport=(data,p,k)=>(data.financeReadings||[]).findLast(r=>r.storeId=
 const reviewedCurrencies=r=>r?.state!=='complete'||!r.evidenceHash?[]:[...new Set((r?.reconciliations||[]).map(c=>c.currency))].filter(currency=>{const c=r.reconciliations.findLast(x=>x.currency===currency);return c.reportId===r.id&&c.reportHash===r.evidenceHash&&c.result?.reviewed===true;});
 // A navigation guide over saved evidence; never executes or certifies a strategy.
 export function experimentProgress(data,p,today=experimentToday()){
- const operation=(data.operations||[]).findLast(o=>['price','cpo_disable'].includes(o.kind)&&o.storeId===p.storeId&&o.payload?.planId===p.id);
+ const operation=(data.operations||[]).findLast(o=>['price','cpo_disable','cpo_enable'].includes(o.kind)&&o.storeId===p.storeId&&o.payload?.planId===p.id);
  const a=latestReport(data,p,'a'),b=latestReport(data,p,'b'),store=(data.stores||[]).find(s=>s.id===p.storeId);
  const api=store?.marketplace==='ozon'&&store.mode==='live';
- const observed=operation?operation.state==='verified'&&(operation.kind==='price'?operation.priceObservation?.matches:operation.cpoObservation?.matches):['price_observed','cpo_off_observed'].includes(p.execution);
+ const observed=operation?operation.payload?.phase!=='baseline'&&operation.state==='verified'&&(operation.kind==='price'?operation.priceObservation?.matches:operation.cpoObservation?.matches):['price_observed','cpo_off_observed','cpo_on_observed'].includes(p.execution);
  const status=r=>r?.state==='complete'?reviewedCurrencies(r).length?'成本已核对':'待核对成本':['queued','running'].includes(r?.state)?'读取中':r?'读取未完成':'尚未读取';
  const platform=operation&&['pending','approved'].includes(operation.state)?'待确认 / 执行':operation&&['executing','submitted','unknown'].includes(operation.state)?'待核对平台':observed?'曾观察到目标状态':'执行未核实';
  const stages=[{name:'基准期',status:api?status(a):'人工核对'},{name:'平台执行',status:platform},{name:'测试期',status:p.bEnd>=today?'尚未结束':api?status(b):'人工核对'}];
@@ -20,7 +20,7 @@ export function experimentProgress(data,p,today=experimentToday()){
  if(operation&&['pending','approved'].includes(operation.state)){
   const expired=Date.parse(operation.payload?.context?.checkedAt)+900000<Date.now();
   if(expired||today>p.bEnd)return step('prepare_again','原确认已过期，请重新核对计划','过期确认不能执行；测试期结束后请核实是否实际执行。',{priority:1});
-  return step(operation.kind==='price'?'price_check':'cpo_check',operation.state==='pending'?'核对并确认此版本':'确认完成，等待手动执行',today<p.bStart?'测试期尚未开始；只能在计划测试期内执行。':'到确认队列核对具体变更；系统不会自动执行。',{target:'operation-'+operation.id,page:'gates',focus:null,priority:1});
+  return step(operation.kind==='price'?'price_check':'cpo_check',operation.state==='pending'?'核对并确认此版本':'确认完成，等待手动执行',operation.payload?.phase==='baseline'?'基准操作可在基准开始前一天至基准结束执行；不会自动开始测试方案。':today<p.bStart?'测试期尚未开始；只能在计划测试期内执行。':'到确认队列核对具体变更；系统不会自动执行。',{target:'operation-'+operation.id,page:'gates',focus:null,priority:1});
  }
  const budget=adBudgetSignal(data,p);if(budget?.over)return step('ad_budget',budget.stale?'上次广告读取超限，需重新核对':'已读取广告支出超过计划上限','请先核对投放与支出；其他广告、今天费用及后续更正仍需计入。不会自动停止。',{focus:'ads-'+p.id,priority:0});
  const monitor=data.adMonitors?.find(m=>m.planId===p.id);if(monitor&&(['error','connection_changed','interrupted','unavailable'].includes(monitor.lastState)||monitor.enabled&&data.adMonitorWorker?.error))return step('monitor_check','每日广告检查未完成，请核对','最新广告支出可能缺失。查看连接与报表，必要时手动读取；不会自动改变广告。',{focus:'ads-'+p.id,priority:1});
@@ -35,7 +35,7 @@ export function experimentProgress(data,p,today=experimentToday()){
    if(!reviewedCurrencies(r).length)return step('cost_review','核对'+label+'商品成本与费用','补齐商品成本、外部费用、公共分摊和跨期退货；API 记账本身不是利润。',{focus:(r.summary&&Object.keys(r.summary.totals||{}).length)?'costs-'+r.id+'-'+p.id+'-'+key:focus,priority:1});
   }
  }
- if(today<p.bStart&&p.repeatOf)return step('scheduled','核对重复测试的基准方案','基准期 '+p.aStart+' — '+p.aEnd+'：请人工核对并恢复基准方案。上次测试结束不代表已恢复；系统不会自动还原价格或开启广告。');
+ if(today<p.bStart&&p.repeatOf)return step('scheduled','核对重复测试的基准方案','基准期 '+p.aStart+' — '+p.aEnd+'：请人工核对并恢复基准方案。上次测试结束不代表已恢复；价格仍需人工恢复；CPO 可在此准备单独确认的基准操作，不会自动执行。');
  if(today<p.bStart)return step('scheduled','等待测试期开始','先保持基准方案；计划中的广告与价格不会自动生效。');
  if(p.bEnd>=today)return step(observed?'observe':'planned',observed?'观察测试期，人工检查限额':'核实并执行测试方案',observed?'平台仅曾观察到目标状态；检查库存、其他广告、延迟费用、预算和亏损，期末核对贡献。':'保存计划不代表执行。请记录实际开始时间及库存、促销变化。',{priority:observed?3:2});
  if(api){

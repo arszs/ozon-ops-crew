@@ -1,4 +1,4 @@
-import {performanceAccount,performanceRead,performanceDisable} from '../performance.mjs';
+import {performanceAccount,performanceRead,performanceDisable,performanceEnable} from '../performance.mjs';
 import {ozonCall} from './ozon-products.mjs';
 import {catalogueProduct} from './ozon-catalogue.mjs';
 import {priceAccount} from './ozon-prices.mjs';
@@ -35,4 +35,18 @@ export async function submitCpoDisable(store,op,{read=readCpo,disable=performanc
  }catch(e){e.noWrite=true;throw e;}
  await disable(current.sku,current.accountRef);
  return {mode:'live',externalWrite:true,status:'accepted',sku:current.sku,payloadHash:op.payloadHash,stateObserved:false,scope:'specific_sku_cpo'};
+}
+
+export function enableQuote(c){
+ if(c.available!==true||c.fixedBidStatus!=='available'||!Number.isFinite(c.fixedBid)||c.fixedBid<=0||!Number.isFinite(c.bidPct)||c.bidPct<=0||c.bidPct>100||typeof c.bidRub!=='string'||!/^\d+(\.\d+)?$/.test(c.bidRub)||!Number.isFinite(Number(c.bidRub))||Number(c.bidRub)<=0)throw Error('开启前必须取得可用商品、固定报价及有效的当前百分比 / RUB 费用');
+ return {fixedBid:c.fixedBid,bidPct:c.bidPct,bidRub:c.bidRub};
+}
+export async function submitCpoEnable(store,op,{read=readCpo,enable=performanceEnable}={}){
+ let current;try{
+  supported(store,op.payload.sku);current=await read(store,op.payload.sku);enableQuote(current);
+  if(op.kind!=='cpo_enable'||op.payload.target!==true||current.enabled!==false||current.fingerprint!==op.payload.context.fingerprint||current.fixedBid!==op.payload.context.fixedBid||hash(op.payload.apiBody)!==hash({skus:[current.sku]}))throw Error('CPO 状态、报价或账户已变化，请重新拟定并确认');
+ }catch(e){e.noWrite=true;throw e;}
+ const response=await enable(current.sku,current.accountRef),r=response?.response?.[0];
+ if(!Array.isArray(response?.response)||response.response.length!==1||r?.sku!==current.sku||typeof r.update!=='boolean'||!Number.isFinite(r.bid)||r.bid<0||(r.error!==undefined&&typeof r.error!=='string')||(r.update===true&&Boolean(r.error)))throw Error('performance_enable_receipt_unknown');
+ return {mode:'live',externalWrite:true,status:r.update===true&&!r.error?'accepted':'not_updated',sku:current.sku,payloadHash:op.payloadHash,stateObserved:false,reportedBid:r.bid,quoteChanged:r.update===true&&!r.error&&r.bid!==current.fixedBid,responseHash:hash(response),scope:'specific_sku_cpo'};
 }

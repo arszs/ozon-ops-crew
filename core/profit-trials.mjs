@@ -28,7 +28,7 @@ export function planTrial(input){
  const text=k=>{const v=input[k];if(typeof v!=='string'||!v.trim()||v.length>500)throw Error('请填写完整测试计划');return v.trim();};
  const sku=text('sku'),baseline=text('baseline'),variant=text('variant'),hypothesis=text('hypothesis'),controls=text('controls');
  if(sku.length>160||baseline.length>160||variant.length>160||baseline===variant||!['price','ads'].includes(input.lever))throw Error('请检查 SKU 和两个不同方案');
- const adsControl=input.adsControl||null;if(adsControl!==null&&(adsControl!=='cpo_disable'||input.lever!=='ads'||baseline!=='指定商品 CPO 开启'||variant!=='指定商品 CPO 关闭'))throw Error('CPO 计划必须明确指定商品开启 → 关闭');
+ const adsControl=input.adsControl||null;if(adsControl!==null){const enable=adsControl==='cpo_enable';if(!['cpo_disable','cpo_enable'].includes(adsControl)||input.lever!=='ads'||baseline!==(enable?'指定商品 CPO 关闭':'指定商品 CPO 开启')||variant!==(enable?'指定商品 CPO 开启':'指定商品 CPO 关闭'))throw Error('CPO 计划必须明确指定商品开启 / 关闭两个方案');}
  const schedule={};for(const k of ['aStart','aEnd','bStart','bEnd']){const v=text(k),d=new Date(v+'T00:00:00Z');if(!/^\d{4}-\d{2}-\d{2}$/.test(v)||!Number.isFinite(+d)||d.toISOString().slice(0,10)!==v)throw Error('日期无效');schedule[k]=v;}
  for(const p of ['a','b']){const days=(Date.parse(schedule[p+'End'])-Date.parse(schedule[p+'Start']))/86400000+1;if(days<7||days>90)throw Error('每个期间需要 7–90 天');}
  if(schedule.aEnd>=schedule.bStart)throw Error('两个期间不能重叠');
@@ -40,6 +40,8 @@ export function checkPlanResult(plan,trial){
  for(const k of ['sku','lever','baseline','variant'])if(plan[k]!==trial[k])throw Error('观察结果必须对应原计划的商品与方案');
  if(plan.aStart!==trial.a.start||plan.aEnd!==trial.a.end||plan.bStart!==trial.b.start||plan.bEnd!==trial.b.end)throw Error('观察日期必须与原计划一致');
  const violations=[];
+ if(plan.cpoQuoteChanged)violations.push('CPO 实际报价与确认版本不同，请核对实际投放条件');
+ if(plan.baselineExecutedAt&&new Date(Date.parse(plan.baselineExecutedAt)+3*3600000).toISOString().slice(0,10)>=plan.aStart)violations.push('基准期开始后才恢复方案，原基准日期不完整，请重新安排测试');
  if(trial.b.ads>plan.adBudget)violations.push('测试期广告支出超过计划上限');
  if(trial.b.profit < -plan.maxLoss)violations.push('测试期亏损超过计划上限');
  if(violations.length){trial.result.blockers.push(...violations);trial.result.verdict='insufficient';}

@@ -34,13 +34,17 @@ export function evaluateLedgerTrial(plan,proof,input){
  if(currency!=='RUB')blockers.push('原计划限额为 RUB，无法核对当前币种的广告与亏损上限');
  else {if(periods.b.ads>plan.adBudget)blockers.push('卖家核对的测试期广告总支出超过计划上限');if(periods.b.profit < -plan.maxLoss)blockers.push('测试期贡献亏损超过计划上限');}
  const advertising=compareAdvertising(plan,proof.advertising,periods,currency);blockers.push(...advertising.blockers);
+ if(plan.cpoQuoteChanged)blockers.push('CPO 实际报价与确认版本不同，请核对实际投放条件');
+ if(plan.baselineExecutedAt&&new Date(Date.parse(plan.baselineExecutedAt)+3*3600000).toISOString().slice(0,10)>=plan.aStart)blockers.push('基准期开始后才恢复方案，原基准日期不完整，请重新安排测试');
  const planDate=new Date(Date.parse(plan.at)+3*3600000).toISOString().slice(0,10);
  if(planDate>=plan.bStart)blockers.push('计划未在测试开始前保存；此结果是回顾观察');
  const before=round(periods.a.profit/periods.a.days),after=round(periods.b.profit/periods.b.days),delta=round(periods.b.profit/periods.b.days-periods.a.profit/periods.a.days);
- return {sku:plan.sku,lever:plan.lever,baseline:plan.baseline,variant:plan.variant,currency,evidence:text(input.evidence),comparable:input.comparable===true,executionConfirmed:input.executionConfirmed===true,source:'api_accruals_seller_costs',basis:'accrual_date',advertisingProof:advertising.proof,...periods,result:{before,after,delta,blockers,verdict:blockers.length?'insufficient':delta>0?'repeat_candidate':'no_improvement',causal:false},provenance:{a:structuredClone(a),b:structuredClone(b)}};
+ return {sku:plan.sku,lever:plan.lever,baseline:plan.baseline,variant:plan.variant,currency,evidence:text(input.evidence),comparable:input.comparable===true,executionConfirmed:input.executionConfirmed===true,source:'api_accruals_seller_costs',basis:'accrual_date',advertisingProof:advertising.proof,executionEvidence:executionEvidence(plan),...periods,result:{before,after,delta,blockers,verdict:blockers.length?'insufficient':delta>0?'repeat_candidate':'no_improvement',causal:false},provenance:{a:structuredClone(a),b:structuredClone(b)}};
 }
-export function ledgerTrialStatus(trial,readings,adReadings=[]){
+export const executionEvidence=p=>({baselineExecutedAt:p?.baselineExecutedAt||null,cpoQuoteChanged:p?.cpoQuoteChanged===true});
+export function ledgerTrialStatus(trial,readings,adReadings=[],plan=null){
  if(trial.source!=='api_accruals_seller_costs')return null;
+ if(plan&&hash(executionEvidence(trial.executionEvidence))!==hash(executionEvidence(plan)))return 'superseded';
  for(const key of ['a','b']){
   const p=trial[key],latest=readings.findLast(r=>r.storeId===trial.storeId&&r.sku===trial.sku&&r.from===p.start&&r.to===p.end);
   if(!latest)return 'unavailable';

@@ -18,7 +18,7 @@ export function homeModel(data,live,storeId='ozon-live'){
 }
 function experimentCell(entry){
  const {plan:p,trial:t}=entry;
- if(p){const observed=p.execution==='price_observed'||p.execution==='cpo_off_observed';return `<b>${esc(p.baseline)} → ${esc(p.variant)}</b><small>${observed?'曾读取到目标状态 · 收益待观察':['price_submitted','cpo_off_submitted'].includes(p.execution)?'已提交 · 待核对平台状态':p.execution==='price_state_changed'?'价格已变化 · 待核对':p.execution==='cpo_state_changed'?'广告状态已变化 · 待核对':'已保存计划 · 执行尚未核实'}</small><small>${esc(p.bStart)} — ${esc(p.bEnd)}</small>`;}
+ if(p){const observed=['price_observed','cpo_off_observed','cpo_on_observed'].includes(p.execution);return `<b>${esc(p.baseline)} → ${esc(p.variant)}</b><small>${observed?'曾读取到目标状态 · 收益待观察':['price_submitted','cpo_off_submitted','cpo_on_submitted'].includes(p.execution)?'已提交 · 待核对平台状态':p.execution==='price_state_changed'?'价格已变化 · 待核对':p.execution==='cpo_not_updated'?'平台未确认广告变更 · 待核对':p.execution==='cpo_state_changed'?'广告状态已变化 · 待核对':'已保存计划 · 执行尚未核实'}</small><small>${esc(p.bStart)} — ${esc(p.bEnd)}</small>`;}
  if(t){const stale=t.source==='api_accruals_seller_costs'&&t.sourceStatus!=='current',incomplete=stale||t.result?.verdict==='insufficient';return `<b>${stale?'证据已更新，需重算':incomplete?'证据不足，暂不下结论':t.result.after<0?'观察期仍亏损':t.result.verdict==='repeat_candidate'?'日均贡献提高 · 待重复验证':'未观察到日均贡献提高'}</b>${incomplete?'':`<small>${esc(money(t.result.before,t.currency))} → ${esc(money(t.result.after,t.currency))} / 天</small>`}<small>${t.source==='api_accruals_seller_costs'?'记账 + 卖家成本':'人工观察'} · 不证明因果关系</small>`;}
  return '<span class="muted">还没有测试记录</span><small>先核对成本，再定义一个假设</small>';
 }
