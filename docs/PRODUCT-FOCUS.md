@@ -126,3 +126,10 @@ A plan can compare two exact report/reconciliation versions. The backend validat
 Refreshing reports or correcting costs marks prior results superseded/unavailable and creates a dashboard task to recalculate. Earlier amounts and supporting versions remain preserved. This supplies accounting-date contribution with explicit manual costs, not fully automated SKU profitability or order-cohort advertising attribution. There is still no verified live strategy uplift or genuine migration benchmark.
 
 Validation: 165 passing tests and isolated Chinese-browser end-to-end coverage of initial comparison, cost correction, stale recommendation removal and versioned recomparison. A fresh seven-day actual API read completed; real cost inputs remained empty and no live experiment outcome was fabricated. The worker also detects repeated accrual identities across days. No marketplace writes occurred.
+
+
+### Эксперимент CPO on → off
+
+Первый подключённый рекламный рычаг — отключение CPO отдельного SKU по явному подтверждению продавца. Это позволяет проверить гипотезу о сохранении органических продаж при снижении рекламных расходов. Интерфейс показывает начальное состояние, область изменения и следующий шаг на главной. Результат сравнивается по всем продажам SKU и начислениям с подтверждёнными затратами, а не только по атрибуции рекламного кабинета.
+
+Фиксированную ставку берём из актуального API; произвольная настройка через устаревший метод не предлагается. Включение CPO, управление CPC, автоматический контроль расходов и повторные циклы эксперимента остаются необходимой следующей работой. Гейт проверен на синтетическом сценарии; реальный аккаунт использован только для чтения. Это не подтверждённое конкурентное преимущество над Miaoshou и не измеренное улучшение прибыли.

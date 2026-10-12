@@ -63,6 +63,9 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='cost-profiles'&&!id)return send(await ws.saveCosts(body));
     if(resource==='trial-plans'&&!id)return send(await ws.planTrial(body));
     if(resource==='trial-plans'&&action==='ledger-result')return send(await ws.recordLedgerTrial(id,body,finance));
+    if(resource==='trial-plans'&&action==='cpo-check')return send(await ws.inspectTrialCpo(id));
+    if(resource==='trial-plans'&&action==='cpo-operation')return send(await ws.prepareTrialCpo(id));
+    if(resource==='operations'&&action==='cpo-status')return send(await ws.reconcileCpo(id));
     if(resource==='trial-plans'&&action==='price-operation')return send(await ws.prepareTrialPrice(id));
     if(resource==='operations'&&action==='price-status')return send(await ws.reconcilePrice(id));
     if(resource==='trial-plans'&&action==='cancel')return send(await ws.cancelTrialPlan(id));

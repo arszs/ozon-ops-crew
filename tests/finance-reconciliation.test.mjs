@@ -73,7 +73,7 @@ test('workspace records and revisions retain exact API proof, close plans and su
  const db=await ws.repo.read();assert.equal(db.trials[0].provenance.b.cost.costs.cogs,140);
 });
 test('unresolved writes and cancelled plans cannot be completed using ledger results',async t=>{
- const {finance,dir}=await setup(t),ws=new Workspace(join(dir,'ws.json'));await ws.init();const p=await ws.planTrial({...plan,hypothesis:'candidate',controls:'same',acknowledged:true});await ws.repo.mutate(db=>db.operations.push({id:'uncertain',state:'unknown',payload:{planId:p.id}}));await assert.rejects(()=>ws.recordLedgerTrial(p.id,{},finance),/调价/);await ws.repo.mutate(db=>{db.operations=[];db.trialPlans[0].status='cancelled';});await assert.rejects(()=>ws.recordLedgerTrial(p.id,{},finance),/未取消/);
+ const {finance,dir}=await setup(t),ws=new Workspace(join(dir,'ws.json'));await ws.init();const p=await ws.planTrial({...plan,hypothesis:'candidate',controls:'same',acknowledged:true});await ws.repo.mutate(db=>db.operations.push({id:'uncertain',state:'unknown',payload:{planId:p.id}}));await assert.rejects(()=>ws.recordLedgerTrial(p.id,{},finance),/平台操作/);await ws.repo.mutate(db=>{db.operations=[];db.trialPlans[0].status='cancelled';});await assert.rejects(()=>ws.recordLedgerTrial(p.id,{},finance),/未取消/);
 });
 test('cost UI leaves unknowns blank, contextualizes totals and isolates duplicate period form IDs',()=>{
  const r=run();const html=financeCostsForm(r);assert.match(html,/value=""/);assert.match(html,/不是单件假设/);assert.match(html,/仅检查限额，不再扣减/);assert.notEqual(financeCostsForm(r,'RUB','p1'),financeCostsForm(r,'RUB','p2'));
