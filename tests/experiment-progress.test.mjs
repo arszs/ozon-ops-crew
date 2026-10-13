@@ -27,7 +27,7 @@ test('unresolved operations take precedence over finance and stale observed plan
 });
 test('test date boundaries do not imply execution or completion',()=>{
  const d=db({financeReadings:[report('a')]});assert.equal(step(d,p,'2026-09-07').kind,'scheduled');assert.equal(step(d,p,'2026-09-08').kind,'planned');assert.equal(step(d,{...p,execution:'price_observed'},'2026-09-14').kind,'observe');assert.equal(step(d,p,'2026-09-15').kind,'finance_read');
- const manual=db({stores:[{...store,marketplace:'wb'}]});assert.equal(step(manual).kind,'due');
+ const manual=db({stores:[{...store,marketplace:'wb'}]});assert.equal(step(manual).kind,'wb_evidence');assert.equal(step(manual).focus,'finance-'+p.id);
 });
 test('expired approval routes to re-preparation; active approval links the exact operation',()=>{
  const op={id:'op',kind:'price',state:'approved',storeId:p.storeId,payload:{planId:p.id,context:{checkedAt:new Date().toISOString()}}};const d=db({operations:[op]});assert.equal(step(d,p,'2026-09-10').target,'operation-op');op.payload.context.checkedAt='2020-01-01T00:00:00Z';assert.equal(step(d,p,'2026-09-10').kind,'prepare_again');

@@ -65,7 +65,7 @@ test('UI shows explicit local approval, unfilled cost inputs and evidence-versio
  const f=await fixture(t),input={...source(f.view),method:'positive_goods'},p=await f.service.skuCosts.preview(f.store,input);
  let h=wbAllocationPanel(f.view,f.store.id,p);assert.match(h,/下载完整分摊明细 CSV/);assert.doesNotMatch(h,/ checked/);assert.match(h,/确认并保存此分摊/);assert.equal(allocationCSV(p).split('\r\n').length,3);
  await allocation(f);const v=await f.service.get(f.store,{sku:'123'});h=wbSkuContributionPanel(v,f.store.id);assert.match(h,/name="cogs"[^>]+value=""/);assert.doesNotMatch(h,/ checked/);assert.match(h,/name="sharedReviewed"/);
- const stale={...v,snapshot:{...v.snapshot,stale:true}};assert.match(wbAllocationPanel(stale,f.store.id,p),/确认并保存此分摊/);assert.match(wbSkuContributionPanel(stale,f.store.id),/先完成报表核对/);
+ const stale={...v,snapshot:{...v.snapshot,stale:true}};assert.match(wbAllocationPanel(stale,f.store.id,p),/确认并保存此分摊/);assert.match(wbSkuContributionPanel(stale,f.store.id),/先完成此期间报表核对/);
  assert.match(wbSkuContributionValue({attribution:{CNY:{},RUB:{}},contributions:[{currency:'CNY',status:'current',contribution:'1'}]}),/RUB 待核算/);
  const csv=allocationCSV(p,true);const roundTrip=await f.service.skuCosts.preview(f.store,{...input,method:'manual',manualWeights:csv});assert.deepEqual(roundTrip.weights,p.weights);
 });
@@ -96,6 +96,6 @@ test('form handlers connect preview, exact confirmation and SKU cost save to the
   bindWbSkuContribution(options);preview.onsubmit({preventDefault(){}});await work;assert.ok(draft.previewHash);assert.equal((await f.service.get(f.store)).allocations.length,0);
   const confirm=form({store:f.store.id},{evidence:'Reviewed synthetic allocation',confirmed:'on'});forms['[data-wb-allocation-confirm]']=[confirm];bindWbSkuContribution(options);confirm.onsubmit({preventDefault(){}});await work;assert.equal(draft,null);
   const input=await costInput(f),save=form({store:f.store.id,sku:'123',currency:'CNY',run:input.runId,source:input.reportHash,allocation:input.allocationHash},{revision:'0',cogs:'300',tax:'10',external:'20',evidence:'Reviewed synthetic cost sources',costsReviewed:'on',periodReviewed:'on',noDoubleCount:'on',sharedReviewed:'on'});forms['[data-wb-sku-cost]']=[save];bindWbSkuContribution(options);save.onsubmit({preventDefault(){}});await work;
-  assert.equal(refreshed,1);assert.equal((await f.service.get(f.store,{sku:'123'})).skuReconciliations[0].status,'current');assert.equal(f.calls.length,reads);assert.deepEqual(routes.map(p=>p.split('/').at(-1)),['wb-allocation-preview','wb-allocation-confirm','wb-sku-reconcile']);
+  assert.equal(refreshed,2);assert.equal((await f.service.get(f.store,{sku:'123'})).skuReconciliations[0].status,'current');assert.equal(f.calls.length,reads);assert.deepEqual(routes.map(p=>p.split('/').at(-1)),['wb-allocation-preview','wb-allocation-confirm','wb-sku-reconcile']);
  }finally{globalThis.document=oldDocument;globalThis.FormData=oldFormData;}
 });

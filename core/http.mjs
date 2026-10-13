@@ -1,3 +1,4 @@
+import {WbTrialService} from './wb-trials.mjs';
 import {WbListingErrorService} from './wb-listing-error-service.mjs';
 import {wbAccount} from '../adapters/wb-api.mjs';
 import {WbAdvertisingService} from './wb-advertising-service.mjs';
@@ -25,6 +26,7 @@ export async function createWorkspaceAPI(root,live){
  const wbListingErrors=new WbListingErrorService(join(root,'runtime/wb-listing-errors.json'));await wbListingErrors.ready;
  const wbAds=new WbAdvertisingService(join(root,'runtime/wb-advertising.sqlite'));
  const wbFinance=new WbFinanceService(join(root,'runtime/wb-finance.sqlite'));
+ const wbTrials=new WbTrialService(ws,wbFinance,wbAds);
  const wbPrices=new WbPriceService(join(root,'runtime/wb-prices.sqlite'),{catalogue});
  const wbInventory=new WbInventoryService(join(root,'runtime/wb-inventory.sqlite'),{catalogue});
  const advertising=new AdReadingService(join(root,'runtime/advertising.json'));await advertising.ready;
@@ -40,7 +42,8 @@ export async function createWorkspaceAPI(root,live){
    let body={};if(req.method!=='GET'){let text='';for await(const chunk of req){text+=chunk;if(Buffer.byteLength(text)>2_000_000)return send({error:'Payload too large'},413);}body=JSON.parse(text||'{}');}
    const [, ,resource,id,action,index]=parts;
    if(req.method==='GET'){
-    if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&['ozon','wb'].includes(s.marketplace)).map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));view.wbFinance=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbFinance.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 财务连接不可用'}];}})));view.wbAds=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbAds.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 广告连接不可用'}];}})));view.adMonitors=await monitoring.list();view.adMonitorWorker=monitoring.status;view.adReadings=await advertising.list(view.stores.map(s=>ws.resolveStore(db,s.id)));view.financeReadings=await finance.list(view.stores.map(s=>ws.resolveStore(db,s.id)));for(const t of view.trials)if(t.source==='api_accruals_seller_costs')t.sourceStatus=ledgerTrialStatus(t,view.financeReadings,view.adReadings,view.trialPlans.find(p=>p.id===t.planId));return send(view);}
+    if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&['ozon','wb'].includes(s.marketplace)).map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));view.wbFinance=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbFinance.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 财务连接不可用'}];}})));view.wbAds=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbAds.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 广告连接不可用'}];}})));view.adMonitors=await monitoring.list();view.adMonitorWorker=monitoring.status;view.adReadings=await advertising.list(view.stores.map(s=>ws.resolveStore(db,s.id)));view.financeReadings=await finance.list(view.stores.map(s=>ws.resolveStore(db,s.id)));for(const t of view.trials)if(t.source==='api_accruals_seller_costs')t.sourceStatus=ledgerTrialStatus(t,view.financeReadings,view.adReadings,view.trialPlans.find(p=>p.id===t.planId));for(const t of view.trials)if(t.source==='wb_reports_seller_costs'){try{t.sourceStatus=await wbTrials.status(ws.resolveStore(db,t.storeId),db.trialPlans?.find(p=>p.id===t.planId),t);}catch{t.sourceStatus='unavailable';}}return send(view);}
+    if(resource==='trial-plans'&&action==='wb-evidence')return send(await wbTrials.get(id));
     if(resource==='assets'&&id){res.setHeader('Content-Type','image/png');res.end(await readFile(assetPath(id)));return true;}
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.query(store,{q:url.searchParams.get('q')||'',offset:Number(url.searchParams.get('offset')||0)}));}
     if(resource==='stores'&&action==='wb-characteristics')return send(await ws.wbCharacteristics(id,url.searchParams.get('subjectId'),url.searchParams.get('locale')||'zh'));
@@ -105,9 +108,11 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='operations'&&action==='execute')return send(await ws.executeOperation(id));
     if(resource==='reviews'&&action==='draft')return send(await ws.draftMessage(id));
     if(resource==='cost-profiles'&&!id)return send(await ws.saveCosts(body));
-    if(resource==='trial-plans'&&!id)return send(await ws.planTrial(body,{finance,advertising}));
+    if(resource==='trial-plans'&&!id)return send(await ws.planTrial(body,{finance,advertising,wbTrials}));
     if(resource==='trial-plans'&&action==='ad-monitor')return send(await monitoring.configure(id,body.enabled));
     if(resource==='trial-plans'&&action==='ad-read'){const db=await ws.repo.read(),plan=db.trialPlans?.find(p=>p.id===id);if(!plan)throw Error('Plan not found');return send(await advertising.start(ws.resolveStore(db,plan.storeId),{...planAdRange(plan,body.period),refresh:body.refresh===true}));}
+    if(resource==='trial-plans'&&action==='wb-read')return send(await wbTrials.read(id,body));
+    if(resource==='trial-plans'&&action==='wb-result')return send(await wbTrials.save(id,body));
     if(resource==='trial-plans'&&action==='ledger-result')return send(await ws.recordLedgerTrial(id,body,finance,advertising));
     if(resource==='trial-plans'&&action==='cpo-check')return send(await ws.inspectTrialCpo(id));
     if(resource==='trial-plans'&&action==='cpo-operation')return send(await ws.prepareTrialCpo(id,{phase:body.phase||'test'}));

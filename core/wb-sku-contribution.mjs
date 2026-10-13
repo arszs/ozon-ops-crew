@@ -60,14 +60,15 @@ export class WbSkuContribution{
   return records;
  }
  async context(store,input){
-  const owner=await this.service.identity(store),view=await this.service.get(store,{sku:input.sku}),s=current(view,input),run=this.service.latest(store,owner);
+  const owner=await this.service.identity(store),source=this.db.prepare('SELECT * FROM wb_finance_runs WHERE id=? AND store=? AND owner=?').get(input.runId||'',store.id,owner);if(!source)throw Error('财务来源不属于当前店铺账户');
+  const range={from:source.date_from,to:source.date_to},view=await this.service.get(store,{sku:input.sku,...range}),s=current(view,input),run=this.service.latest(store,owner,range);
   if(await this.service.accountRef(store)!==owner)throw Error('WB 账户已变化，请重新读取');
-  if(this.service.pending.has(owner)||this.service.latest(store,owner)?.id!==s.runId||run?.state!=='complete')throw Error('财务正在更新，请完成后再保存');
+  if(this.service.pending.has(owner)||this.service.latest(store,owner,range)?.id!==s.runId||run?.state!=='complete')throw Error('财务正在更新，请完成后再保存');
   return {owner,view,s,products:this.service.attribution(run,this.service.reports(run.id),this.service.counts(run.id)).products};
  }
  insert(store,owner,draft,revision){
   this.db.exec('BEGIN IMMEDIATE');try{
-   const run=this.service.latest(store,owner);if(this.service.pending.has(owner)||run?.id!==draft.runId||run.state!=='complete'||this.service.clock()-Date.parse(run.updated)>86400000)throw Error('财务正在更新或已过期，请重新核对');
+   const run=this.service.latest(store,owner,draft.period);if(this.service.pending.has(owner)||run?.id!==draft.runId||run.state!=='complete'||this.service.clock()-Date.parse(run.updated)>86400000)throw Error('财务正在更新或已过期，请重新核对');
    const records=this.records(store,owner,draft.period),old=records.findLast(r=>r.kind===draft.kind&&r.currency===draft.currency&&(r.sku||'')===(draft.sku||''));
    if(draft.kind==='cost'&&draft.allocationHash&&records.findLast(r=>r.kind==='allocation'&&r.currency===draft.currency)?.hash!==draft.allocationHash)throw Error('分摊版本已变化，请重新核对商品成本');
    if(!Number.isSafeInteger(revision)||revision!==(old?.revision||0))throw Error('保存版本已变化，请重新打开核对');

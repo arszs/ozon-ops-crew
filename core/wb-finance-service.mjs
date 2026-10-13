@@ -29,7 +29,7 @@ export class WbFinanceService{
  }
  stamp(){return new Date(this.clock()).toISOString();}
  async identity(store){if(store.mode!=='live'||store.marketplace!=='wb')throw Error('只支持真实 WB 店铺');return this.accountRef(store);}
- latest(store,owner){return this.db.prepare('SELECT * FROM wb_finance_runs WHERE store=? AND owner=? ORDER BY rowid DESC LIMIT 1').get(store.id,owner);}
+ latest(store,owner,range=null){return range?this.db.prepare('SELECT * FROM wb_finance_runs WHERE store=? AND owner=? AND date_from=? AND date_to=? ORDER BY rowid DESC LIMIT 1').get(store.id,owner,range.from,range.to):this.db.prepare('SELECT * FROM wb_finance_runs WHERE store=? AND owner=? ORDER BY rowid DESC LIMIT 1').get(store.id,owner);}
  deadline(owner){return this.db.prepare('SELECT retry_at FROM wb_finance_limits WHERE owner=?').get(owner)?.retry_at||0;}
  reports(id){return this.db.prepare('SELECT data FROM wb_finance_reports WHERE run=? ORDER BY id').all(id).map(decode);}
  counts(id){return {reports:this.db.prepare('SELECT COUNT(*) n FROM wb_finance_reports WHERE run=?').get(id).n,rows:this.db.prepare('SELECT COUNT(*) n FROM wb_finance_rows WHERE run=?').get(id).n};}
@@ -42,8 +42,8 @@ export class WbFinanceService{
   if(this.attributionCache.size>=2)this.attributionCache.delete(this.attributionCache.keys().next().value);
   this.attributionCache.set(key,result);return result;
  }
- async get(store,{sku}={}){
-  const owner=await this.identity(store),run=this.latest(store,owner);if(sku!=null)sku=wbInteger(sku);
+ async get(store,{sku,from,to}={}){
+  const owner=await this.identity(store),range=from!=null||to!=null?wbFinanceRange({from,to},this.clock()):null,run=this.latest(store,owner,range);if(sku!=null)sku=wbInteger(sku);
   if(!run)return {state:'idle',snapshot:null,retryAt:this.deadline(owner)||null};
   // Preserve a completed snapshot while a same-period refresh is incomplete. Different periods never mix.
   const good=this.db.prepare("SELECT * FROM wb_finance_runs WHERE store=? AND owner=? AND date_from=? AND date_to=? AND state='complete' ORDER BY rowid DESC LIMIT 1").get(store.id,owner,run.date_from,run.date_to);
@@ -84,7 +84,7 @@ export class WbFinanceService{
  }
  async start(store,input={}){
   const owner=await this.identity(store);if(this.pending.has(owner)){if(this.pending.get(owner).store===store.id&&!input.from&&!input.to&&input.restart!==true)return this.get(store);throw Error('此 WB 账户的另一店铺连接正在读取财务');}
-  let run=this.latest(store,owner);const resume=run&&input.restart!==true&&!input.from&&!input.to&&run.state!=='complete';
+  const requested=input.from||input.to?wbFinanceRange(input,this.clock()):null;let run=this.latest(store,owner,requested);const resume=run&&input.restart!==true&&run.state!=='complete';
   const range=wbFinanceRange(resume?{from:run.date_from,to:run.date_to}:input,this.clock());
   if(!resume||run.date_from!==range.from||run.date_to!==range.to){
    const id=randomUUID();this.db.prepare('INSERT INTO wb_finance_runs VALUES(?,?,?,?,?,?,?,?,?,?,?)').run(id,store.id,owner,range.from,range.to,'waiting','list','0',this.stamp(),this.stamp(),null);run=this.latest(store,owner);
