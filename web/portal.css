@@ -26,3 +26,13 @@
 .wb-price-control [hidden]{display:none!important}
 
 .wb-launch ol{list-style:none;padding:0;display:grid;gap:10px}.wb-launch li{display:grid;grid-template-columns:minmax(140px,1fr) 2fr;gap:16px;padding:12px;background:var(--surface,#f6f7f2);border-radius:8px}.wb-error-batch{border-left:3px solid #b38562;padding:4px 16px;margin:16px 0}
+
+.home-task-counts{display:flex;flex-wrap:wrap;gap:8px 22px;margin-bottom:12px;color:var(--muted)}
+.home-task-counts b{color:var(--ink);font-size:18px;margin-right:4px}
+.home-task{display:grid;grid-template-columns:170px minmax(0,1fr) auto;gap:16px;align-items:center;padding:17px 0;border-top:1px solid var(--line)}
+.home-task h3{margin:0 0 5px;overflow-wrap:anywhere}.home-task p{margin:0 0 5px}.home-task small{color:var(--muted)}
+.home-task-status{font-size:12px;line-height:1.6;padding:6px 9px;border-radius:6px;background:#edf3ef;color:#305342}
+.home-task-status.check,.home-task-status.fix{background:#fff2dd;color:#805313}
+.home-task-more{margin-bottom:14px}.home-task-more summary{cursor:pointer;padding:12px 0}
+.home-tasks>small{display:block;margin-top:12px}
+@media(max-width:800px){.home-task{grid-template-columns:minmax(0,1fr) auto;gap:10px}.home-task-status{grid-column:1/-1;justify-self:start}.home-task h3{font-size:15px}}
