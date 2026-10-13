@@ -1,3 +1,4 @@
+import {requireStoreAdapter} from './registry.mjs';
 import {wbRead,wbRegion} from './wb-api.mjs';
 import {wbCataloguePage} from './wb-catalogue.mjs';
 import {readFile} from 'node:fs/promises';
@@ -8,11 +9,13 @@ async function json(url,options){const r=await fetch(url,{...options,signal:time
 // Each configured store owns its credentials; missing keys must not inherit another account.
 export async function storeCredentials(store){return envFile(store.envFile);}
 export async function readStore(store){
+ requireStoreAdapter(store);
  if(store.mode==='mock')return store.snapshot?structuredClone(store.snapshot):{mode:'mock',products:[{sku:'DEMO-STORAGE-01',name:'Складной короб, 30 л',price:1290,stock:48}],orders:12,orderedAmount:15480,profit:null,currency:'RUB',source:'固定演示数据，不是真实销售'};
  if(store.marketplace==='ozon')return readOzonCatalogue(store);
  const page=await wbCataloguePage(store);return {mode:'live',products:page.rows,catalogTotal:page.complete?page.rows.length:null,catalogueComplete:page.complete,source:'WB Content API · 单页快照；完整目录请使用后台同步'};
 }
 export async function dictionaries(store,search=''){
+ requireStoreAdapter(store);
  if(store.mode==='mock')return {mode:'mock',verified:false,source:'演示规则快照，不是当前平台规则',items:[{id:'mock-storage',name:'Короба для хранения',required:['Материал','Цвет','Объём'],titleLimit:store.marketplace==='wb'?60:200}]};
  if(store.marketplace==='ozon'){
   const c=await storeCredentials(store);const headers={'Client-Id':c.OZON_CLIENT_ID,'Api-Key':c.OZON_API_KEY,'Content-Type':'application/json'};
@@ -22,12 +25,14 @@ export async function dictionaries(store,search=''){
  const d=await wbRead(store,'/content/v2/object/all?'+new URLSearchParams({limit:100,offset:0,name:search,locale:'zh'}));if(!Array.isArray(d.data))throw Error('wb_dictionary_schema');return {mode:'live',verified:true,source:'WB object/all · '+wbRegion(store),items:d.data};
 }
 export async function executeMarketplace(store,operation){
+ requireStoreAdapter(store);
  if(store.mode==='mock')return {mode:'mock',externalWrite:false,receipt:'SIM-'+operation.id,platform:store.marketplace,status:'simulated',payloadHash:operation.payloadHash};
  // MVP deliberately fails closed: ownership, stock warehouses, permissions, current rules,
  // upload/moderation polling and ambiguous-write reconciliation must be verified per account.
  throw Error('真实店铺写入未启用；审批不会绕过此限制 / Live writes disabled');
 }
 export async function readMessages(store){
+ requireStoreAdapter(store);
  if(store.mode==='mock')return {items:[],mode:'mock',partial:false};
  const c=await storeCredentials(store);let headers,requests;
  if(store.marketplace==='wb'){
