@@ -1,15 +1,14 @@
+import {readWbProductIdentity} from './wb-product-identity.mjs';
 import {hash} from '../core/repository.mjs';
 import {wbRead,wbWritePrice,wbAccount} from './wb-api.mjs';
-import {wbNmId,readWbPrice} from './wb-prices.mjs';
-import {findWbCard,checkWbWriteProfile} from './wb-products.mjs';
+import {readWbPrice} from './wb-prices.mjs';
+import {checkWbWriteProfile} from './wb-products.mjs';
 export function priceProfile(store){if(store.marketplace!=='wb'||store.mode!=='live')throw Error('此功能仅用于已连接的 WB 店铺');checkWbWriteProfile(store);if(!['personal','service','base-with-secret'].includes(store.wbPriceTokenType))throw Error('请在私有配置核实 wbPriceTokenType：personal / service / base-with-secret');}
 export async function readWbPriceContext(store,product,{read=wbRead,accountRef=wbAccount}={}){
- priceProfile(store);const owner=await accountRef(store),nmID=wbNmId(product.sku),card=await findWbCard(store,product.offerId,{read,accountRef:owner});
- if(!card||String(card.nmID)!==nmID||!Array.isArray(card.sizes)||!card.sizes.length)throw Error('WB 卡片与调价商品不匹配');
- const current={sku:nmID,offerId:product.offerId,sizes:card.sizes.map(s=>({chrtId:wbNmId(s.chrtID),techSize:s.techSize,skus:s.skus})).sort((a,b)=>a.chrtId.localeCompare(b.chrtId))};
- const {price}=await readWbPrice(store,current,{read,accountRef:owner});price.sizes.sort((a,b)=>a.chrtId.localeCompare(b.chrtId));
- if(await accountRef(store)!==owner)throw Error('WB 账户已变化');
- return {accountRef:owner,product:current,title:card.title||product.offerId,price,identityHash:hash(current)};
+ priceProfile(store);const identity=await readWbProductIdentity(store,product,{read,accountRef});
+ const {price}=await readWbPrice(store,identity.product,{read,accountRef:identity.accountRef});price.sizes.sort((a,b)=>a.chrtId.localeCompare(b.chrtId));
+ if(await accountRef(store)!==identity.accountRef)throw Error('WB 账户已变化');
+ return {accountRef:identity.accountRef,product:identity.product,title:identity.title,price,identityHash:identity.identityHash};
 }
 export function createWbPriceSubmit({context=readWbPriceContext,write=wbWritePrice,clock=()=>Date.now()}={}){
  return async(store,op)=>{

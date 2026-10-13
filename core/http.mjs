@@ -20,6 +20,7 @@ export async function createWorkspaceAPI(root,live){
  const ws=new Workspace(join(root,'runtime/workspace.json'),{stores:config.stores||[],liveSnapshot:()=>live.get().data});await ws.init();
  const catalogue=new CatalogueService(join(root,'runtime/catalogue.sqlite'));
  ws.wbPriceProduct=async(store,nmID)=>{const owner=await wbAccount(store);try{return await catalogue.product(store,String(nmID),owner);}catch(e){const db=await ws.repo.read(),job=db.jobs.find(j=>j.storeId===store.id&&j.state==='imported'&&String(j.importResult?.productId)===String(nmID)),op=job&&db.operations.findLast(o=>o.kind==='publish'&&o.payload.jobId===job.id&&o.state==='verified');if(!job||op?.payload.wbContext?.accountRef!==owner)throw e;return {sku:String(nmID),offerId:job.canonical.sku};}};
+ ws.wbStockProduct=ws.wbPriceProduct;
  const wbAds=new WbAdvertisingService(join(root,'runtime/wb-advertising.sqlite'));
  const wbFinance=new WbFinanceService(join(root,'runtime/wb-finance.sqlite'));
  const wbPrices=new WbPriceService(join(root,'runtime/wb-prices.sqlite'),{catalogue});
@@ -63,6 +64,11 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='stores'&&action==='wb-ads')return send(await wbAds.start(ws.resolveStore(await ws.repo.read(),id),body));
     if(resource==='stores'&&action==='wb-ads-pause')return send(await wbAds.pause(ws.resolveStore(await ws.repo.read(),id)));
     if(resource==='stores'&&action==='wb-finance')return send(await wbFinance.start(ws.resolveStore(await ws.repo.read(),id),body));
+    if(resource==='stores'&&action==='wb-stock-warehouses')return send(await ws.inspectWbStockWarehouses(id));
+    if(resource==='stores'&&action==='wb-stock-context')return send(await ws.inspectWbStock(id,body.nmID,body.warehouseId));
+    if(resource==='stores'&&action==='wb-stock-plan')return send(await ws.prepareWbStock(id,body));
+    if(resource==='operations'&&action==='wb-stock-status')return send(await ws.reconcileWbStock(id));
+    if(resource==='operations'&&action==='wb-stock-confirm')return send(await ws.confirmWbStock(id,body));
     if(resource==='stores'&&action==='wb-price-context')return send(await ws.inspectWbPrice(id,body.nmID));
     if(resource==='stores'&&action==='wb-price-plan')return send(await ws.prepareWbPrice(id,body));
     if(resource==='operations'&&action==='wb-price-status')return send(await ws.reconcileWbPrice(id));
