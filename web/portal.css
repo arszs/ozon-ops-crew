@@ -36,3 +36,5 @@
 .home-task-more{margin-bottom:14px}.home-task-more summary{cursor:pointer;padding:12px 0}
 .home-tasks>small{display:block;margin-top:12px}
 @media(max-width:800px){.home-task{grid-template-columns:minmax(0,1fr) auto;gap:10px}.home-task-status{grid-column:1/-1;justify-self:start}.home-task h3{font-size:15px}}
+
+.wb-settlement{border:1px solid var(--line);border-radius:10px;padding:18px;margin:18px 0;background:#f7f9f4}.wb-settlement h3{margin-top:0}.wb-net-currency+.wb-net-currency{border-top:1px solid var(--line);padding-top:14px}.wb-net-value{font-size:26px;font-weight:650;margin:12px 0}.wb-settlement summary{cursor:pointer}.wb-settlement small{display:block;color:var(--muted)}
