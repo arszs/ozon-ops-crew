@@ -225,3 +225,10 @@ WB Promotion reads now expose per-product spend, views, clicks and attributed or
 Сверка идёт по каждому полю каждой дневной формы: расхождения −20 и +20 в разных отчётах не исчезают из-за совпадения общего итога. Общие удержания без nmID остаются на уровне магазина. Реклама повторно не вычитается. Пока не проверены полная формула расчётов, распределение общих расходов и затраты конкретного SKU, сумма товара не называется прибылью и не становится основанием для рекомендации рекламной стратегии.
 
 Следующий существенный шаг — подтверждаемое распределение расходов и затрат по SKU, связанное с точной версией отчётов и периодом рекламы; затем сравнение рекламных стратегий WB по вкладу. Проверка на настоящем китайском аккаунте и 10 реальных товарах по-прежнему не выполнена. Текущая браузерная проверка синтетическая, 344 автоматических теста проходят.
+
+
+### WB listing workflow: first write adapter
+
+Chinese sellers can now prepare and review WB card metadata with the real regional Content API adapter. This closes the former gap after attribute validation; it does not complete listing launch. Packaging, barcodes and document assertions must be readable at the gate, not hidden in JSON. Platform acceptance and independently observed matching content are separate states.
+
+Next priority is gated Russian image upload with readback, followed by price/stock setup and moderation diagnosis. Until these steps and a real account trial are complete, the demo must say “card metadata prepared/created,” not “SKU live.” The competitive promise remains fewer seller decisions and evidence-backed economics per SKU; neither Miaoshou revenue nor a measured commercial advantage is established.
