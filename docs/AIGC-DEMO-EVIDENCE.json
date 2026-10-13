@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-13",
+  "synthetic": true,
+  "realMarketplaceWrites": false,
+  "textProvider": "codex-subscription",
+  "durationMs": 22172,
+  "promptHash": "e41e2ac4a3c46ac7b3cbd70fb534b0f969c950862bbe4b174521244860a0e001",
+  "textOutput": {
+    "issueZh": "买家表示未从图片理解尺寸，实物小于预期；属于尺寸信息不清，未提供产品缺陷或服务失败证据。",
+    "changeZh": "突出卖家确认的宽40、深30、高25厘米，并将30升标为标称容积，帮助判断大小。生成的视觉稿须经卖家审核。",
+    "headlineRu": "Размеры: 40 × 30 × 25 см",
+    "captionRu": "Ширина 40 см, глубина 30 см, высота 25 см. Заявленный объём — 30 л.",
+    "promptZh": "编辑原商品信息图：保留灰色布艺收纳盒的原始外观、形状、颜色、标志和数量，不改变商品比例。清晰添加俄文标题“Размеры: 40 × 30 × 25 см”和说明“Ширина 40 см, глубина 30 см, высота 25 см. Заявленный объём — 30 л.”。用尺寸线分别标示宽、深、高。删除未经卖家确认的折叠功能表述，不添加防水、耐压、耐用性、认证、退款或产品改进承诺，不含买家身份信息。所有生成视觉稿须经卖家审核。",
+    "risk": "content_clarity",
+    "warningsZh": [
+      "现有文案称可折叠，但卖家事实未确认该功能。",
+      "没有防水、耐压或认证证据，不得添加相关宣称。"
+    ]
+  },
+  "imageProvider": "OpenAI image generation tool",
+  "imageExecution": "assistant-generated example; not an automatic in-app image endpoint",
+  "images": {
+    "aigc-before.png": "0d0a2f0a474e7cda532093ddee0c3e40c73bf082ef99561c422547660a3e4a12",
+    "aigc-after.png": "d3fadeb02daea9da91574103fb5ba3db186452192bc571422ca2c59ad3197653"
+  },
+  "visualReview": "Russian text and 40/30/25 cm axis labels inspected; a synthetic product example, not proof of exact real-product fidelity or marketplace acceptance."
+}
