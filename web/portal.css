@@ -22,3 +22,5 @@
 .wb-goods-net{padding:16px 0}.wb-goods-net strong{font-size:28px;line-height:1.25}.wb-attribution{margin-top:12px}.wb-attribution>summary{font-weight:600}
 
 .image-grid .wb-media-compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.wb-media-compare a{display:block;min-width:0}.wb-media-compare small{display:block;font-size:11px;margin-bottom:8px}.image-grid .wb-media-compare img{width:100%;height:auto}
+
+.wb-price-control [hidden]{display:none!important}
