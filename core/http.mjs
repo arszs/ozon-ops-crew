@@ -76,6 +76,9 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='assets'&&!id){if(typeof body.base64!=='string'||body.base64.length>1_800_000)throw Error('Image too large (max 1.3 MB)');return send(await saveImage(Buffer.from(body.base64,'base64')));}
     if(resource==='jobs'&&action==='edit')return send(await ws.edit(id,body));
     if(resource==='jobs'&&action==='category-approval')return send(await ws.approveCategory(id,body.revision));
+    if(resource==='jobs'&&action==='wb-media-plan')return send(await ws.prepareWbMedia(id));
+    if(resource==='operations'&&action==='wb-media-status')return send(await ws.readWbMediaResult(id));
+    if(resource==='operations'&&action==='wb-media-confirm')return send(await ws.confirmWbMediaResult(id,body));
     if(resource==='jobs'&&action==='publish-plan')return send(await ws.preparePublish(id));
     if(resource==='jobs'&&action==='sync')return send(await ws.syncPublished(id));
     if(resource==='operations'&&!id)return send(await ws.planOperation(body));

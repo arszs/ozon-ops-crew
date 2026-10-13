@@ -28,7 +28,7 @@ export async function syncWbPublication(ws,id){
  const result=await ws.wbStatus(ws.resolveStore(db,job.storeId),op);
  return ws.repo.mutate(db=>{
   const current=db.jobs.find(j=>j.id===id),operation=db.operations.find(o=>o.id===op.id);if(current.revision!==job.revision||operation.payloadHash!==op.payloadHash)throw Error('WB 核对版本已变化');
-  current.importResult={...result,checkedAt:now()};current.syncedAt=now();if(result.imported){current.state='imported';current.wbPublicationStage='images_pending';operation.state='verified';delete operation.error;}else{current.wbPublicationStage=result.status==='mismatch'?'content_mismatch':'creation_unconfirmed';if(current.state==='imported')current.state='submitted';if(operation.state==='verified')operation.state='submitted';}
+  current.importResult={...result,checkedAt:now()};current.syncedAt=now();if(result.imported){current.state='imported';current.wbPublicationStage=current.wbMediaResult?.complete?'price_stock_pending':'images_pending';operation.state='verified';delete operation.error;}else{current.wbPublicationStage=result.status==='mismatch'?'content_mismatch':'creation_unconfirmed';if(current.state==='imported')current.state='submitted';if(operation.state==='verified')operation.state='submitted';}
   audit(db,{kind:'import.status',jobId:id,operationId:op.id,marketplace:'wb',outputHash:hash(result),externalWrite:false});return current;
  });
 }
