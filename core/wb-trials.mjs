@@ -1,3 +1,4 @@
+import {WB_PRICE_TRIAL_VERSION,wbPriceTrialBlockers} from './wb-price-trial.mjs';
 import {randomUUID} from 'node:crypto';
 import {hash,audit,maskPII} from './repository.mjs';
 import {wbDecimal,decimalText} from '../adapters/wb-finance.mjs';
@@ -8,14 +9,14 @@ export const WB_TRIAL_VERSION='wb-period-contribution-v1';
 const today=clock=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(clock()));
 const days=p=>(Date.parse(p.to)-Date.parse(p.from))/86400000+1;
 const ranges=p=>Object.fromEntries(['a','b'].map(k=>[k,{from:p[k+'Start'],to:p[k+'End']} ]));
-const identity=p=>Object.fromEntries(['id','storeId','sku','lever','baseline','variant','aStart','aEnd','bStart','bEnd','adBudget','maxLoss','currency','at'].map(k=>[k,p[k]??null]));
+const identity=p=>Object.fromEntries(['id','storeId','sku','lever','baseline','variant','aStart','aEnd','bStart','bEnd','adBudget','maxLoss','currency','at',...(p.wbPriceEconomics?['wbPriceEconomics','wbPriceTrialState']:[])].map(k=>[k,p[k]??null]));
 const amount=v=>{if(typeof v!=='string'||!/^\d{1,13}(\.\d{1,6})?$/.test(v)||wbDecimal(v)>1000000000000000000n)throw Error('请填写非负金额，最多六位小数');return decimalText(wbDecimal(v));};
 const count=v=>{if(typeof v!=='string'||!/^\d{1,9}$/.test(v))throw Error('请填写已核对订单数，不能用财务明细条数代替');return Number(v);};
 const note=v=>{if(typeof v!=='string'||v.trim().length<5||v.length>1000)throw Error('请填写 5–1000 字的执行、费用及可比性依据');return maskPII(v.trim());};
 function summary(v){return Object.fromEntries(['a','b'].map(k=>{const {finance:f,ads:a}=v[k],s=f.snapshot,ad=a.snapshot;return [k,{finance:{state:f.state,runId:s?.runId||null,hash:s?.evidenceHash||null,complete:s?.complete===true,stale:s?.stale!==false,period:s?.period||null,currencies:Object.keys(s?.product?.attribution||{}),costs:(f.skuReconciliations||[]).filter(r=>r.status!=='revised')},ads:{state:a.state,runId:ad?.runId||null,hash:ad?.evidenceHash||null,complete:ad?.complete===true,stale:a.comparisonStale!==false,period:ad?.period||null,coverage:ad?.coverage||null,product:ad?.product||null}}];}));}
 export function evaluateWbTrial(plan,proof,input){
  const currency=input.currency;if(!/^[A-Z]{3}$/.test(currency||''))throw Error('请选择两个期间共同核对的币种');
- const blockers=[],periods={},evidence=note(input.evidence),checks=Object.fromEntries(['executionConfirmed','comparable','adCoverageReviewed'].map(k=>[k,input[k]===true]));
+ const blockers=wbPriceTrialBlockers(plan),periods={},evidence=note(input.evidence),checks=Object.fromEntries(['executionConfirmed','comparable','adCoverageReviewed'].map(k=>[k,input[k]===true]));
  for(const k of ['a','b']){
   const p=proof[k],r=p.finance,c=r.costs.find(c=>c.currency===currency),range=ranges(plan)[k];
   if(!c||c.status!=='current'||!r.complete||r.stale||r.state!=='complete'||r.period?.from!==range.from||r.period.to!==range.to||c.sku!==plan.sku||c.storeId!==plan.storeId||c.runId!==r.runId||c.reportHash!==r.hash||c.period.from!==range.from||c.period.to!==range.to)throw Error('请先完成两个原计划期间、此 SKU 同一币种的最新成本核对');
@@ -40,12 +41,12 @@ export function evaluateWbTrial(plan,proof,input){
 export class WbTrialService{
  constructor(workspace,finance,advertising){Object.assign(this,{workspace,finance,advertising});}
  resolve(db,id){const plan=db.trialPlans?.find(p=>p.id===id);if(!plan)throw Error('实验计划不存在');const store=this.workspace.resolveStore(db,plan.storeId);if(store.mode!=='live'||store.marketplace!=='wb')throw Error('需要真实 WB 实验计划');return {plan,store};}
- stamp(store,plan,owner){return {owner,plan:identity(plan),rules:[WB_ATTRIBUTION_VERSION,WB_ALLOCATION_VERSION,WB_TRIAL_VERSION],periods:Object.fromEntries(Object.entries(ranges(plan)).map(([k,range])=>{
+ stamp(store,plan,owner){return {owner,plan:identity(plan),rules:[WB_ATTRIBUTION_VERSION,WB_ALLOCATION_VERSION,WB_TRIAL_VERSION,...(plan.wbPriceEconomics?[WB_PRICE_TRIAL_VERSION]:[])],periods:Object.fromEntries(Object.entries(ranges(plan)).map(([k,range])=>{
   const f=this.finance.latest(store,owner,range),a=this.advertising.latest(store,owner,range),costs=this.finance.skuCosts.records(store,owner,range),latest=new Map();for(const c of costs)if(c.kind==='allocation'||c.sku===plan.sku)latest.set(JSON.stringify([c.kind,c.currency]),c.hash);
   // Historical-period statistics use the completed report age, not the live bid/configuration freshness window.
   return [k,{finance:f?{id:f.id,state:f.state,updated:f.updated,stale:this.finance.clock()-Date.parse(f.updated)>86400000}:null,costs:[...latest],ads:a?{id:a.id,state:a.state,updated:a.updated,stale:this.advertising.clock()-Date.parse(a.updated)>86400000}:null}];}))};}
  async proof(store,plan){
-  const owner=await this.finance.identity(store);if(await this.advertising.identity(store)!==owner)throw Error('WB 财务与广告账户不同');const stamp=hash(this.stamp(store,plan,owner)),periods={};
+  const owner=await this.finance.identity(store);if(plan.wbPriceEconomics&&plan.wbPriceEconomics.accountRef!==owner)throw Error('价格执行与当前财务账户不同，请重新制定计划');if(await this.advertising.identity(store)!==owner)throw Error('WB 财务与广告账户不同');const stamp=hash(this.stamp(store,plan,owner)),periods={};
   for(const [k,r] of Object.entries(ranges(plan))){periods[k]=r.to>=today(this.finance.clock)?{finance:{state:'future',snapshot:null},ads:{state:'future',snapshot:null}}:{finance:await this.finance.get(store,{sku:plan.sku,...r}),ads:await this.advertising.get(store,{sku:plan.sku,...r})};const ad=periods[k].ads;ad.comparisonStale=!ad.snapshot||ad.state!=='complete'||this.advertising.clock()-Date.parse(ad.snapshot.at)>86400000;}
   if(await this.finance.accountRef(store)!==owner||await this.advertising.accountRef(store)!==owner||hash(this.stamp(store,plan,owner))!==stamp)throw Error('WB 证据读取期间发生变化，请重新打开');
   const compact=summary(periods);return {owner,periods,compact,stateHash:stamp,evidenceHash:hash({plan:identity(plan),proof:compact})};
@@ -66,5 +67,5 @@ export class WbTrialService{
   for(const op of db.operations.filter(o=>o.payload?.planId===id&&['pending','approved'].includes(o.state))){op.state='superseded';audit(db,{kind:'operation.approval.superseded',operationId:op.id});}
   audit(db,{kind:'profit.wb.compared',trialId:trial.id,planId:id,evidenceHash:hash(trial),source});return trial;
  });}
- async status(store,plan,trial){try{const owner=await this.finance.identity(store);if(await this.advertising.identity(store)!==owner)return 'unavailable';return hash(this.stamp(store,plan,owner))===trial.proofStateHash?'current':'superseded';}catch{return 'unavailable';}}
+ async status(store,plan,trial){try{const owner=await this.finance.identity(store);if(plan.wbPriceEconomics&&plan.wbPriceEconomics.accountRef!==owner)throw Error('价格执行与当前财务账户不同，请重新制定计划');if(await this.advertising.identity(store)!==owner)return 'unavailable';return hash(this.stamp(store,plan,owner))===trial.proofStateHash?'current':'superseded';}catch{return 'unavailable';}}
 }

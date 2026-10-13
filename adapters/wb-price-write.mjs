@@ -11,15 +11,15 @@ export async function readWbPriceContext(store,product,{read=wbRead,accountRef=w
  return {accountRef:identity.accountRef,product:identity.product,title:identity.title,price,identityHash:identity.identityHash};
 }
 export function createWbPriceSubmit({context=readWbPriceContext,write=wbWritePrice,clock=()=>Date.now()}={}){
- return async(store,op)=>{
+ return async(store,op,{beforeSend=async()=>{}}={})=>{
   const p=op.payload;
   const checkExpiry=()=>{for(const at of [op.approvedAt,p.checkedAt])if(!Number.isFinite(Date.parse(at))||clock()-Date.parse(at)>900000||Date.parse(at)>clock()+5000)throw Error('价格确认已过期，请重新拟定');};
   try{
    priceProfile(store);if(op.kind!=='wb_price'||op.approvedHash!==op.payloadHash||hash(p)!==op.payloadHash)throw Error('WB 价格审批无效');
    const fresh=await context(store,p.context.product);if(hash(fresh)!==hash(p.context))throw Error('当前价格、折扣、尺码或账户已变化，请重新拟定');
-   checkExpiry();
+   checkExpiry();await beforeSend();checkExpiry();
   }catch(e){e.noWrite=true;throw e;}
-  const result=await write(store,p.plan.endpoint,p.plan.apiBody,{accountRef:p.context.accountRef,beforeSend:checkExpiry});
+  const result=await write(store,p.plan.endpoint,p.plan.apiBody,{accountRef:p.context.accountRef,beforeSend:async()=>{try{checkExpiry();await beforeSend();checkExpiry();}catch(e){e.noWrite=true;throw e;}}});
   if(result?.error!==false||!Number.isSafeInteger(result.data?.id)||result.data.id<=0||typeof result.data.alreadyExists!=='boolean')throw Error('WB 价格任务响应不明，请读取核对，禁止重发');
   return {externalWrite:true,status:'submitted',taskId:result.data.id,alreadyExists:result.data.alreadyExists,responseHash:hash(result)};
  };

@@ -5,10 +5,10 @@ const latestReport=(data,p,k)=>(data.financeReadings||[]).findLast(r=>r.storeId=
 const reviewedCurrencies=r=>r?.state!=='complete'||!r.evidenceHash?[]:[...new Set((r?.reconciliations||[]).map(c=>c.currency))].filter(currency=>{const c=r.reconciliations.findLast(x=>x.currency===currency);return c.reportId===r.id&&c.reportHash===r.evidenceHash&&c.result?.reviewed===true;});
 // A navigation guide over saved evidence; never executes or certifies a strategy.
 export function experimentProgress(data,p,today=experimentToday()){
- const operation=(data.operations||[]).findLast(o=>['price','cpo_disable','cpo_enable'].includes(o.kind)&&o.storeId===p.storeId&&o.payload?.planId===p.id);
+ const operation=(data.operations||[]).findLast(o=>['price','wb_price','cpo_disable','cpo_enable'].includes(o.kind)&&o.storeId===p.storeId&&o.payload?.planId===p.id);
  const a=latestReport(data,p,'a'),b=latestReport(data,p,'b'),store=(data.stores||[]).find(s=>s.id===p.storeId);
  const api=store?.marketplace==='ozon'&&store.mode==='live';
- const observed=operation?operation.payload?.phase!=='baseline'&&operation.state==='verified'&&(operation.kind==='price'?operation.priceObservation?.matches:operation.cpoObservation?.matches):['price_observed','cpo_off_observed','cpo_on_observed'].includes(p.execution);
+ const observed=operation?operation.payload?.phase!=='baseline'&&operation.state==='verified'&&(operation.kind==='price'?operation.priceObservation?.matches:operation.kind==='wb_price'?operation.observation?.verified:operation.cpoObservation?.matches):['price_observed','cpo_off_observed','cpo_on_observed'].includes(p.execution);
  const status=r=>r?.state==='complete'?reviewedCurrencies(r).length?'成本已核对':'待核对成本':['queued','running'].includes(r?.state)?'读取中':r?'读取未完成':'尚未读取';
  const platform=operation&&['pending','approved'].includes(operation.state)?'待确认 / 执行':operation&&['executing','submitted','unknown'].includes(operation.state)?'待核对平台':observed?'曾观察到目标状态':'执行未核实';
  const stages=[{name:'基准期',status:api?status(a):'人工核对'},{name:'平台执行',status:platform},{name:'测试期',status:p.bEnd>=today?'尚未结束':api?status(b):'人工核对'}];
@@ -16,14 +16,16 @@ export function experimentProgress(data,p,today=experimentToday()){
  const step=(kind,title,detail,extra={})=>({...base,kind,title,detail,...extra});
  if(p.status==='cancelled')return step('cancelled','计划已取消','取消计划不会恢复平台价格或广告。');
  if(p.status==='completed')return step('completed','查看已保存的比较结果','来源更新后需重新核对；正向差额仍需重复验证。',{focus:'finance-'+p.id});
- if(operation&&['executing','submitted','unknown'].includes(operation.state))return step(operation.kind==='price'?'price_check':'cpo_check','先核对平台操作结果','提交或未知状态不代表生效；不要重复提交。',{target:'operation-'+operation.id,page:'gates',focus:null,priority:0});
+ if(operation&&['executing','submitted','unknown'].includes(operation.state))return step(['price','wb_price'].includes(operation.kind)?'price_check':'cpo_check','先核对平台操作结果','提交或未知状态不代表生效；不要重复提交。',{target:'operation-'+operation.id,page:'gates',focus:null,priority:0});
  if(operation&&['pending','approved'].includes(operation.state)){
-  const expired=Date.parse(operation.payload?.context?.checkedAt)+900000<Date.now();
-  if(expired||today>p.bEnd)return step('prepare_again','原确认已过期，请重新核对计划','过期确认不能执行；测试期结束后请核实是否实际执行。',{priority:1});
-  return step(operation.kind==='price'?'price_check':'cpo_check',operation.state==='pending'?'核对并确认此版本':'确认完成，等待手动执行',operation.payload?.phase==='baseline'?'基准操作可在基准开始前一天至基准结束执行；不会自动开始测试方案。':today<p.bStart?'测试期尚未开始；只能在计划测试期内执行。':'到确认队列核对具体变更；系统不会自动执行。',{target:'operation-'+operation.id,page:'gates',focus:null,priority:1});
+  const expired=Date.parse((operation.payload?.checkedAt||operation.payload?.context?.checkedAt))+900000<Date.now();
+  if(expired||today>(operation.payload?.phase==='baseline'?p.aEnd:p.bEnd))return step('prepare_again','原确认已过期，请重新核对计划','过期确认不能执行；测试期结束后请核实是否实际执行。',{priority:1});
+  return step(['price','wb_price'].includes(operation.kind)?'price_check':'cpo_check',operation.state==='pending'?'核对并确认此版本':'确认完成，等待手动执行',operation.payload?.phase==='baseline'?'基准操作可在基准开始前一天至基准结束执行；不会自动开始测试方案。':operation.kind==='wb_price'?'测试价可在测试开始前一天至结束日执行；需在开始前读回核对，不能改变基准期间。':today<p.bStart?'测试期尚未开始；只能在计划测试期内执行。':'到确认队列核对具体变更；系统不会自动执行。',{target:'operation-'+operation.id,page:'gates',focus:null,priority:1});
  }
  const budget=adBudgetSignal(data,p);if(budget?.over)return step('ad_budget',budget.stale?'上次广告读取超限，需重新核对':'已读取广告支出超过计划上限','请先核对投放与支出；其他广告、今天费用及后续更正仍需计入。不会自动停止。',{focus:'ads-'+p.id,priority:0});
  const monitor=data.adMonitors?.find(m=>m.planId===p.id);if(monitor&&(['error','connection_changed','interrupted','unavailable'].includes(monitor.lastState)||monitor.enabled&&data.adMonitorWorker?.error))return step('monitor_check','每日广告检查未完成，请核对','最新广告支出可能缺失。查看连接与报表，必要时手动读取；不会自动改变广告。',{focus:'ads-'+p.id,priority:1});
+ if(p.wbPriceEconomics&&today<=p.aEnd&&!p.wbPriceTrialState?.baseline?.matches)return step('wb_price_baseline','先核对 WB 基准价格','基准开始前读取目标价格；需要调价时单独确认。开始后才核对的期间不能视为完整价格样本。',{focus:'execution-'+p.id,priority:1});
+ if(p.wbPriceEconomics&&today>p.aEnd&&today<=p.bEnd&&!p.wbPriceTrialState?.variant?.matches)return step('wb_price_variant','准备并核对 WB 测试价格','先完成原基准期；测试开始前一天可以调价。发送后读取任务与实际价格，不自动执行。',{focus:'execution-'+p.id,priority:1});
  if(store?.marketplace==='wb'&&store.mode==='live'&&p.aEnd<today)return step('wb_evidence','核对 WB 两期报表与商品成本','打开原计划期间，分别读取财务和广告，确认公共分摊与商品成本。',{focus:'finance-'+p.id,priority:1});
  if(api){
   // Baseline and test evidence are independent: never sum unrelated periods or use old cost revisions.

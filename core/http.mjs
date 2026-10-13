@@ -1,3 +1,5 @@
+import {hash} from './repository.mjs';
+import {prepareWbTrialPrice,inspectWbTrialPrice} from './wb-price-trial.mjs';
 import {WbTrialService} from './wb-trials.mjs';
 import {WbListingErrorService} from './wb-listing-error-service.mjs';
 import {wbAccount} from '../adapters/wb-api.mjs';
@@ -79,6 +81,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='operations'&&action==='wb-stock-status')return send(await ws.reconcileWbStock(id));
     if(resource==='operations'&&action==='wb-stock-confirm')return send(await ws.confirmWbStock(id,body));
     if(resource==='stores'&&action==='wb-price-context')return send(await ws.inspectWbPrice(id,body.nmID));
+    if(resource==='stores'&&action==='wb-price-trial-context'){const context=await ws.inspectWbPrice(id,body.nmID);return send({context,hash:hash(context)});}
     if(resource==='stores'&&action==='wb-price-plan')return send(await ws.prepareWbPrice(id,body));
     if(resource==='operations'&&action==='wb-price-status')return send(await ws.reconcileWbPrice(id));
     if(resource==='stores'&&action==='wb-prices')return send(await wbPrices.refresh(ws.resolveStore(await ws.repo.read(),id),body.nmID));
@@ -111,6 +114,8 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='trial-plans'&&!id)return send(await ws.planTrial(body,{finance,advertising,wbTrials}));
     if(resource==='trial-plans'&&action==='ad-monitor')return send(await monitoring.configure(id,body.enabled));
     if(resource==='trial-plans'&&action==='ad-read'){const db=await ws.repo.read(),plan=db.trialPlans?.find(p=>p.id===id);if(!plan)throw Error('Plan not found');return send(await advertising.start(ws.resolveStore(db,plan.storeId),{...planAdRange(plan,body.period),refresh:body.refresh===true}));}
+    if(resource==='trial-plans'&&action==='wb-price-check')return send(await inspectWbTrialPrice(ws,id));
+    if(resource==='trial-plans'&&action==='wb-price-operation')return send(await prepareWbTrialPrice(ws,id,body));
     if(resource==='trial-plans'&&action==='wb-read')return send(await wbTrials.read(id,body));
     if(resource==='trial-plans'&&action==='wb-result')return send(await wbTrials.save(id,body));
     if(resource==='trial-plans'&&action==='ledger-result')return send(await ws.recordLedgerTrial(id,body,finance,advertising));

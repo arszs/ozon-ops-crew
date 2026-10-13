@@ -24,8 +24,8 @@ export function createWbRead({fetcher=fetch,getCredentials=storeCredentials,cloc
    try{
    cooldown.check(key,'WB 请求限流，请稍后继续');const persisted=rateRepo?(await rateRepo.read())[rateField]?.[rateKey]||0:0;const wait=Math.max(persisted-clock(),interval-(clock()-(last.get(key)??-Infinity)));if(wait>1000){const e=Error('WB 读取间隔未到，请稍后刷新');e.retryAt=clock()+wait;throw e;}if(wait>0)await sleep(wait);
    if(owner(store,await getCredentials(store))!==ref)throw Error('WB 账户已变化，请重新同步');cooldown.check(key,'WB 请求限流，请稍后继续');last.set(key,clock());
-   if(mutating&&beforeSend)await beforeSend();
    if(rateRepo)await rateRepo.mutate(db=>{db[rateField]??={};db[rateField][rateKey]=clock()+interval;});
+   if(mutating&&beforeSend)await beforeSend();
    let response;started=true;try{response=await fetcher('https://'+(prices?'discounts-prices-api':inventory?'marketplace-api':'content-api')+'.wildberries.'+wbRegion(store)+path,{method,headers:{Authorization:c.WB_API_TOKEN,'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(20000),redirect:'error'});}catch{throw Error(mutating?'WB 操作响应丢失；请读取核对，禁止重发':'WB 网络读取失败；已保存进度可继续');}
    if(inventory&&response.status>=400&&response.status<500){last.set(key,clock()+9*interval);if(rateRepo)await rateRepo.mutate(db=>{db[rateField]??={};db[rateField][rateKey]=clock()+10*interval;});}
    if(response.status===429){const retry=response.headers?.get('X-Ratelimit-Retry');cooldown.reject(key,{headers:{get:()=>response.headers?.get('Retry-After')||retry}},'WB 请求限流，请稍后继续');}
