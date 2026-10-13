@@ -66,14 +66,21 @@ export class WbSkuContribution{
   if(this.service.pending.has(owner)||this.service.latest(store,owner,range)?.id!==s.runId||run?.state!=='complete')throw Error('财务正在更新，请完成后再保存');
   return {owner,view,s,products:this.service.attribution(run,this.service.reports(run.id),this.service.counts(run.id)).products};
  }
- insert(store,owner,draft,revision){
+ insert(store,owner,draft,revision){return this.insertMany(store,owner,[{draft,revision}])[0];}
+ insertMany(store,owner,entries,{afterInsert}={}){
+  if(!entries.length||entries.length>5000)throw Error('一次保存需要 1–5000 个商品成本版本');
   this.db.exec('BEGIN IMMEDIATE');try{
-   const run=this.service.latest(store,owner,draft.period);if(this.service.pending.has(owner)||run?.id!==draft.runId||run.state!=='complete'||this.service.clock()-Date.parse(run.updated)>86400000)throw Error('财务正在更新或已过期，请重新核对');
-   const records=this.records(store,owner,draft.period),old=records.findLast(r=>r.kind===draft.kind&&r.currency===draft.currency&&(r.sku||'')===(draft.sku||''));
-   if(draft.kind==='cost'&&draft.allocationHash&&records.findLast(r=>r.kind==='allocation'&&r.currency===draft.currency)?.hash!==draft.allocationHash)throw Error('分摊版本已变化，请重新核对商品成本');
-   if(!Number.isSafeInteger(revision)||revision!==(old?.revision||0))throw Error('保存版本已变化，请重新打开核对');
-   const record={id:randomUUID(),storeId:store.id,accountRef:owner,at:this.service.stamp(),...draft,revision:(old?.revision||0)+1,previous:old?.hash||'genesis'};record.hash=hash(record);
-   this.db.prepare('INSERT INTO wb_sku_economics VALUES(?,?,?,?,?,?,?,?,?,?)').run(record.id,store.id,owner,draft.period.from,draft.period.to,draft.kind,draft.sku||'',draft.currency,record.revision,JSON.stringify(record));this.db.exec('COMMIT');return record;
+   const first=entries[0].draft,run=this.service.latest(store,owner,first.period);if(this.service.pending.has(owner)||run?.id!==first.runId||run.state!=='complete'||this.service.clock()-Date.parse(run.updated)>86400000)throw Error('财务正在更新或已过期，请重新核对');
+   const key=r=>JSON.stringify([r.kind,r.sku||'',r.currency]),latest=new Map(this.records(store,owner,first.period).map(r=>[key(r),r])),seen=new Set(),out=[],statement=this.db.prepare('INSERT INTO wb_sku_economics VALUES(?,?,?,?,?,?,?,?,?,?)');
+   for(const {draft,revision} of entries){
+    if(draft.runId!==first.runId||draft.reportHash!==first.reportHash||draft.period.from!==first.period.from||draft.period.to!==first.period.to||seen.has(key(draft)))throw Error('批次的期间、来源或商品重复，请重新预览');seen.add(key(draft));
+    const old=latest.get(key(draft)),allocation=latest.get(JSON.stringify(['allocation','',draft.currency]));
+    if(draft.kind==='cost'&&draft.allocationHash&&allocation?.hash!==draft.allocationHash)throw Error('分摊版本已变化，请重新核对商品成本');
+    if(!Number.isSafeInteger(revision)||revision!==(old?.revision||0))throw Error('保存版本已变化，请重新打开核对');
+    const record={id:randomUUID(),storeId:store.id,accountRef:owner,at:this.service.stamp(),...draft,revision:(old?.revision||0)+1,previous:old?.hash||'genesis'};record.hash=hash(record);
+    statement.run(record.id,store.id,owner,draft.period.from,draft.period.to,draft.kind,draft.sku||'',draft.currency,record.revision,JSON.stringify(record));out.push(record);
+   }
+   afterInsert?.(out);this.db.exec('COMMIT');return out;
   }catch(e){this.db.exec('ROLLBACK');throw e;}
  }
  async preview(store,input){const {view,products}=await this.context(store,input),draft=buildWbAllocation(view,products,input);const old=view.allocations.find(a=>a.currency===input.currency);return {...draft,revision:old?.revision||0};}
@@ -83,14 +90,17 @@ export class WbSkuContribution{
   const evidence=text(input.evidence);if(await this.service.accountRef(store)!==owner)throw Error('WB 账户已变化，请重新读取');
   const record=this.insert(store,owner,{kind:'allocation',...draft,evidence},input.revision);return {id:record.id,hash:record.hash,revision:record.revision};
  }
- async reconcile(store,input){
-  const sku=wbInteger(input.sku),{owner,view,s}=await this.context(store,{...input,sku}),p=s.product?.attribution?.[input.currency];if(!p||p.platformNet===null)throw Error('此商品没有可核对的财务明细');
-  const records=this.records(store,owner,s.period),allocation=records.findLast(r=>r.kind==='allocation'&&r.currency===input.currency),shared=s.attribution.currencies[input.currency].shared.lines>0;
+ costDraft(view,sku,input,product,allocation,part){
+  const s=current(view,input),p=product?.[input.currency];if(!p||p.platformNet===null)throw Error('此商品没有可核对的财务明细');
+  const shared=s.attribution.currencies[input.currency].shared.lines>0;
   if(shared&&(!allocation||allocationStatus(allocation,view)!=='current'||input.allocationHash!==allocation.hash))throw Error('请先确认当前公共费用分摊，再核对商品成本');
   if(!shared&&input.allocationHash!=null)throw Error('此期间不需要公共费用分摊');
-  const part=shared?allocation.rows.find(r=>r.sku===sku):null;if(shared&&!part)throw Error('分摊中没有此商品');
-  const costs=Object.fromEntries(costFields.map(k=>[k,money(input[k])])),checks=Object.fromEntries(['costsReviewed','periodReviewed','noDoubleCount','sharedReviewed'].map(k=>[k,input[k]===true])),allocated=part?.amount||'0';
-  const draft={kind:'cost',source:'wb_sku_reports_seller_costs',sku,currency:input.currency,runId:s.runId,reportHash:s.evidenceHash,calculationVersion:WB_ATTRIBUTION_VERSION,period:{...s.period},allocationHash:shared?allocation.hash:null,allocationMethod:shared?allocation.method:'none',platformNet:p.platformNet,allocated,allocatedFields:part?.fields||null,costs,checks,reviewed:Object.values(checks).every(Boolean),evidence:text(input.evidence),contribution:decimalText(costFields.reduce((n,k)=>n-wbDecimal(costs[k]),wbDecimal(p.platformNet)+wbDecimal(allocated)))};
+  if(shared&&!part)throw Error('分摊中没有此商品');
+  const costs=Object.fromEntries(costFields.map(k=>[k,money(input[k])])),checks=Object.fromEntries(['costsReviewed','periodReviewed','noDoubleCount','sharedReviewed'].map(k=>[k,input[k]===true])),allocated=shared?part.amount:'0';
+  return {kind:'cost',source:'wb_sku_reports_seller_costs',sku,currency:input.currency,runId:s.runId,reportHash:s.evidenceHash,calculationVersion:WB_ATTRIBUTION_VERSION,period:{...s.period},allocationHash:shared?allocation.hash:null,allocationMethod:shared?allocation.method:'none',platformNet:p.platformNet,allocated,allocatedFields:shared?part.fields:null,costs,checks,reviewed:Object.values(checks).every(Boolean),evidence:text(input.evidence),contribution:decimalText(costFields.reduce((n,k)=>n-wbDecimal(costs[k]),wbDecimal(p.platformNet)+wbDecimal(allocated)))};
+ }
+ async reconcile(store,input){
+  const sku=wbInteger(input.sku),{owner,view,s,products}=await this.context(store,{...input,sku}),records=this.records(store,owner,s.period),allocation=records.findLast(r=>r.kind==='allocation'&&r.currency===input.currency),part=allocation?.rows.find(r=>r.sku===sku),draft=this.costDraft(view,sku,input,products.get(sku),allocation,part);
   if(await this.service.accountRef(store)!==owner)throw Error('WB 账户已变化，请重新读取');
   const r=this.insert(store,owner,draft,input.revision);return {id:r.id,hash:r.hash,revision:r.revision};
  }

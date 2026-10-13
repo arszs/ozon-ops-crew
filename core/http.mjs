@@ -71,6 +71,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='stores'&&action==='wb-finance-reconcile')return send(await wbFinance.reconcile(ws.resolveStore(await ws.repo.read(),id),body));
     if(resource==='stores'&&action==='wb-allocation-preview')return send(await wbFinance.skuCosts.preview(ws.resolveStore(await ws.repo.read(),id),body));
     if(resource==='stores'&&action==='wb-allocation-confirm')return send(await wbFinance.skuCosts.allocate(ws.resolveStore(await ws.repo.read(),id),body));
+    if(resource==='stores'&&['wb-cost-template','wb-cost-preview','wb-cost-confirm'].includes(action))return send(await wbFinance.bulkCosts[{'wb-cost-template':'template','wb-cost-preview':'preview','wb-cost-confirm':'confirm'}[action]](ws.resolveStore(await ws.repo.read(),id),body));
     if(resource==='stores'&&action==='wb-sku-reconcile')return send(await wbFinance.skuCosts.reconcile(ws.resolveStore(await ws.repo.read(),id),body));
     if(resource==='stores'&&action==='wb-ads')return send(await wbAds.start(ws.resolveStore(await ws.repo.read(),id),body));
     if(resource==='stores'&&action==='wb-ads-pause')return send(await wbAds.pause(ws.resolveStore(await ws.repo.read(),id)));

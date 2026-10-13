@@ -4,6 +4,7 @@ import {dirname} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {hash} from './repository.mjs';
 import {reconcileWbContribution,wbContributionStatus} from './wb-contribution.mjs';
+import {WbBulkCosts} from './wb-bulk-costs.mjs';
 import {WbSkuContribution} from './wb-sku-contribution.mjs';
 import {attributeWbFinance,wbAttributionSummary} from './wb-finance-attribution.mjs';
 import {wbAccount} from '../adapters/wb-api.mjs';
@@ -25,7 +26,7 @@ export class WbFinanceService{
    CREATE TABLE IF NOT EXISTS wb_finance_costs(id TEXT PRIMARY KEY,store TEXT,owner TEXT,date_from TEXT,date_to TEXT,currency TEXT,revision INTEGER,data TEXT,UNIQUE(store,owner,date_from,date_to,currency,revision));
    UPDATE wb_finance_attempts SET state='interrupted',error='服务重启：上次请求未保存结果' WHERE state='reading';
    UPDATE wb_finance_runs SET state='interrupted',error='上次读取被中断，可以继续' WHERE state IN ('reading','waiting');`);
-  this.skuCosts=new WbSkuContribution(this);
+  this.skuCosts=new WbSkuContribution(this);this.bulkCosts=new WbBulkCosts(this.skuCosts);
  }
  stamp(){return new Date(this.clock()).toISOString();}
  async identity(store){if(store.mode!=='live'||store.marketplace!=='wb')throw Error('只支持真实 WB 店铺');return this.accountRef(store);}

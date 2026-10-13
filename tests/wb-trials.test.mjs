@@ -1,3 +1,4 @@
+import {parseCostCSV,costCSV,WB_COST_COLUMNS,WB_COST_CHECKS} from '../core/wb-bulk-costs.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import {mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
 import {Workspace} from '../core/workspace.mjs';import {WbFinanceService} from '../core/wb-finance-service.mjs';import {WbAdvertisingService} from '../core/wb-advertising-service.mjs';import {WbTrialService,evaluateWbTrial} from '../core/wb-trials.mjs';
 import {WB_REPORT_FIELDS,WB_DETAIL_MONEY} from '../adapters/wb-finance.mjs';import {wbTrialPanel,wbTrialDetails,bindWbTrials} from '../web/wb-trials.mjs';import {sellerDecisions} from '../web/decisions.mjs';import {repeatCandidate} from '../web/repeat-trials.mjs';import {storeHome} from '../web/store-home.mjs';
@@ -76,4 +77,9 @@ test('financial comparison consumes price execution evidence and invalidates aft
  await f.ws.repo.mutate(db=>{db.trialPlans[0].wbPriceTrialState.variant={matches:true,observedAt:'2026-09-07T10:00:00Z',executedAt:'2026-09-07T09:00:00Z'};});const plan=(await f.ws.view()).trialPlans[0];assert.equal(await f.service.status(f.store,plan,r),'superseded');const confirmed=await f.service.save(f.plan.id,await f.input());assert.equal(confirmed.result.verdict,'repeat_candidate');
  await f.ws.repo.mutate(db=>{db.trialPlans[0].wbPriceTrialState.conditionBreak={phase:'variant',at:'2026-09-09T10:00:00Z'};});const changed=await f.service.save(f.plan.id,await f.input());assert.equal(changed.result.verdict,'insufficient');assert.ok(changed.result.blockers.some(x=>/恢复价格/.test(x)));
  await f.ws.repo.mutate(db=>{db.trialPlans[0].wbPriceEconomics.accountRef='different-owner';});await assert.rejects(()=>f.service.get(f.plan.id),/财务账户不同/);
+});
+
+test('bulk seller costs invalidate a saved recommendation for the exact experiment period',async t=>{
+ const f=await fixture(t);await f.prepare();const old=await f.service.save(f.plan.id,await f.input()),view=await f.finance.get(f.store,f.scope('a')),source={runId:view.snapshot.runId,reportHash:view.snapshot.evidenceHash,currency:'CNY'},template=await f.finance.bulkCosts.template(f.store,source),rows=parseCostCSV(template.csv),input={...source,evidence:'Synthetic revised bulk costs',csv:costCSV(rows.map(r=>WB_COST_COLUMNS.map(k=>({cogs:'150',tax:'0',external:'0'}[k]??r[k]))))};
+ const p=await f.finance.bulkCosts.preview(f.store,input);await f.finance.bulkCosts.confirm(f.store,{...input,previewHash:p.previewHash,...Object.fromEntries(WB_COST_CHECKS.map(k=>[k,true]))});assert.equal(await f.service.status(f.store,f.plan,old),'superseded');assert.equal((await f.finance.get(f.store,f.scope('b'))).skuReconciliations.length,1);const next=await f.service.save(f.plan.id,await f.input());assert.equal(next.a.profit,'480');assert.equal(next.b.profit,'630');
 });
