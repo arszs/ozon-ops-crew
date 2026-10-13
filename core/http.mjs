@@ -19,6 +19,7 @@ import {homedir} from 'node:os';
 import {Workspace} from './workspace.mjs';
 import {DEMO_PRODUCT} from './canonical.mjs';
 const esc=s=>String(s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+export const wbStoredReportQuery=url=>Object.fromEntries(['sku','from','to'].map(key=>[key,url.searchParams.get(key)]));
 export async function createWorkspaceAPI(root,live){
  let config={};try{config=JSON.parse(await readFile(join(homedir(),'.config/ozon-ops-crew/connection.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
  const ws=new Workspace(join(root,'runtime/workspace.json'),{stores:config.stores||[],liveSnapshot:()=>live.get().data});await ws.init();
@@ -47,10 +48,11 @@ export async function createWorkspaceAPI(root,live){
     if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&['ozon','wb'].includes(s.marketplace)).map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));view.wbFinance=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbFinance.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 财务连接不可用'}];}})));view.wbAds=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbAds.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 广告连接不可用'}];}})));view.adMonitors=await monitoring.list();view.adMonitorWorker=monitoring.status;view.adReadings=await advertising.list(view.stores.map(s=>ws.resolveStore(db,s.id)));view.financeReadings=await finance.list(view.stores.map(s=>ws.resolveStore(db,s.id)));for(const t of view.trials)if(t.source==='api_accruals_seller_costs')t.sourceStatus=ledgerTrialStatus(t,view.financeReadings,view.adReadings,view.trialPlans.find(p=>p.id===t.planId));for(const t of view.trials)if(t.source==='wb_reports_seller_costs'){try{t.sourceStatus=await wbTrials.status(ws.resolveStore(db,t.storeId),db.trialPlans?.find(p=>p.id===t.planId),t);}catch{t.sourceStatus='unavailable';}}return send(view);}
     if(resource==='trial-plans'&&action==='wb-evidence')return send(await wbTrials.get(id));
     if(resource==='assets'&&id){res.setHeader('Content-Type','image/png');res.end(await readFile(assetPath(id)));return true;}
+    if(resource==='stores'&&action==='wb-economics')return send(await wbFinance.skuCosts.query(ws.resolveStore(await ws.repo.read(),id),Object.fromEntries(url.searchParams)));
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.query(store,{q:url.searchParams.get('q')||'',offset:Number(url.searchParams.get('offset')||0)}));}
     if(resource==='stores'&&action==='wb-characteristics')return send(await ws.wbCharacteristics(id,url.searchParams.get('subjectId'),url.searchParams.get('locale')||'zh'));
-    if(resource==='stores'&&action==='wb-ads')return send(await wbAds.get(ws.resolveStore(await ws.repo.read(),id),{sku:url.searchParams.get('sku')}));
-    if(resource==='stores'&&action==='wb-finance')return send(await wbFinance.get(ws.resolveStore(await ws.repo.read(),id),{sku:url.searchParams.get('sku')}));
+    if(resource==='stores'&&action==='wb-ads')return send(await wbAds.get(ws.resolveStore(await ws.repo.read(),id),wbStoredReportQuery(url)));
+    if(resource==='stores'&&action==='wb-finance')return send(await wbFinance.get(ws.resolveStore(await ws.repo.read(),id),wbStoredReportQuery(url)));
     if(resource==='stores'&&action==='wb-prices')return send(await wbPrices.get(ws.resolveStore(await ws.repo.read(),id),url.searchParams.get('nmID')));
     if(resource==='stores'&&action==='wb-listing-errors')return send(await wbListingErrors.get(ws.resolveStore(await ws.repo.read(),id),{vendorCode:url.searchParams.get('vendorCode')}));
     if(resource==='stores'&&action==='wb-inventory')return send(await wbInventory.get(ws.resolveStore(await ws.repo.read(),id),url.searchParams.get('nmID')));

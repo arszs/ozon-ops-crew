@@ -20,7 +20,7 @@ export class WbAdvertisingService{
  deadline(owner,phase){return this.db.prepare('SELECT retry_at FROM wb_ad_limits WHERE owner=? AND phase=?').get(owner,phase)?.retry_at||0;}
  records(id){return this.db.prepare('SELECT * FROM wb_ad_campaigns WHERE run=? ORDER BY id').all(id).map(r=>({listed:decode(r.listed),info:decode(r.info),stats:decode(r.stats)}));}
  async get(store,{sku,from,to}={}){
-  const owner=await this.identity(store),range=from!=null||to!=null?wbAdRange({from,to},this.clock()):null,run=this.latest(store,owner,range);if(sku!=null)sku=wbInteger(sku);if(!run)return {state:'idle',snapshot:null};
+  const owner=await this.identity(store),range=from!=null||to!=null?wbAdRange({from,to},this.clock()):null,run=this.latest(store,owner,range);if(sku!=null)sku=wbInteger(sku);if(!run)return {state:'idle',snapshot:null,...(range?{period:{from:range.from,to:range.to}}:{})};
   const good=this.db.prepare("SELECT * FROM wb_ad_runs WHERE store=? AND owner=? AND date_from=? AND date_to=? AND state='complete' ORDER BY rowid DESC LIMIT 1").get(store.id,owner,run.date_from,run.date_to);
   const chosen=['complete','partial'].includes(run.state)?run:good||run,records=this.records(chosen.id),current=this.records(run.id),totals={},products=new Map(),campaigns=[],productCampaigns=[];
   for(const {listed:l,info,stats:s} of records){

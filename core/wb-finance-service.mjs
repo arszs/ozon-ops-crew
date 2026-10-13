@@ -45,7 +45,7 @@ export class WbFinanceService{
  }
  async get(store,{sku,from,to}={}){
   const owner=await this.identity(store),range=from!=null||to!=null?wbFinanceRange({from,to},this.clock()):null,run=this.latest(store,owner,range);if(sku!=null)sku=wbInteger(sku);
-  if(!run)return {state:'idle',snapshot:null,retryAt:this.deadline(owner)||null};
+  if(!run)return {state:'idle',snapshot:null,...(range?{period:{from:range.from,to:range.to}}:{}),retryAt:this.deadline(owner)||null};
   // Preserve a completed snapshot while a same-period refresh is incomplete. Different periods never mix.
   const good=this.db.prepare("SELECT * FROM wb_finance_runs WHERE store=? AND owner=? AND date_from=? AND date_to=? AND state='complete' ORDER BY rowid DESC LIMIT 1").get(store.id,owner,run.date_from,run.date_to);
   const chosen=run.state==='complete'?run:good||run,reports=this.reports(chosen.id),totals={};
@@ -64,7 +64,7 @@ export class WbFinanceService{
   if(await this.accountRef(store)!==owner)throw Error('WB 账户已变化，请重新读取');
   const view={state:run.state,phase:run.phase,error:run.error,period:{from:run.date_from,to:run.date_to},retryAt:this.deadline(owner)||null,progress:this.counts(run.id),snapshot:reports.length||coverage.rows?{runId:chosen.id,evidenceHash:hash({runId:chosen.id,from:chosen.date_from,to:chosen.date_to,reports,pages:this.db.prepare("SELECT input_hash,output_hash FROM wb_finance_attempts WHERE run=? AND state='ok' ORDER BY id").all(chosen.id)}),period:{from:chosen.date_from,to:chosen.date_to},at:chosen.updated,complete:chosen.state==='complete',stale:chosen.id!==run.id||this.clock()-Date.parse(chosen.updated)>86400000,totals,coverage:{...coverage,days:days.length,reportedDays:present.size,missingDays,byCurrency,unallocated},products,product}:null};
   if(view.snapshot)view.snapshot.attribution=wbAttributionSummary(attribution);
-  const costs=this.costs(store,owner,run.date_from,run.date_to);view.reconciliations=costs.map(c=>({...c,status:costs.findLast(r=>r.currency===c.currency).id===c.id?wbContributionStatus(c,view):'revised'}));this.skuCosts.decorate(view,store,owner);return view;
+  const costs=this.costs(store,owner,run.date_from,run.date_to);view.reconciliations=costs.map(c=>({...c,status:costs.findLast(r=>r.currency===c.currency).id===c.id?wbContributionStatus(c,view):'revised'}));this.skuCosts.decorate(view,store,owner,attribution.products);return view;
  }
  costs(store,owner,from,to){
   const records=this.db.prepare('SELECT data FROM wb_finance_costs WHERE store=? AND owner=? AND date_from=? AND date_to=? ORDER BY rowid').all(store.id,owner,from,to).map(decode),last=new Map();

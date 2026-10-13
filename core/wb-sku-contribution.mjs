@@ -1,3 +1,4 @@
+import {wbEconomicsRows,wbEconomicsSummary,queryWbEconomics} from './wb-economics.mjs';
 import {randomUUID} from 'node:crypto';
 import {hash,maskPII} from './repository.mjs';
 import {wbDecimal,decimalText,wbInteger} from '../adapters/wb-finance.mjs';
@@ -104,11 +105,24 @@ export class WbSkuContribution{
   if(await this.service.accountRef(store)!==owner)throw Error('WB 账户已变化，请重新读取');
   const r=this.insert(store,owner,draft,input.revision);return {id:r.id,hash:r.hash,revision:r.revision};
  }
- decorate(view,store,owner){
+ async query(store,input={}){
+  const owner=await this.service.identity(store),run=this.db.prepare('SELECT * FROM wb_finance_runs WHERE id=? AND store=? AND owner=?').get(input.runId||'',store.id,owner);if(!run)throw Error('财务来源不属于当前店铺账户');
+  const view=await this.service.get(store,{from:run.date_from,to:run.date_to}),s=view.snapshot;
+  if(!s||s.runId!==input.runId||s.evidenceHash!==input.reportHash)throw Error('财务来源已变化，请刷新商品列表');
+  const before=this.service.latest(store,owner,s.period);if(view.state==='complete'&&(before?.id!==s.runId||before?.state!=='complete'))throw Error('财务来源已变化，请刷新商品列表');
+  if(await this.service.accountRef(store)!==owner)throw Error('WB 账户已变化，请重新读取');
+  const after=this.service.latest(store,owner,s.period);if(after?.id!==before?.id||after?.state!==before?.state)throw Error('财务来源已变化，请刷新商品列表');
+  if(this.service.clock()-Date.parse(run.updated)>86400000)s.stale=true;
+  const attribution=this.service.attribution(run,this.service.reports(run.id),this.service.counts(run.id)),records=this.records(store,owner,s.period),rows=wbEconomicsRows(view,attribution.products,records,costStatus);
+  const metadata=new Map(this.db.prepare("SELECT sku,MAX(json_extract(data,'$.title')) name,MAX(json_extract(data,'$.vendorCode')) offerId FROM wb_finance_rows WHERE run=? AND sku<>'0' GROUP BY sku").all(run.id).map(r=>[r.sku,{name:r.name||'',offerId:r.offerId||''}]));
+  return {...queryWbEconomics(rows,metadata,input),runId:s.runId,reportHash:s.evidenceHash,period:s.period,summary:wbEconomicsSummary(rows),stale:s.stale||view.state!=='complete'};
+ }
+ decorate(view,store,owner,products){
   if(!view.snapshot)return;
   const records=this.records(store,owner,view.snapshot.period),allocations=new Map(),costs=new Map();
   for(const r of records)if(r.kind==='allocation')allocations.set(r.currency,r);else costs.set(JSON.stringify([r.sku,r.currency]),r);
   view.allocations=[...allocations.values()].map(a=>({id:a.id,currency:a.currency,revision:a.revision,hash:a.hash,runId:a.runId,reportHash:a.reportHash,method:a.method,pool:a.pool,products:a.rows.length,zeroWeightCount:a.zeroWeightCount,evidence:a.evidence,at:a.at,status:allocationStatus(a,view),product:view.snapshot.product?a.rows.find(r=>r.sku===view.snapshot.product.sku)||null:null}));
+  if(products){view.skuEconomics=wbEconomicsSummary(wbEconomicsRows(view,products,records,costStatus));const title=this.db.prepare("SELECT json_extract(data,'$.title') name,json_extract(data,'$.vendorCode') offerId FROM wb_finance_rows WHERE run=? AND sku=? LIMIT 1");for(const c of Object.values(view.skuEconomics.currencies))for(const row of c.rows)Object.assign(row,title.get(view.snapshot.runId,row.sku)||{});}
   const publicCost=r=>{const {accountRef,...body}=r,allocation=view.snapshot.attribution.currencies[r.currency]?.shared.lines?allocations.get(r.currency):null;return {...body,status:costs.get(JSON.stringify([r.sku,r.currency]))?.id===r.id?costStatus(r,view,allocation):'revised'};};
   view.skuReconciliations=view.snapshot.product?records.filter(r=>r.kind==='cost'&&r.sku===view.snapshot.product.sku).map(publicCost):[];
   for(const p of view.snapshot.products)p.contributions=[...costs.values()].filter(r=>r.sku===p.sku).map(publicCost);
