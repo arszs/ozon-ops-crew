@@ -4,6 +4,7 @@ import {dirname} from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {hash} from './repository.mjs';
 import {reconcileWbContribution,wbContributionStatus} from './wb-contribution.mjs';
+import {WbSkuContribution} from './wb-sku-contribution.mjs';
 import {attributeWbFinance,wbAttributionSummary} from './wb-finance-attribution.mjs';
 import {wbAccount} from '../adapters/wb-api.mjs';
 import {readWbFinance,wbFinanceRange,financeRequest,normalizeWbReport,normalizeWbFinanceRow,addDecimal,WB_FINANCE_INTERVAL,wbInteger} from '../adapters/wb-finance.mjs';
@@ -24,6 +25,7 @@ export class WbFinanceService{
    CREATE TABLE IF NOT EXISTS wb_finance_costs(id TEXT PRIMARY KEY,store TEXT,owner TEXT,date_from TEXT,date_to TEXT,currency TEXT,revision INTEGER,data TEXT,UNIQUE(store,owner,date_from,date_to,currency,revision));
    UPDATE wb_finance_attempts SET state='interrupted',error='服务重启：上次请求未保存结果' WHERE state='reading';
    UPDATE wb_finance_runs SET state='interrupted',error='上次读取被中断，可以继续' WHERE state IN ('reading','waiting');`);
+  this.skuCosts=new WbSkuContribution(this);
  }
  stamp(){return new Date(this.clock()).toISOString();}
  async identity(store){if(store.mode!=='live'||store.marketplace!=='wb')throw Error('只支持真实 WB 店铺');return this.accountRef(store);}
@@ -61,7 +63,7 @@ export class WbFinanceService{
   if(await this.accountRef(store)!==owner)throw Error('WB 账户已变化，请重新读取');
   const view={state:run.state,phase:run.phase,error:run.error,period:{from:run.date_from,to:run.date_to},retryAt:this.deadline(owner)||null,progress:this.counts(run.id),snapshot:reports.length||coverage.rows?{runId:chosen.id,evidenceHash:hash({runId:chosen.id,from:chosen.date_from,to:chosen.date_to,reports,pages:this.db.prepare("SELECT input_hash,output_hash FROM wb_finance_attempts WHERE run=? AND state='ok' ORDER BY id").all(chosen.id)}),period:{from:chosen.date_from,to:chosen.date_to},at:chosen.updated,complete:chosen.state==='complete',stale:chosen.id!==run.id||this.clock()-Date.parse(chosen.updated)>86400000,totals,coverage:{...coverage,days:days.length,reportedDays:present.size,missingDays,byCurrency,unallocated},products,product}:null};
   if(view.snapshot)view.snapshot.attribution=wbAttributionSummary(attribution);
-  const costs=this.costs(store,owner,run.date_from,run.date_to);view.reconciliations=costs.map(c=>({...c,status:costs.findLast(r=>r.currency===c.currency).id===c.id?wbContributionStatus(c,view):'revised'}));return view;
+  const costs=this.costs(store,owner,run.date_from,run.date_to);view.reconciliations=costs.map(c=>({...c,status:costs.findLast(r=>r.currency===c.currency).id===c.id?wbContributionStatus(c,view):'revised'}));this.skuCosts.decorate(view,store,owner);return view;
  }
  costs(store,owner,from,to){
   const records=this.db.prepare('SELECT data FROM wb_finance_costs WHERE store=? AND owner=? AND date_from=? AND date_to=? ORDER BY rowid').all(store.id,owner,from,to).map(decode),last=new Map();

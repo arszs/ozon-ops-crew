@@ -38,3 +38,5 @@
 @media(max-width:800px){.home-task{grid-template-columns:minmax(0,1fr) auto;gap:10px}.home-task-status{grid-column:1/-1;justify-self:start}.home-task h3{font-size:15px}}
 
 .wb-settlement{border:1px solid var(--line);border-radius:10px;padding:18px;margin:18px 0;background:#f7f9f4}.wb-settlement h3{margin-top:0}.wb-net-currency+.wb-net-currency{border-top:1px solid var(--line);padding-top:14px}.wb-net-value{font-size:26px;font-weight:650;margin:12px 0}.wb-settlement summary{cursor:pointer}.wb-settlement small{display:block;color:var(--muted)}
+
+.wb-allocation form,.wb-sku-contribution form{padding:16px 0;border-top:1px solid var(--line)}.wb-allocation-preview{margin-top:18px;padding:18px;border:1px solid var(--line);border-radius:10px;background:#f7f9f4}.wb-sku-contribution>summary,.wb-allocation>summary{cursor:pointer;font-weight:600}.wb-sku-contribution small{overflow-wrap:anywhere}.wb-allocation [hidden]{display:none}
