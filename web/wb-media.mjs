@@ -5,7 +5,7 @@ const labels={pending:'待确认',approved:'已确认 · 待发送',executing:'�
 export function wbMediaPanel(job,operations){
  if(job.marketplace!=='wb'||job.mode!=='manual'||job.synthetic||!['imported','submitted'].includes(job.state))return '';
  const ops=operations.filter(o=>o.kind==='wb_media'&&o.payload.jobId===job.id),latest=ops.at(-1),blocked=latest&&['pending','approved','executing','submitted','partial','unknown'].includes(latest.state),ready=job.state==='imported'&&job.importResult?.imported,complete=job.wbMediaResult?.complete;
- return `<section class="card"><h3>俄语图片 → WB</h3><p>${complete?'已人工核对平台图片。价格、库存和平台审核仍待完成。':'卡片已创建后，直接发送本机处理的俄语 PNG；无需公开图片存储。'}</p>${latest?`<p>${esc(labels[latest.state]||latest.state)} · <button class="quiet" data-wb-media-open>查看图片计划与结果</button></p>`:''}${!complete?`<button class="primary" data-wb-media-plan ${!ready||blocked?'disabled':''}>${job.wbMediaProgress?'继续剩余图片：查看确认计划':'查看图片上传计划'}</button>`:''}<p class="muted">每张图片单独保存发送结果。只为此流程创建的卡片添加图片；不会删除现有图片。不确定的文件不自动重发。</p></section>`;
+ return `<section class="card"><h3>俄语图片 → WB</h3><p>${complete?'已人工核对平台图片。价格、库存和平台审核状态见发布进度。':'卡片已创建后，直接发送本机处理的俄语 PNG；无需公开图片存储。'}</p>${latest?`<p>${esc(labels[latest.state]||latest.state)} · <button class="quiet" data-wb-media-open>查看图片计划与结果</button></p>`:''}${!complete?`<button class="primary" data-wb-media-plan ${!ready||blocked?'disabled':''}>${job.wbMediaProgress?'继续剩余图片：查看确认计划':'查看图片上传计划'}</button>`:''}<p class="muted">每张图片单独保存发送结果。只为此流程创建的卡片添加图片；不会删除现有图片。不确定的文件不自动重发。</p></section>`;
 }
 export function wbMediaGate(op,storeName){
  const p=op.payload,r=op.observation,confirmed=['verified','partial_verified'].includes(op.state),images=p.images;

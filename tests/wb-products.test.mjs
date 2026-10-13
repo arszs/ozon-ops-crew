@@ -73,7 +73,7 @@ test('WB draft edits revoke gate and synthetic sources cannot reach real publica
  const {w,id}=await workspace(t);const op=await w.preparePublish(id);await w.setup(id,{mapping});await assert.rejects(()=>w.approveOperation(op.id,op.payloadHash));await w.repo.mutate(db=>{const j=db.jobs.find(x=>x.id===id);j.state='review_gate';j.artifacts.validate={output:{passed:true}};j.gates.category={revision:j.revision};j.synthetic=true;});await assert.rejects(()=>w.preparePublish(id));
 });
 test('WB read-only transport admits publication checks but rejects creation and media writes',async()=>{
- const readOnly=createWbRead({getCredentials:credentials,clock:()=>0,sleep:async()=>{},fetcher:async()=>({ok:true,json:async()=>({error:false,data:{}})})});for(const [path,body] of [['/content/v2/cards/limits',undefined],['/content/v2/get/cards/trash',{}],['/content/v2/cards/error/list',{}],['/content/v2/directory/colors?locale=ru',undefined]])await readOnly(store,path,body);
+ let tick=0;const readOnly=createWbRead({getCredentials:credentials,clock:()=>tick,sleep:async ms=>tick+=ms,fetcher:async()=>({ok:true,json:async()=>({error:false,data:{}})})});for(const [path,body] of [['/content/v2/cards/limits',undefined],['/content/v2/get/cards/trash',{}],['/content/v2/cards/error/list',{}],['/content/v2/directory/colors?locale=ru',undefined]]){tick+=1800050;await readOnly(store,path,body);}
  await assert.rejects(()=>readOnly(store,'/content/v2/cards/upload',[]));await assert.rejects(()=>readOnly(store,'/content/v3/media/save',{}));
 });
 test('WB Chinese setup separates draft creation from photos, price and stock and escapes source content',async()=>{

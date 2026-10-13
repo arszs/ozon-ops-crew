@@ -108,9 +108,9 @@ export async function wbImportStatus(store,operation,{read=wbRead,accountRef=wbA
  const owner=await accountRef(store);if(owner!==operation.payload.wbContext.accountRef)throw Error('WB 账户已变化，请使用原连接核对');
  const expected=operation.payload.apiBody[0],wanted=expected.variants[0],card=await findWbCard(store,wanted.vendorCode,{read,accountRef:owner});
  if(await accountRef(store)!==owner)throw Error('WB 账户已变化');
- if(!card)return {status:'pending',imported:false,moderationVerified:false,imagesSubmitted:false,message:'WB 尚未返回此货号；创建可能需要 30 分钟。请在 WB 草稿错误列表核对，不要重复提交。'};
+ if(!card)return {status:'pending',imported:false,moderationVerified:false,imagesSubmitted:false,message:'WB 尚未返回此货号；创建可能需要 30 分钟。请读取下方草稿错误，不要重复提交。'};
  const match=wbCardMatches(card,expected);
- const productId=id(card.nmID);return {status:match?'card_observed':'mismatch',imported:match,productId,vendorCode:wanted.vendorCode,cardHash:hash(card),photosCount:Array.isArray(card.photos)?card.photos.length:null,imagesSubmitted:false,moderationVerified:false,message:match?'已读取到匹配商品卡片；图片、价格、库存及平台审核仍需完成。':'此货号的内容与确认版本不同；不要覆盖或重复提交。'};
+ const productId=id(card.nmID);return {status:match?'card_observed':'mismatch',imported:match,productId,vendorCode:wanted.vendorCode,cardHash:hash(card),photosCount:Array.isArray(card.photos)?card.photos.length:null,imagesSubmitted:false,moderationVerified:false,message:match?'已读取到匹配商品卡片；后续步骤见发布进度。平台审核与开售尚未证明。':'此货号的内容与确认版本不同；不要覆盖或重复提交。'};
 }
 
 export function wbCardMatches(card,expected){const wanted=expected.variants[0];return card.subjectID===expected.subjectID&&card.title===wanted.title&&card.description===wanted.description&&(card.brand||'')===wanted.brand&&Object.entries(wanted.dimensions).every(([k,v])=>card.dimensions?.[k]===v)&&wanted.characteristics.every(a=>card.characteristics?.some(x=>x.id===a.id&&hash(x.value)===hash(a.value)))&&card.sizes?.length===wanted.sizes.length&&wanted.sizes.every(s=>card.sizes.some(x=>x.techSize===s.techSize&&(!s.wbSize||x.wbSize===s.wbSize)&&x.skus?.length===s.skus.length&&s.skus.every(b=>x.skus.includes(b))));}

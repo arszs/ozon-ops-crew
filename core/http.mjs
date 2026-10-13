@@ -1,3 +1,4 @@
+import {WbListingErrorService} from './wb-listing-error-service.mjs';
 import {wbAccount} from '../adapters/wb-api.mjs';
 import {WbAdvertisingService} from './wb-advertising-service.mjs';
 import {AdMonitor} from './ad-monitor.mjs';
@@ -21,6 +22,7 @@ export async function createWorkspaceAPI(root,live){
  const catalogue=new CatalogueService(join(root,'runtime/catalogue.sqlite'));
  ws.wbPriceProduct=async(store,nmID)=>{const owner=await wbAccount(store);try{return await catalogue.product(store,String(nmID),owner);}catch(e){const db=await ws.repo.read(),job=db.jobs.find(j=>j.storeId===store.id&&j.state==='imported'&&String(j.importResult?.productId)===String(nmID)),op=job&&db.operations.findLast(o=>o.kind==='publish'&&o.payload.jobId===job.id&&o.state==='verified');if(!job||op?.payload.wbContext?.accountRef!==owner)throw e;return {sku:String(nmID),offerId:job.canonical.sku};}};
  ws.wbStockProduct=ws.wbPriceProduct;
+ const wbListingErrors=new WbListingErrorService(join(root,'runtime/wb-listing-errors.json'));await wbListingErrors.ready;
  const wbAds=new WbAdvertisingService(join(root,'runtime/wb-advertising.sqlite'));
  const wbFinance=new WbFinanceService(join(root,'runtime/wb-finance.sqlite'));
  const wbPrices=new WbPriceService(join(root,'runtime/wb-prices.sqlite'),{catalogue});
@@ -45,6 +47,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='stores'&&action==='wb-ads')return send(await wbAds.get(ws.resolveStore(await ws.repo.read(),id),{sku:url.searchParams.get('sku')}));
     if(resource==='stores'&&action==='wb-finance')return send(await wbFinance.get(ws.resolveStore(await ws.repo.read(),id),{sku:url.searchParams.get('sku')}));
     if(resource==='stores'&&action==='wb-prices')return send(await wbPrices.get(ws.resolveStore(await ws.repo.read(),id),url.searchParams.get('nmID')));
+    if(resource==='stores'&&action==='wb-listing-errors')return send(await wbListingErrors.get(ws.resolveStore(await ws.repo.read(),id),{vendorCode:url.searchParams.get('vendorCode')}));
     if(resource==='stores'&&action==='wb-inventory')return send(await wbInventory.get(ws.resolveStore(await ws.repo.read(),id),url.searchParams.get('nmID')));
     if(resource==='stores'&&action==='attributes')return send(await ws.attributes(id,url.searchParams.get('categoryId'),url.searchParams.get('typeId')));
     if(resource==='stores'&&action==='values')return send(await ws.values(id,Object.fromEntries(url.searchParams)));
@@ -56,7 +59,7 @@ export async function createWorkspaceAPI(root,live){
      const i=Number(index);if(![0,1].includes(i)||job.mode!=='mock'||!job.artifacts.image_edit)throw Error('Image not available');
      const source=url.searchParams.get('source')==='1',title=source?job.canonical.images[i].textZh:job.artifacts.image_edit.output.images[i].translatedText;
      res.setHeader('Content-Type','image/svg+xml');res.end(`<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200"><rect width="900" height="1200" fill="${i?'#e6edf4':'#f0f2e8'}"/><text x="70" y="90" font-family="sans-serif" font-size="24" fill="#52655b">${source?'演示原图 · 非淘宝抓取':'DEMO · ШАБЛОН ИНФОГРАФИКИ'}</text><foreignObject x="70" y="150" width="760" height="200"><div xmlns="http://www.w3.org/1999/xhtml" style="font:700 58px sans-serif;color:#16392b;line-height:1.1">${esc(title)}</div></foreignObject><path d="M170 490 L640 440 L755 585 L280 650Z" fill="#7c9291"/><path d="M280 650 L755 585 L710 970 L295 1030Z" fill="#aebcbb"/><path d="M170 490 L280 650 L295 1030 L185 850Z" fill="#607977"/><path d="M190 485 L640 438 L700 502 L245 570Z" fill="#d3dcda"/><rect x="450" y="680" width="100" height="25" rx="12" fill="#55716d"/><text x="70" y="1125" font-family="sans-serif" font-size="26" fill="#52655b">${source?'灰色 · 聚丙烯 · 30升':'Серый · Полипропилен · 30 л'}</text></svg>`);return true;
-    }return send(job);}
+    }if(job.marketplace==='wb'&&job.mode==='manual'){try{job.wbListingErrors=await wbListingErrors.get(ws.resolveStore(await ws.repo.read(),job.storeId),{vendorCode:job.canonical.sku});}catch{job.wbListingErrors={state:'unavailable',error:'WB 草稿错误连接不可用'};}}return send(job);}
    }
    if(req.method==='POST'){
     if(resource==='stores'&&!id)return send(await ws.addStore(body));
@@ -73,6 +76,8 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='stores'&&action==='wb-price-plan')return send(await ws.prepareWbPrice(id,body));
     if(resource==='operations'&&action==='wb-price-status')return send(await ws.reconcileWbPrice(id));
     if(resource==='stores'&&action==='wb-prices')return send(await wbPrices.refresh(ws.resolveStore(await ws.repo.read(),id),body.nmID));
+    if(resource==='stores'&&action==='wb-listing-errors')return send(await wbListingErrors.start(ws.resolveStore(await ws.repo.read(),id),body));
+    if(resource==='stores'&&action==='wb-listing-errors-pause')return send(await wbListingErrors.pause(ws.resolveStore(await ws.repo.read(),id)));
     if(resource==='stores'&&action==='wb-inventory')return send(await wbInventory.start(ws.resolveStore(await ws.repo.read(),id),body.nmID,{restart:body.restart===true}));
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.start(store,{restart:body.restart===true}));}
     if(resource==='stores'&&action==='finance'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await finance.start(store,body));}
