@@ -1,3 +1,4 @@
+import {generateCreative,attachCreativeImage,approveCreative} from './review-creatives.mjs';
 import {hash} from './repository.mjs';
 import {prepareWbTrialPrice,inspectWbTrialPrice} from './wb-price-trial.mjs';
 import {WbTrialService} from './wb-trials.mjs';
@@ -112,6 +113,9 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='operations'&&!id)return send(await ws.planOperation(body));
     if(resource==='operations'&&action==='approve')return send(await ws.approveOperation(id,body.payloadHash));
     if(resource==='operations'&&action==='execute')return send(await ws.executeOperation(id));
+    if(resource==='creatives'&&!id)return send(await generateCreative(ws,body));
+    if(resource==='creatives'&&action==='image')return send(await attachCreativeImage(ws,id,body));
+    if(resource==='creatives'&&action==='approve')return send(await approveCreative(ws,id,body));
     if(resource==='reviews'&&action==='draft')return send(await ws.draftMessage(id));
     if(resource==='cost-profiles'&&!id)return send(await ws.saveCosts(body));
     if(resource==='trial-plans'&&!id)return send(await ws.planTrial(body,{finance,advertising,wbTrials}));
