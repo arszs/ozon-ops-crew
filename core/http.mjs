@@ -1,4 +1,4 @@
-import {generateCreative,attachCreativeImage,approveCreative} from './review-creatives.mjs';
+import {startCreative,retryCreative,cancelCreative,creativeViews,attachCreativeImage,approveCreative} from './review-creatives.mjs';
 import {workspaceBody} from './request-body.mjs';
 import {hash} from './repository.mjs';
 import {prepareWbTrialPrice,inspectWbTrialPrice} from './wb-price-trial.mjs';
@@ -49,6 +49,7 @@ export async function createWorkspaceAPI(root,live){
    if(req.method==='GET'){
     if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&['ozon','wb'].includes(s.marketplace)).map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));view.wbFinance=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbFinance.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 财务连接不可用'}];}})));view.wbAds=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbAds.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 广告连接不可用'}];}})));view.adMonitors=await monitoring.list();view.adMonitorWorker=monitoring.status;view.adReadings=await advertising.list(view.stores.map(s=>ws.resolveStore(db,s.id)));view.financeReadings=await finance.list(view.stores.map(s=>ws.resolveStore(db,s.id)));for(const t of view.trials)if(t.source==='api_accruals_seller_costs')t.sourceStatus=ledgerTrialStatus(t,view.financeReadings,view.adReadings,view.trialPlans.find(p=>p.id===t.planId));for(const t of view.trials)if(t.source==='wb_reports_seller_costs'){try{t.sourceStatus=await wbTrials.status(ws.resolveStore(db,t.storeId),db.trialPlans?.find(p=>p.id===t.planId),t);}catch{t.sourceStatus='unavailable';}}return send(view);}
     if(resource==='trial-plans'&&action==='wb-evidence')return send(await wbTrials.get(id));
+    if(resource==='creatives'&&!id)return send(creativeViews(await ws.repo.read()));
     if(resource==='assets'&&id){res.setHeader('Content-Type','image/png');res.end(await readFile(assetPath(id)));return true;}
     if(resource==='stores'&&action==='wb-economics')return send(await wbFinance.skuCosts.query(ws.resolveStore(await ws.repo.read(),id),Object.fromEntries(url.searchParams)));
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.query(store,{q:url.searchParams.get('q')||'',offset:Number(url.searchParams.get('offset')||0)}));}
@@ -114,7 +115,9 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='operations'&&!id)return send(await ws.planOperation(body));
     if(resource==='operations'&&action==='approve')return send(await ws.approveOperation(id,body.payloadHash));
     if(resource==='operations'&&action==='execute')return send(await ws.executeOperation(id));
-    if(resource==='creatives'&&!id)return send(await generateCreative(ws,body));
+    if(resource==='creatives'&&!id)return send(await startCreative(ws,body),202);
+    if(resource==='creatives'&&action==='cancel')return send(await cancelCreative(ws,id));
+    if(resource==='creatives'&&action==='retry')return send(await retryCreative(ws,id,body),202);
     if(resource==='creatives'&&action==='image')return send(await attachCreativeImage(ws,id,body));
     if(resource==='creatives'&&action==='approve')return send(await approveCreative(ws,id,body));
     if(resource==='reviews'&&action==='draft')return send(await ws.draftMessage(id));

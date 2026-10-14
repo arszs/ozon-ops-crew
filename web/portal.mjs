@@ -1,4 +1,4 @@
-import {creativePage,bindCreatives,creativePlanDraft} from './review-creatives.mjs';
+import {creativePage,bindCreatives,creativePlanDraft,refreshCreativeCards} from './review-creatives.mjs';
 import {marketplaceRoadmap} from './marketplace-roadmap.mjs';
 import {bindWbEconomics,wbEconomicsPage,prepareWbEconomicsPlan} from './wb-economics.mjs';
 import {bindWbBulkCosts} from './wb-bulk-costs.mjs';
@@ -29,11 +29,11 @@ const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>
 const rub=v=>v===null||v===undefined?'—':new Intl.NumberFormat('zh-CN',{style:'currency',currency:'RUB',maximumFractionDigits:2}).format(v);
 const names={creatives:'AIGC 图文改进',products:'商品与广告',trials:'商品利润实验',home:'店铺总览',stores:'店铺管理',migration:'商品迁移',reviews:'客户沟通',gates:'确认队列',market:'市场评估',audit:'操作证据'};
 const stages={extract:'提取',translate:'翻译适配',image_edit:'图片处理',map_attributes:'类目映射',validate:'校验',review_gate:'人工确认',submitted:'已提交 · 待导入',imported:'已导入 · 查看审核',published:'已模拟发布',synced:'已模拟同步',running:'执行中',publishing:'提交中',needs_input:'需要补充'};
-let wbTrialTimer,wbTrialTicket=0;
+let creativeTimer;let wbTrialTimer,wbTrialTicket=0;
 let state={wbEconomics:{},wbBulkDrafts:{},wbTrialEvidence:{},wbAllocationDrafts:{},page:'home',homeStore:'ozon-live',productStore:'ozon-live',productScope:'activity',focus:null,catalogue:{},data:null,job:null,live:null,digest:null,assessment:null,benchmark:null,wbRequirements:null,dictionary:null,busy:false};let wbErrorsTimer,wbErrorsScope=null,wbErrorsTicket=0,wbAdsTimer,wbAdsScope=null,wbAdsTicket=0,wbFinanceTimer,wbFinanceScope=null,wbFinanceTicket=0,financeTimer,liveTimer,catalogueTimer,inventoryTimer,inventoryRequest=0,catalogueRequest=0;
 async function api(path='',body){const r=await fetch('/api/workspace'+path,body===undefined?{}:{method:'POST',headers:{'Content-Type':body instanceof Blob?(body.type||'application/octet-stream'):'application/json'},body:body instanceof Blob?body:JSON.stringify(body)});let d;try{d=await r.json();}catch{throw Error('本地服务未启动；公开 GitHub Pages 不提供私有 API。');}if(!r.ok)throw Error(d.error||'请求失败');return d;}
 function say(text,bad=false){$('#notice').textContent=text;$('#notice').className=bad?'error':'success';}
-async function load(){state.data=await api();state.digest=await api('/digest');scheduleFinance();}
+async function load(){state.data=await api();state.digest=await api('/digest');scheduleFinance();scheduleCreatives();}
 async function action(fn,message){if(state.busy)return;const page=state.page,jobId=state.job?.id,openFinance=[...document.querySelectorAll('.plan-details,.plan-finance,.plan-ads,.trial-history,.plan-history,.wb-contribution,.wb-allocation,.wb-sku-contribution,.wb-bulk-costs,.wb-finance-tools')].filter(d=>d.open).map(d=>d.id);let failed=false;state.busy=true;say('正在处理… AI 阶段可能需要数分钟；结果会保存，请勿重复提交。');document.querySelectorAll('button').forEach(b=>b.disabled=true);try{await fn();await load();say(message||'已更新');}catch(e){failed=true;say(e.message,true);try{await load();}catch{}}finally{const keep=failed&&page===state.page&&jobId===state.job?.id,forms=keep?captureForms($('#portal')):null,linked=keep?$('#linked-plan')?.textContent:null;state.busy=false;render();if(page===state.page)for(const id of openFinance){const d=document.getElementById(id);if(d)d.open=true;}if(forms){restoreForms($('#portal'),forms);if(linked&&$('#linked-plan'))$('#linked-plan').textContent=linked;}}}
 
 function badge(mode){return `<span class="badge ${mode==='live'?'live':'mock'}">${mode==='live'?'真实 API':mode==='manual'?'人工导出':mode==='sample'?'AI 实测 · 合成商品':'DEMO · 模拟'}</span>`;}
@@ -85,9 +85,19 @@ function bind(){bindWbEconomics({load:(id,input)=>action(async()=>{const p=wbEco
  bindCreatives({data:state.data,api,action});document.querySelectorAll('[data-creative-trial]').forEach(b=>b.onclick=()=>{const c=state.data.creatives.find(c=>c.id===b.dataset.creativeTrial);if(!c)return;navigate('trials');const f=$('#trial-plan-form');for(const [k,v] of Object.entries(creativePlanDraft(c)))f.elements[k].value=v;f.elements.lever.dispatchEvent(new Event('change'));f.elements.storeId.dispatchEvent(new Event('change'));revealExperimentTarget('trial-plan-form');});
  bindAssessment({api,action,say,onResult:a=>{state.assessment=a;}});
  const op=$('#ops-form');if(op)op.onsubmit=e=>{e.preventDefault();const f=new FormData(op);action(async()=>{await api('/operations',{storeId:f.get('storeId'),kind:f.get('kind'),sku:f.get('sku'),target:Number(f.get('target')),economics:economyData(f,'op'),minMarginPct:Number(f.get('minMarginPct'))});state.page='gates';},'操作已进入确认队列');};
- const dr=$('#digest-refresh');if(dr)dr.onclick=()=>action(async()=>{state.digest=await api('/digest');scheduleFinance();},'摘要已更新');
+ const dr=$('#digest-refresh');if(dr)dr.onclick=()=>action(async()=>{state.digest=await api('/digest');scheduleFinance();scheduleCreatives();},'摘要已更新');
 }
 
+function scheduleCreatives(){
+ clearTimeout(creativeTimer);
+ if(state.data?.creatives?.some(c=>['queued','generating'].includes(c.state)))creativeTimer=setTimeout(pollCreatives,3000);
+}
+async function pollCreatives(){
+ if(state.busy){scheduleCreatives();return;}
+ try{const rows=await api('/creatives');if(state.busy){scheduleCreatives();return;}state.data.creatives=rows;if(state.page==='creatives'){refreshCreativeCards(state.data);bindCreatives({data:state.data,api,action});}}
+ catch{say('图文进度暂时无法读取；后台任务可能仍在运行，请勿重复提交。',true);}
+ scheduleCreatives();
+}
 function scheduleFinance(){
  clearTimeout(financeTimer);
  if([...(state.data?.financeReadings||[]),...(state.data?.adReadings||[])].some(r=>['queued','running'].includes(r.state)))financeTimer=setTimeout(pollFinance,3000);else if(state.data?.adMonitors?.some(m=>m.enabled))financeTimer=setTimeout(pollFinance,60000);

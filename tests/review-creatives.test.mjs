@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,mkdir,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
 import {Workspace} from '../core/workspace.mjs';
-import {generateCreative,attachCreativeImage,approveCreative} from '../core/review-creatives.mjs';
+import {generateCreative,startCreative,waitCreative,cancelCreative,retryCreative,creativeViews,attachCreativeImage,approveCreative} from '../core/review-creatives.mjs';
 import {draftReviewCreative} from '../adapters/review-creative.mjs';
 const output={issueZh:'尺寸不清楚',changeZh:'补充尺寸',headlineRu:'Размеры',captionRu:'40 × 30 × 25 см',promptZh:'保持商品外观，标出已确认尺寸',risk:'content_clarity',warningsZh:[]};
 const runner=async()=>({output,provider:'test',prompt:'bounded prompt'});
@@ -61,4 +61,45 @@ test('unverified display and unlinked content observations cannot become positiv
  const {ws,c}=await reviewed(t),p=await ws.planTrial(contentInput(c));
  await assert.rejects(ws.recordTrial({...observed(p),planId:''}),/原计划/);
  const trial=await ws.recordTrial({...observed(p),executionConfirmed:false});assert.equal(trial.result.verdict,'insufficient');assert.match(trial.result.blockers.join(' '),/实际展示/);assert.equal(trial.executionConfirmed,false);
+});
+
+const latch=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
+test('background submission returns durable queued work, deduplicates and runs one generation at a time',async t=>{
+ const {ws,input}=await setup(t),started=latch(),release=latch();let active=0,maxActive=0,calls=0;
+ const run=async()=>{active++;maxActive=Math.max(maxActive,active);calls++;if(calls===1){started.resolve();await release.promise;}active--;return runner();};
+ const first=await startCreative(ws,input,{run});assert.equal(first.state,'queued');await started.promise;
+ const duplicate=await startCreative(ws,input,{run});assert.equal(duplicate.id,first.id);
+ const second=await startCreative(ws,{...input,sku:'second'},{run});assert.equal(second.state,'queued');assert.equal(calls,1);
+ assert.equal((await ws.view()).creatives.find(c=>c.id===first.id).state,'generating');
+ release.resolve();assert.equal((await waitCreative(ws,first.id)).state,'awaiting_image');assert.equal((await waitCreative(ws,second.id)).state,'awaiting_image');assert.equal(calls,2);assert.equal(maxActive,1);assert.equal((await ws.view()).auditValid,true);
+});
+test('cancelled queue entries consume no generation and require an explicit version-bound retry',async t=>{
+ const {ws,input}=await setup(t),started=latch(),release=latch();let calls=0;
+ const first=await startCreative(ws,input,{run:async()=>{started.resolve();await release.promise;return runner();}});await started.promise;
+ const second=await startCreative(ws,{...input,sku:'cancelled'},{run:async()=>{calls++;return runner();}});
+ await cancelCreative(ws,second.id);await assert.rejects(cancelCreative(ws,first.id),/已经开始/);
+ release.resolve();await waitCreative(ws,first.id);assert.equal((await waitCreative(ws,second.id)).state,'cancelled');assert.equal(calls,0);
+ await assert.rejects(retryCreative(ws,second.id,{expectedSourceHash:'old'},{run:runner}),/状态已改变/);
+ const retry=await retryCreative(ws,second.id,{expectedSourceHash:second.sourceHash},{run:async()=>{calls++;return runner();}});assert.notEqual(retry.id,second.id);assert.equal((await waitCreative(ws,retry.id)).state,'awaiting_image');assert.equal(calls,1);
+});
+test('restart interrupts queued and running work, never replays it or lets late results overwrite state',async t=>{
+ const {ws,input}=await setup(t),started=latch(),release=latch();let calls=0;
+ const first=await startCreative(ws,input,{run:async()=>{calls++;started.resolve();await release.promise;return runner();}});await started.promise;
+ const second=await startCreative(ws,{...input,sku:'after-restart'},{run:async()=>{calls++;return runner();}});await ws.init();release.resolve();
+ for(const c of [first,second]){const result=await waitCreative(ws,c.id);assert.equal(result.state,'interrupted');assert.equal(result.output,undefined);}assert.equal(calls,1);
+});
+test('a failed worker persists a safe error and releases the queue for the next SKU',async t=>{
+ const {ws,input}=await setup(t),first=await startCreative(ws,input,{run:async()=>{throw Error('private-provider-error-secret');}}),second=await startCreative(ws,{...input,sku:'next'},{run:runner});
+ assert.equal((await waitCreative(ws,first.id)).state,'failed');assert.equal((await waitCreative(ws,second.id)).state,'awaiting_image');assert.doesNotMatch(JSON.stringify(await ws.view()),/private-provider-error-secret/);
+ await ws.repo.mutate(db=>db.reviews[0].textRu='changed');await assert.rejects(retryCreative(ws,first.id,{expectedSourceHash:first.sourceHash},{run:runner}),/来源已改变/);
+});
+test('active generation stays visible even after more than thirty newer historical records',()=>{
+ const db={reviews:[],creatives:[{id:'active',state:'queued'},...Array.from({length:35},(_,i)=>({id:String(i),state:'approved'}))]};assert.equal(creativeViews(db).length,31);assert.equal(creativeViews(db)[0].id,'active');
+});
+
+test('a changed review is rejected before a queued generation consumes the subscription',async t=>{
+ const {ws,input}=await setup(t),started=latch(),release=latch();let laterCalls=0;
+ const first=await startCreative(ws,input,{run:async()=>{started.resolve();await release.promise;return runner();}});await started.promise;
+ const second=await startCreative(ws,{...input,sku:'queued-before-source-change'},{run:async()=>{laterCalls++;return runner();}});await ws.repo.mutate(db=>db.reviews[0].textRu='changed');release.resolve();
+ await waitCreative(ws,first.id);assert.equal((await waitCreative(ws,second.id)).state,'failed');assert.equal(laterCalls,0);
 });

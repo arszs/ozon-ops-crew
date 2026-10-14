@@ -1,0 +1,29 @@
+{
+  "synthetic": true,
+  "id": "eb8cc19e-c1ea-42a9-9626-ae1b5c3fcbef",
+  "acceptedMs": 3,
+  "totalMs": 25060,
+  "state": "awaiting_image",
+  "provider": "codex-subscription",
+  "risk": "quality_or_service",
+  "promptHash": "8e1d5704e51c1f486c9b5e3c141526ea732bcf23b807589085b03a4da2d76ef4",
+  "output": {
+    "issueZh": "买家认可使用便利，但反映盒盖到货时有裂纹并询问如何更换，属于破损及售后问题，不能靠图片解决。卖家未提供更换政策或耐久证据。",
+    "changeZh": "售后问题需独立处理；图片仅补充已确认的尺寸、标称容量和材质颜色。删除未经确认的“可折叠”表述，不承诺防破损或更换。",
+    "headlineRu": "Серый тканевый короб",
+    "captionRu": "40 × 30 × 25 см · Заявленный объём — 30 л",
+    "promptZh": "编辑源图061cb2bd2ba7e7673fd40aabecd656f069ca2891ce3e67aa860a8f59fb36fcc9，制作简洁俄语商品信息图。保留原商品外观、形状、颜色、标志及数量，不修饰或掩盖可见破损，不改变商品结构。准确添加标题「Серый тканевый короб」和说明「40 × 30 × 25 см · Заявленный объём — 30 л」。移除原有未经确认的可折叠文案。不添加耐久、防破损、认证、退款、更换承诺或其他虚构卖点，不包含买家身份信息。所有生成的视觉成品必须经卖家审核后使用。",
+    "risk": "quality_or_service",
+    "warningsZh": [
+      "盒盖裂纹及更换诉求必须独立处理，信息图无法修复缺陷。",
+      "缺少更换政策及耐久证据，不得作相关承诺。",
+      "所有生成的视觉成品均须卖家审核。"
+    ]
+  },
+  "duplicateReused": true,
+  "externalWrites": false,
+  "auditValid": true,
+  "checkedDate": "2026-10-14",
+  "pollIntervalMs": 5000,
+  "measurementScope": "One localhost synthetic review; observed completion includes polling delay, not a real SKU benchmark or SLA."
+}
