@@ -83,3 +83,9 @@ test('bulk seller costs invalidate a saved recommendation for the exact experime
  const f=await fixture(t);await f.prepare();const old=await f.service.save(f.plan.id,await f.input()),view=await f.finance.get(f.store,f.scope('a')),source={runId:view.snapshot.runId,reportHash:view.snapshot.evidenceHash,currency:'CNY'},template=await f.finance.bulkCosts.template(f.store,source),rows=parseCostCSV(template.csv),input={...source,evidence:'Synthetic revised bulk costs',csv:costCSV(rows.map(r=>WB_COST_COLUMNS.map(k=>({cogs:'150',tax:'0',external:'0'}[k]??r[k]))))};
  const p=await f.finance.bulkCosts.preview(f.store,input);await f.finance.bulkCosts.confirm(f.store,{...input,previewHash:p.previewHash,...Object.fromEntries(WB_COST_CHECKS.map(k=>[k,true]))});assert.equal(await f.service.status(f.store,f.plan,old),'superseded');assert.equal((await f.finance.get(f.store,f.scope('b'))).skuReconciliations.length,1);const next=await f.service.save(f.plan.id,await f.input());assert.equal(next.a.profit,'480');assert.equal(next.b.profit,'630');
 });
+test('WB content comparison retains frozen visuals and changing plan evidence invalidates the result',async t=>{
+ const f=await fixture(t);await f.ws.repo.mutate(db=>{const p=db.trialPlans[0];p.lever='content';p.creative={payloadHash:'synthetic-v2',image:{assetId:'synthetic-image'}};});await f.prepare();
+ const result=await f.service.save(f.plan.id,await f.input());assert.equal(result.creative.payloadHash,'synthetic-v2');assert.equal(result.lever,'content');
+ const plan=(await f.ws.view()).trialPlans[0];assert.equal(await f.service.status(f.store,plan,result),'current');
+ await f.ws.repo.mutate(db=>db.trialPlans[0].creative.payloadHash='synthetic-v3');assert.notEqual(await f.service.status(f.store,(await f.ws.view()).trialPlans[0],result),'current');
+});

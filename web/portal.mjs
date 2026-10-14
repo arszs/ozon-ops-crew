@@ -1,4 +1,4 @@
-import {creativePage,bindCreatives} from './review-creatives.mjs';
+import {creativePage,bindCreatives,creativePlanDraft} from './review-creatives.mjs';
 import {marketplaceRoadmap} from './marketplace-roadmap.mjs';
 import {bindWbEconomics,wbEconomicsPage,prepareWbEconomicsPlan} from './wb-economics.mjs';
 import {bindWbBulkCosts} from './wb-bulk-costs.mjs';
@@ -82,7 +82,7 @@ function bind(){bindWbEconomics({load:(id,input)=>action(async()=>{const p=wbEco
  document.querySelectorAll('[data-ai-review]').forEach(b=>b.onclick=()=>action(()=>api('/reviews/'+b.dataset.aiReview+'/draft',{}),'AI 草稿已生成，请检查含义与承诺后提交确认；尚未发送'));
  document.querySelectorAll('[data-reply]').forEach(f=>f.onsubmit=e=>{e.preventDefault();const reply=new FormData(f).get('reply');action(async()=>{await api('/operations',{kind:'reply',storeId:f.dataset.store,reviewId:f.dataset.reply,reply});state.page='gates';},'回复草稿已送审');});
  const rs=$('#review-sync');if(rs)rs.onsubmit=e=>{e.preventDefault();const id=new FormData(rs).get('storeId');action(async()=>{const r=await api('/stores/'+id+'/reviews',{});if(r.errors.length)throw Error(r.errors.map(x=>x.kind+': '+x.error).join('；'));},'评价与提问已同步（最多100条/类型）');};
- bindCreatives({data:state.data,api,action});
+ bindCreatives({data:state.data,api,action});document.querySelectorAll('[data-creative-trial]').forEach(b=>b.onclick=()=>{const c=state.data.creatives.find(c=>c.id===b.dataset.creativeTrial);if(!c)return;navigate('trials');const f=$('#trial-plan-form');for(const [k,v] of Object.entries(creativePlanDraft(c)))f.elements[k].value=v;f.elements.lever.dispatchEvent(new Event('change'));f.elements.storeId.dispatchEvent(new Event('change'));revealExperimentTarget('trial-plan-form');});
  bindAssessment({api,action,say,onResult:a=>{state.assessment=a;}});
  const op=$('#ops-form');if(op)op.onsubmit=e=>{e.preventDefault();const f=new FormData(op);action(async()=>{await api('/operations',{storeId:f.get('storeId'),kind:f.get('kind'),sku:f.get('sku'),target:Number(f.get('target')),economics:economyData(f,'op'),minMarginPct:Number(f.get('minMarginPct'))});state.page='gates';},'操作已进入确认队列');};
  const dr=$('#digest-refresh');if(dr)dr.onclick=()=>action(async()=>{state.digest=await api('/digest');scheduleFinance();},'摘要已更新');

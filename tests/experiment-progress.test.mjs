@@ -43,3 +43,8 @@ test('completed financial periods lead to missing full-period advertising before
  const data=db({financeReadings:[report('a'),report('b')],adReadings:[]});assert.equal(step(data).kind,'advertising_review');assert.equal(step(data).focus,'ads-p');
  const complete=db().adReadings;for(const change of [{state:'queued'},{state:'partial'},{to:'2026-09-13'},{evidenceHash:null}])assert.equal(step({...data,adReadings:[complete[0],{...complete[1],...change}]}).kind,'advertising_review');
 });
+test('content experiments ask for actual image display and never imply automatic publication',()=>{
+ const plan={...p,lever:'content',creative:{revision:2}};
+ const before=experimentProgress(db(),plan,'2026-09-03'),after=experimentProgress(db(),plan,'2026-09-10');
+ assert.equal(before.kind,'content_display');assert.match(before.title,/原图/);assert.match(after.title,/新图/);assert.match(after.detail,/没有发布图片/);assert.equal(after.focus,'execution-p');
+});

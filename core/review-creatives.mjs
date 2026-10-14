@@ -30,3 +30,13 @@ export async function attachCreativeImage(ws,id,input){
 export async function approveCreative(ws,id,input){return ws.repo.mutate(db=>{const c=find(db,id);sourceCurrent(db,c);if(input.expectedHash!==c.payloadHash||approvalHash(c)!==c.payloadHash)throw Error('图文版本已改变，请重新检查');if(c.state==='approved')return c;if(c.state!=='review_gate'||!c.image)throw Error('请先添加生成图片');if(!['factsChecked','visualChecked','russianChecked','rightsChecked'].every(k=>input[k]===true))throw Error('请逐项确认事实、外观、俄文及权利');if(c.output.risk==='quality_or_service'&&input.issueAcknowledged!==true)throw Error('请确认质量或服务问题需要另行处理');if(c.output.risk==='insufficient_facts')throw Error('商品事实不足，请补充事实后重新生成');c.state='approved';c.approval={payloadHash:c.payloadHash,at:new Date().toISOString(),checks:{factsChecked:true,visualChecked:true,russianChecked:true,rightsChecked:true,issueAcknowledged:input.issueAcknowledged===true}};audit(db,{kind:'creative.approved',creativeId:id,payloadHash:c.payloadHash,externalWrite:false});return c;});}
 
 export function creativeViews(db){return (db.creatives||[]).slice(-30).map(c=>({...c,sourceStatus:db.reviews.some(r=>r.id===c.reviewId&&reviewHash(r)===c.reviewHash)?'current':'stale'}));}
+
+// A plan freezes the reviewed version. Later edits never rewrite historical experiments.
+export function creativeTrialSnapshot(db,input,plan){
+ if(plan.lever!=='content')return null;
+ const c=find(db,input.creativeId);sourceCurrent(db,c);
+ if(c.storeId!==input.storeId||c.source.sku!==plan.sku)throw Error('图文版本必须属于此店铺和 SKU');
+ if(c.state!=='approved'||!c.image||input.creativeHash!==c.payloadHash||approvalHash(c)!==c.payloadHash||c.approval?.payloadHash!==c.payloadHash)throw Error('请重新选择已确认的最新图文版本');
+ if(plan.baseline!=='原图 · '+c.source.sourceAssetId.slice(0,12)||plan.variant!=='AIGC 图文 · v'+c.revision+' · '+c.payloadHash.slice(0,12))throw Error('图文方案必须与已确认的原图和新版本一致');
+ return structuredClone({creativeId:c.id,payloadHash:c.payloadHash,revision:c.revision,sourceHash:c.sourceHash,sourceAssetId:c.source.sourceAssetId,sourceCopyRu:c.source.currentCopyRu,image:c.image,output:c.output,approval:c.approval,synthetic:c.synthetic,publication:'not_verified'});
+}

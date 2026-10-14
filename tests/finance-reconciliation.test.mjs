@@ -124,3 +124,12 @@ test('comparison UI explains API mismatch, manual total coverage and immutable a
  const form=ledgerComparisonForm(plan,p.a.report,p.b.report,{adReadings:Object.values(p.advertising)});assert.match(form,/低于 API/);assert.match(form,/超过计划上限/);assert.match(form,/其他广告仍需人工补齐/);assert.match(form,/data-step-target="ads-plan"/);
  const trial={...evaluateLedgerTrial(plan,p,confirmations),sourceStatus:'current'};assert.match(ledgerTrialDetails(trial),/ad-hash-b/);assert.match(ledgerTrialDetails({...trial,sourceStatus:'unverified_advertising'}),/旧结果尚未与广告 API 核对/);
 });
+test('API contribution freezes the content version and marks a different plan version superseded',()=>{
+ const p={...plan,lever:'content',creative:{payloadHash:'approved-v2',image:{assetId:'image-v2'}}},evidence=proof(),result=evaluateLedgerTrial(p,evidence,confirmations);
+ assert.equal(result.creative.payloadHash,'approved-v2');assert.equal(result.result.verdict,'repeat_candidate');
+ const reports=['a','b'].map(k=>({...evidence[k].report,reconciliations:[evidence[k].cost]})),ads=Object.values(evidence.advertising);
+ assert.equal(ledgerTrialStatus({...result,storeId:store.id},reports,ads,p),'current');
+ const changed={...p,creative:{...p.creative,payloadHash:'approved-v3'}};
+ assert.equal(ledgerTrialStatus({...result,storeId:store.id},reports,ads,changed),'superseded');
+ assert.equal(evaluateLedgerTrial(p,evidence,{...confirmations,executionConfirmed:false}).result.verdict,'insufficient');
+});

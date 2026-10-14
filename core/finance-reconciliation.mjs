@@ -39,9 +39,9 @@ export function evaluateLedgerTrial(plan,proof,input){
  const planDate=new Date(Date.parse(plan.at)+3*3600000).toISOString().slice(0,10);
  if(planDate>=plan.bStart)blockers.push('计划未在测试开始前保存；此结果是回顾观察');
  const before=round(periods.a.profit/periods.a.days),after=round(periods.b.profit/periods.b.days),delta=round(periods.b.profit/periods.b.days-periods.a.profit/periods.a.days);
- return {sku:plan.sku,lever:plan.lever,baseline:plan.baseline,variant:plan.variant,currency,evidence:text(input.evidence),comparable:input.comparable===true,executionConfirmed:input.executionConfirmed===true,source:'api_accruals_seller_costs',basis:'accrual_date',advertisingProof:advertising.proof,executionEvidence:executionEvidence(plan),...periods,result:{before,after,delta,blockers,verdict:blockers.length?'insufficient':delta>0?'repeat_candidate':'no_improvement',causal:false},provenance:{a:structuredClone(a),b:structuredClone(b)}};
+ return {...(plan.creative?{creative:structuredClone(plan.creative)}:{}),sku:plan.sku,lever:plan.lever,baseline:plan.baseline,variant:plan.variant,currency,evidence:text(input.evidence),comparable:input.comparable===true,executionConfirmed:input.executionConfirmed===true,source:'api_accruals_seller_costs',basis:'accrual_date',advertisingProof:advertising.proof,executionEvidence:executionEvidence(plan),...periods,result:{before,after,delta,blockers,verdict:blockers.length?'insufficient':delta>0?'repeat_candidate':'no_improvement',causal:false},provenance:{a:structuredClone(a),b:structuredClone(b)}};
 }
-export const executionEvidence=p=>({baselineExecutedAt:p?.baselineExecutedAt||null,cpoQuoteChanged:p?.cpoQuoteChanged===true});
+export const executionEvidence=p=>({baselineExecutedAt:p?.baselineExecutedAt||null,cpoQuoteChanged:p?.cpoQuoteChanged===true,...(p?.creative?{creative:structuredClone(p.creative)}:{})});
 export function ledgerTrialStatus(trial,readings,adReadings=[],plan=null){
  if(trial.source!=='api_accruals_seller_costs')return null;
  if(plan&&hash(executionEvidence(trial.executionEvidence))!==hash(executionEvidence(plan)))return 'superseded';

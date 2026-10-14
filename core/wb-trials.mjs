@@ -9,7 +9,7 @@ export const WB_TRIAL_VERSION='wb-period-contribution-v1';
 const today=clock=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(clock()));
 const days=p=>(Date.parse(p.to)-Date.parse(p.from))/86400000+1;
 const ranges=p=>Object.fromEntries(['a','b'].map(k=>[k,{from:p[k+'Start'],to:p[k+'End']} ]));
-const identity=p=>Object.fromEntries(['id','storeId','sku','lever','baseline','variant','aStart','aEnd','bStart','bEnd','adBudget','maxLoss','currency','at',...(p.wbPriceEconomics?['wbPriceEconomics','wbPriceTrialState']:[])].map(k=>[k,p[k]??null]));
+const identity=p=>Object.fromEntries(['id','storeId','sku','lever','baseline','variant','aStart','aEnd','bStart','bEnd','adBudget','maxLoss','currency','at',...(p.wbPriceEconomics?['wbPriceEconomics','wbPriceTrialState']:[]),...(p.creative?['creative']:[])].map(k=>[k,p[k]??null]));
 const amount=v=>{if(typeof v!=='string'||!/^\d{1,13}(\.\d{1,6})?$/.test(v)||wbDecimal(v)>1000000000000000000n)throw Error('请填写非负金额，最多六位小数');return decimalText(wbDecimal(v));};
 const count=v=>{if(typeof v!=='string'||!/^\d{1,9}$/.test(v))throw Error('请填写已核对订单数，不能用财务明细条数代替');return Number(v);};
 const note=v=>{if(typeof v!=='string'||v.trim().length<5||v.length>1000)throw Error('请填写 5–1000 字的执行、费用及可比性依据');return maskPII(v.trim());};
@@ -36,7 +36,7 @@ export function evaluateWbTrial(plan,proof,input){
  else {if(periods.b.observedAds!==null&&wbDecimal(periods.b.observedAds)>wbDecimal(String(plan.adBudget)))blockers.push('测试期 API 已读取广告费用超过计划上限');if(wbDecimal(periods.b.ads)>wbDecimal(String(plan.adBudget)))blockers.push('测试期核对广告总额超过计划上限');if(wbDecimal(periods.b.profit)<-wbDecimal(String(plan.maxLoss)))blockers.push('测试期贡献亏损超过计划上限');}
  const planDay=new Date(Date.parse(plan.at)+3*3600000).toISOString().slice(0,10);if(planDay>=plan.bStart)blockers.push('计划未在测试开始前保存；此结果是回顾观察');
  const a=wbDecimal(periods.a.profit),b=wbDecimal(periods.b.profit),da=BigInt(periods.a.days),db=BigInt(periods.b.days),deltaNumerator=b*da-a*db;
- return {source,calculationVersion:WB_TRIAL_VERSION,basis:'wb_daily_report_period',sku:plan.sku,lever:plan.lever,baseline:plan.baseline,variant:plan.variant,currency,evidence,...checks,...periods,result:{before:decimalText(a/da),after:decimalText(b/db),delta:decimalText(deltaNumerator/(da*db)),blockers,verdict:blockers.length?'insufficient':deltaNumerator>0n?'repeat_candidate':'no_improvement',causal:false},limitations:['日均金额截断至六位小数；方向按未舍入金额判断','广告历史覆盖由卖家补充核对，API 当前列表不能证明完整性；广告不再重复扣减']};
+ return {...(plan.creative?{creative:structuredClone(plan.creative)}:{}),source,calculationVersion:WB_TRIAL_VERSION,basis:'wb_daily_report_period',sku:plan.sku,lever:plan.lever,baseline:plan.baseline,variant:plan.variant,currency,evidence,...checks,...periods,result:{before:decimalText(a/da),after:decimalText(b/db),delta:decimalText(deltaNumerator/(da*db)),blockers,verdict:blockers.length?'insufficient':deltaNumerator>0n?'repeat_candidate':'no_improvement',causal:false},limitations:['日均金额截断至六位小数；方向按未舍入金额判断','广告历史覆盖由卖家补充核对，API 当前列表不能证明完整性；广告不再重复扣减']};
 }
 export class WbTrialService{
  constructor(workspace,finance,advertising){Object.assign(this,{workspace,finance,advertising});}
