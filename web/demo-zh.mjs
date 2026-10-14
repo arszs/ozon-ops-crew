@@ -1,6 +1,11 @@
+import {calculateDemoProfit} from './demo-profit.mjs';
 const reveal=id=>{const panel=document.getElementById(id);panel.hidden=false;panel.scrollIntoView({behavior:'smooth',block:'start'});};
+const profit=document.getElementById('profit'),result=document.getElementById('profit-result');
 document.getElementById('analyze').onclick=()=>reveal('brief');
 document.getElementById('compare').onclick=()=>reveal('comparison');
-document.getElementById('approval').onsubmit=e=>{e.preventDefault();const form=e.currentTarget;const status=document.getElementById('approved');status.hidden=false;if(!form.checkValidity()){status.textContent='请先逐项勾选事实、图片和俄语检查，再确认版本。';return;}status.textContent='演示版本已确认。实际产品需保留原图、生成指令、版本哈希与人工确认记录；本页没有发布商品或启动广告。';};
-
-document.getElementById('approval').oninput=()=>{document.getElementById('approved').hidden=true;};
+document.getElementById('approval').onsubmit=e=>{e.preventDefault();const form=e.currentTarget;const status=document.getElementById('approved');status.hidden=false;if(!form.checkValidity()){status.textContent='请先逐项勾选事实、图片和俄语检查，再确认版本。';profit.hidden=true;result.hidden=true;return;}status.textContent='演示版本已确认。实际产品需保留原图、生成指令、版本哈希与人工确认记录；本页没有发布商品或启动广告。';reveal('profit');};
+document.getElementById('approval').oninput=()=>{document.getElementById('approved').hidden=true;profit.hidden=true;result.hidden=true;};
+const form=document.getElementById('profit-form'),money=n=>new Intl.NumberFormat('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n)+' ₽';
+form.oninput=event=>{result.hidden=true;if(event.target?.type!=='checkbox')form.elements.costsComplete.checked=false;};
+form.onsubmit=e=>{e.preventDefault();if(profit.hidden)return;result.hidden=false;try{const d=new FormData(form),r=calculateDemoProfit({...Object.fromEntries(d),costsComplete:d.has('costsComplete'),comparable:d.has('comparable')});const heading={insufficient:'信息还不完整，暂不能判断',repeat_candidate:'示例利润提高，下一步需要真实重复验证',no_improvement:'示例利润没有提高，先检查成本与条件'}[r.verdict];result.className=r.verdict==='repeat_candidate'?'profit-result candidate':'profit-result';result.innerHTML=`<h3>${heading}</h3><div class="profit-metrics"><div><small>原图 · 暂算贡献 / 天</small><strong>${money(r.before)}</strong></div><div><small>新图 · 暂算贡献 / 天</small><strong>${money(r.after)}</strong></div><div><small>日均差额</small><strong>${money(r.delta)}</strong></div></div>${r.blockers.map(x=>`<p class="warning">${x}</p>`).join('')}<p>计算：收入 − 全部成本 − 广告，再除以各自天数。仅演示计算；结果不证明图文导致利润变化。</p>`;}catch(error){result.className='profit-result';result.textContent=error.message;}};
+document.getElementById('profit-reset').onclick=()=>{form.reset();result.hidden=true;};
