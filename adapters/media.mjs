@@ -11,9 +11,13 @@ const esc=s=>String(s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'
 export const assetRoot=()=>process.env.OPS_ASSET_DIR||join(process.cwd(),'runtime','assets');
 export function assetPath(id){if(!/^[a-f0-9]{64}$/.test(id))throw Error('Invalid asset');return join(assetRoot(),id+'.png');}
 export async function saveImage(bytes){
- const image=sharp(bytes,{limitInputPixels:30_000_000});const meta=await image.metadata();
- if(!['png','jpeg','webp'].includes(meta.format))throw Error('Only PNG/JPEG/WebP supported');
- const png=await image.rotate().png().toBuffer();const m=await sharp(png).metadata();const id=hash(png);await mkdir(assetRoot(),{recursive:true,mode:0o700});await writeFile(assetPath(id),png,{mode:0o600});return {assetId:id,width:m.width,height:m.height,sha256:id,url:'/api/workspace/assets/'+id};
+ let png,m;
+ try{
+  const image=sharp(bytes,{limitInputPixels:30_000_000});const meta=await image.metadata();
+  if(!['png','jpeg','webp'].includes(meta.format)||(meta.pages||1)>1)throw Error('Unsupported image');
+  png=await image.rotate().png().toBuffer();m=await sharp(png).metadata();
+ }catch{throw Error('图片读取失败：请上传完整的静态 PNG / JPEG / WebP，最多 3000 万像素');}
+ const id=hash(png);await mkdir(assetRoot(),{recursive:true,mode:0o700});await writeFile(assetPath(id),png,{mode:0o600});return {assetId:id,width:m.width,height:m.height,sha256:id,url:'/api/workspace/assets/'+id};
 }
 export function publicIPv4(address){const p=address.split('.').map(Number);return p.length===4&&p.every(v=>Number.isInteger(v)&&v>=0&&v<=255)&&![0,10,127].includes(p[0])&&!(p[0]===169&&p[1]===254)&&!(p[0]===172&&p[1]>=16&&p[1]<=31)&&!(p[0]===192&&[0,168].includes(p[1]))&&!(p[0]===100&&p[1]>=64&&p[1]<=127)&&p[0]<224&&p[0]!==198;}
 export async function downloadImage(value){

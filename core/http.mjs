@@ -1,4 +1,5 @@
 import {generateCreative,attachCreativeImage,approveCreative} from './review-creatives.mjs';
+import {workspaceBody} from './request-body.mjs';
 import {hash} from './repository.mjs';
 import {prepareWbTrialPrice,inspectWbTrialPrice} from './wb-price-trial.mjs';
 import {WbTrialService} from './wb-trials.mjs';
@@ -43,8 +44,8 @@ export async function createWorkspaceAPI(root,live){
   try{
    if(req.headers['sec-fetch-site']==='cross-site')return send({error:'Forbidden'},403);
    if(req.method!=='GET'&&req.headers.origin&&!['http://'+req.headers.host].includes(req.headers.origin))return send({error:'Origin rejected'},403);
-   let body={};if(req.method!=='GET'){let text='';for await(const chunk of req){text+=chunk;if(Buffer.byteLength(text)>2_000_000)return send({error:'Payload too large'},413);}body=JSON.parse(text||'{}');}
    const [, ,resource,id,action,index]=parts;
+   const body=await workspaceBody(req,{resource,id,action});
    if(req.method==='GET'){
     if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&['ozon','wb'].includes(s.marketplace)).map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));view.wbFinance=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbFinance.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 财务连接不可用'}];}})));view.wbAds=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbAds.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 广告连接不可用'}];}})));view.adMonitors=await monitoring.list();view.adMonitorWorker=monitoring.status;view.adReadings=await advertising.list(view.stores.map(s=>ws.resolveStore(db,s.id)));view.financeReadings=await finance.list(view.stores.map(s=>ws.resolveStore(db,s.id)));for(const t of view.trials)if(t.source==='api_accruals_seller_costs')t.sourceStatus=ledgerTrialStatus(t,view.financeReadings,view.adReadings,view.trialPlans.find(p=>p.id===t.planId));for(const t of view.trials)if(t.source==='wb_reports_seller_costs'){try{t.sourceStatus=await wbTrials.status(ws.resolveStore(db,t.storeId),db.trialPlans?.find(p=>p.id===t.planId),t);}catch{t.sourceStatus='unavailable';}}return send(view);}
     if(resource==='trial-plans'&&action==='wb-evidence')return send(await wbTrials.get(id));
@@ -102,7 +103,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='jobs'&&action==='step')return send(await ws.step(id));
     if(resource==='jobs'&&action==='retry')return send(await ws.retry(id,body.stage));
     if(resource==='jobs'&&action==='setup')return send(await ws.setup(id,body));
-    if(resource==='assets'&&!id){if(typeof body.base64!=='string'||body.base64.length>1_800_000)throw Error('Image too large (max 1.3 MB)');return send(await saveImage(Buffer.from(body.base64,'base64')));}
+    if(resource==='assets'&&!id){if(Buffer.isBuffer(body.imageBytes))return send(await saveImage(body.imageBytes));if(typeof body.base64!=='string'||body.base64.length>1_800_000)throw Error('旧版 base64 上传最多 1.3 MB；请使用图片文件上传（最多 12 MB）');return send(await saveImage(Buffer.from(body.base64,'base64')));}
     if(resource==='jobs'&&action==='edit')return send(await ws.edit(id,body));
     if(resource==='jobs'&&action==='category-approval')return send(await ws.approveCategory(id,body.revision));
     if(resource==='jobs'&&action==='wb-media-plan')return send(await ws.prepareWbMedia(id));
@@ -136,6 +137,6 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='assessments')return send(await ws.assessment(body));
    }
    return send({error:'Not found'},404);
-  }catch(e){return send({error:String(e.message).slice(0,500)},400);}
+  }catch(e){return send({error:String(e.message).slice(0,500)},e.status===413?413:400);}
  };
 }
