@@ -3,7 +3,7 @@
 - Source: https://github.com/arszs/ozon-ops-crew
 - Demo: https://arszs.github.io/ozon-ops-crew/
 - Chinese proposal: https://github.com/arszs/ozon-ops-crew/blob/main/docs/SUBMISSION.zh.md
-- Evaluation: https://github.com/arszs/ozon-ops-crew/blob/main/docs/EVALUATION.md
+- Evaluation: https://github.com/arszs/ozon-ops-crew/blob/feat/cross-border-workspace/docs/EVALUATION.md
 
 ## Актуальное описание у организатора
 
@@ -25,3 +25,5 @@
 - [Успешная публикация eec52ee](https://github.com/arszs/ozon-ops-crew/actions/runs/38434836734).
 - 2026-10-14 в браузере проверены китайский стартовый экран, раскрытие сценария, изображения до/после, китайское сообщение при незаполненных проверках и подтверждение после трёх отметок. Подтверждение не выполняет внешних действий.
 - [Описание реализации и границ](AIGC-DEMO.md), [сохранённое доказательство генерации](AIGC-DEMO-EVIDENCE.json).
+
+2026-10-14: [публикация 2f51a09](https://github.com/arszs/ozon-ops-crew/actions/runs/38565000010) добавила после подтверждения изображения интерактивное сравнение дневной прибыли на синтетических данных. В браузере проверены неполные подтверждения, положительный пример и отрицательный результат при увеличении затрат. Это не отчёт о реальном эксперименте. Текущая готовность по уточнённой цели — [EVALUATION.md](EVALUATION.md); новая редакция Specs/статуса пилота ещё не синхронизирована с формой организатора.
