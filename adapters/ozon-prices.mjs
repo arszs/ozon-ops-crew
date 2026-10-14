@@ -17,10 +17,15 @@ export async function readPrice(store,sku,{call=ozonCall,account=priceAccount}={
  const context={sku,productId:product.productId,offerId:product.offerId,name:product.name,accountRef,currency:p.currency_code,price:amount(p.price),oldPrice:amount(p.old_price),minPrice:amount(p.min_price),vat:String(amount(p.vat)),marketingPrice:p.marketing_seller_price==null?null:amount(p.marketing_seller_price),autoApply:p.auto_action_enabled??null,autoAdd:p.auto_add_to_ozon_actions_list_enabled??null,actions:item.marketing_actions??null};
  return {...context,checkedAt:new Date().toISOString(),fingerprint:hash(context)};
 }
+export function priceContextBlockers(context){
+ const blockers=[];
+ if(context.currency!=='RUB')blockers.push({code:'currency_not_rub',message:'当前价格模型仅支持 RUB，请核对账户币种。'});
+ if(context.autoApply!==false||context.autoAdd!==false)blockers.push({code:'automatic_promotions_not_disabled',message:'自动促销已开启或状态未核实。先在 Ozon 核对促销设置，再决定是否进行单变量价格测试。'});
+ if(context.marketingPrice!==null&&context.marketingPrice>0&&context.marketingPrice!==context.price)blockers.push({code:'different_marketing_price',message:'存在不同的促销价，当前不能把销量变化只归因于本次调价。'});
+ return blockers;
+}
 export function priceBody(context,target){
- if(context.currency!=='RUB')throw Error('当前成本模型仅支持 RUB；不能把 RUB 计划写成其他币种');
- if(context.autoApply!==false||context.autoAdd!==false)throw Error('请先在 Ozon 核实并关闭自动促销；本操作不会修改促销设置');
- if(context.marketingPrice!==null&&context.marketingPrice>0&&context.marketingPrice!==context.price)throw Error('商品存在不同促销价，请先核实单变量测试条件');
+ const blockers=priceContextBlockers(context);if(blockers.length)throw Error(blockers[0].message);
  if(!Number.isFinite(target)||target<=0||Math.abs(target*100-Math.round(target*100))>1e-7||target===context.price)throw Error('目标价格无效或未改变');
  if(context.oldPrice>0&&target>=context.oldPrice)throw Error('目标价必须低于现有划线价；此操作不修改划线价');
  if(target<context.minPrice)throw Error('目标价低于 Ozon 当前最低价格');

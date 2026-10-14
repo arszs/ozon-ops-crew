@@ -18,3 +18,19 @@ test('in-flight price submits block concurrent cost edits and duplicate executio
 test('local price write quota counts attempts across aliases of the same product',async t=>{const f=await fixture(t),op=await f.ws.prepareTrialPrice(f.plan.id);await f.ws.approveOperation(op.id,op.payloadHash);await f.ws.repo.mutate(db=>{for(let i=0;i<10;i++)db.operations.push({id:'old-'+i,kind:'price',storeId:store.id,payload:{sku:'another-alias',context:{productId:'1'}},state:'verified',executedAt:new Date().toISOString()});});await assert.rejects(()=>f.ws.executeOperation(op.id),/10/);assert.equal(f.writes,0);});
 
 test('price drift clears the observed plan state and cannot trigger a second write',async t=>{const f=await fixture(t),op=await f.ws.prepareTrialPrice(f.plan.id);await f.ws.approveOperation(op.id,op.payloadHash);await f.ws.executeOperation(op.id);f.setPrice(1200);await f.ws.reconcilePrice(op.id);f.setPrice(1100);const r=await f.ws.reconcilePrice(op.id);assert.equal(r.state,'submitted');assert.equal(r.priceObservation.matches,false);assert.equal((await f.ws.view()).trialPlans[0].execution,'price_state_changed');await f.ws.executeOperation(op.id);assert.equal(f.writes,1);});
+
+test('read-only price conditions expose promotion blockers before any costs or plan and persist evidence',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'ops-price-conditions-'));t.after(()=>rm(dir,{recursive:true,force:true}));let calls=0,writes=0;
+ const ws=new Workspace(join(dir,'db.json'),{priceReader:async()=>{calls++;assert.equal((await ws.repo.read()).priceChecks[0].state,'reading');return context({autoAdd:true,marketingPrice:900});},priceSubmit:async()=>{writes++;}});await ws.init();
+ const result=await ws.inspectPriceConditions('ozon-live','101');assert.deepEqual(result.blockers.map(b=>b.code),['automatic_promotions_not_disabled','different_marketing_price']);assert.equal(result.executionAuthorized,false);assert.equal(result.context.sku,'101');
+ const view=await ws.view();assert.equal(view.costProfiles.length,0);assert.equal(view.trialPlans.length,0);assert.equal(view.operations.length,0);assert.equal(view.auditValid,true);assert.equal(writes,0);assert.equal(calls,1);
+ const restarted=new Workspace(join(dir,'db.json'));await restarted.init();assert.deepEqual((await restarted.view()).priceChecks[0],result);
+ await assert.rejects(()=>ws.inspectPriceConditions('ozon-demo','101'));await assert.rejects(()=>ws.inspectPriceConditions('wb-demo','101'));await assert.rejects(()=>ws.inspectPriceConditions('ozon-live','0'));assert.equal(calls,1);
+});
+test('failed and interrupted checks do not expose old success or raw provider text as current evidence',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'ops-price-conditions-failure-'));t.after(()=>rm(dir,{recursive:true,force:true}));let fail=false;
+ const ws=new Workspace(join(dir,'db.json'),{priceReader:async()=>{if(fail)throw Error('private provider body');return context();}});await ws.init();
+ assert.equal((await ws.inspectPriceConditions('ozon-live','101')).blockers.length,0);fail=true;await assert.rejects(()=>ws.inspectPriceConditions('ozon-live','101'),/读取失败/);
+ let view=await ws.view();assert.equal(view.priceChecks.at(-1).state,'failed');assert.equal(view.priceChecks.at(-1).context,undefined);assert.ok(!JSON.stringify(view).includes('private provider body'));
+ await ws.repo.mutate(db=>db.priceChecks.push({id:'interrupted',state:'reading',storeId:'ozon-live',sku:'101'}));await ws.init();view=await ws.view();assert.equal(view.priceChecks.at(-1).state,'interrupted');assert.equal(view.auditValid,true);
+});

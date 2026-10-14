@@ -8,6 +8,7 @@ The target is a Chinese-speaking seller making a justified SKU-level price or ad
 |---|---|---|---|
 | Read | Store/SKU activity, coverage, missing costs | `live-service.mjs`, `core/finance-service.mjs`, `core/ad-reading-service.mjs` | Account, SKU, period and source status match; missing values stay unknown |
 | Diagnose | Reason and next action on the Chinese home | `web/store-home.mjs`, `web/decisions.mjs`, `web/experiment-progress.mjs` | Reason points to actual data or a named missing input |
+| Inspect | Current price and promotion conflicts before cost entry | `Workspace.inspectPriceConditions`; `POST /api/workspace/stores/:id/price-conditions` | Read-only evidence and blockers persisted; no plan, approval or write created |
 | Plan | One parameter, baseline/variant, hypothesis, controls, dates, limits | `core/profit-trials.mjs`, `core/sku-costs.mjs`, `Workspace.planTrial` | Same-store SKU, validated dates; price scenario uses latest seller-reviewed cost assumptions |
 | Prepare | Exact proposed change and fresh platform context | `core/workspace.mjs` price methods; `core/cpo-control.mjs` | Account supports this action; fresh price/CPO state; parameter and cost constraints checked |
 | Confirm | Chinese diff and immutable payload hash | Workspace operation gate | Seller confirms that exact version; changing evidence invalidates approval |

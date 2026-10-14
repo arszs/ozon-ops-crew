@@ -16,3 +16,10 @@ test('home reflects enabled CPO test status while baseline preparation stays sep
  for(const [execution,label] of [['cpo_on_submitted','已提交 · 待核对平台状态'],['cpo_on_observed','曾读取到目标状态 · 收益待观察'],['cpo_not_updated','平台未确认广告变更 · 待核对']])assert.ok(storeHome(data({trialPlans:[{...p,execution}]}),live,'ozon-live').includes(label));
  const h=storeHome(data({trialPlans:[{...p,execution:'not_connected',baselineExecution:'cpo_on_observed'}]}),live,'ozon-live');assert.ok(h.includes('已保存计划 · 执行尚未核实'));assert.ok(!h.includes('曾读取到目标状态 · 收益待观察'));
 });
+
+test('home directs zero-stock and promotion-limited candidates to the relevant condition check',()=>{
+ const d=data({priceChecks:[{storeId:'ozon-live',sku:'101',state:'checked',blockers:[{message:'自动促销未关闭'}]}]});
+ let h=storeHome(d,live);assert.match(h,/上次价格检查发现限制/);assert.match(h,/核对促销 →/);
+ const l=structuredClone(live);l.data.rows[0].stock=0;h=storeHome(d,l);assert.match(h,/报告库存为 0/);assert.match(h,/核对库存 →/);
+ h=storeHome({...d,priceChecks:[{...d.priceChecks[0],storeId:'other'}]},live);assert.doesNotMatch(h,/自动促销未关闭/);
+});

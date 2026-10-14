@@ -86,6 +86,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='stores'&&action==='wb-stock-plan')return send(await ws.prepareWbStock(id,body));
     if(resource==='operations'&&action==='wb-stock-status')return send(await ws.reconcileWbStock(id));
     if(resource==='operations'&&action==='wb-stock-confirm')return send(await ws.confirmWbStock(id,body));
+    if(resource==='stores'&&action==='price-conditions')return send(await ws.inspectPriceConditions(id,body.sku));
     if(resource==='stores'&&action==='wb-price-context')return send(await ws.inspectWbPrice(id,body.nmID));
     if(resource==='stores'&&action==='wb-price-trial-context'){const context=await ws.inspectWbPrice(id,body.nmID);return send({context,hash:hash(context)});}
     if(resource==='stores'&&action==='wb-price-plan')return send(await ws.prepareWbPrice(id,body));
