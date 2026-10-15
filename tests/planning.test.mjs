@@ -20,3 +20,9 @@ test('ad assumptions survive workspace validation round-trip',()=>{
  assert.equal(stripped[0].cpa,undefined);
  assert.throws(()=>validateProducts([{...structuredClone(demoProducts[0]),incrementality:1.5}]));
 });
+
+test('legacy product costs migrate once and direct costs take precedence',()=>{
+ const legacy={...demoProducts[0],purchaseCny:62,fx:12.5,inbound:160};delete legacy.unitCost;
+ const [migrated]=validateProducts([legacy]);assert.equal(migrated.unitCost,775);assert.equal(migrated.inbound,undefined);assert.equal(migrated.fx,undefined);assert.deepEqual(validateProducts([migrated])[0],migrated);
+ assert.equal(validateProducts([{...legacy,unitCost:900}])[0].unitCost,900);
+});

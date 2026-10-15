@@ -3,10 +3,29 @@
 - Source: https://github.com/arszs/ozon-ops-crew
 - Demo: https://arszs.github.io/ozon-ops-crew/
 - Chinese proposal: https://github.com/arszs/ozon-ops-crew/blob/main/docs/SUBMISSION.zh.md
-- Evaluation: https://github.com/arszs/ozon-ops-crew/blob/main/docs/EVALUATION.md
+- Evaluation: https://github.com/arszs/ozon-ops-crew/blob/feat/cross-border-workspace/docs/EVALUATION.md
 
-## 项目简介
-Ozon Ops Crew 为中国 Ozon Global 商家提供中俄双语运营控制台，将商品定价、广告预算、库存、补货周期与仓储成本放入同一利润决策流程。原型展示季节性持有、加速销售、保护库存与滚动亏损停机四种场景，支持逐 SKU 风控限额、CSV 导入和可解释决策记录。演示数据为模拟数据；本地 Seller API 支持真实商品目录只读查询。价格与广告写入、自动需求学习及真实收益提升尚未实现或验证。
+## Актуальное описание у организатора
 
-## Submission status
-Synnovator submission was updated and the platform confirmed success on 2026-10-11. Demo, source, proposal, architecture and evaluation links were included. Linked documents and demo now serve version 0.6.0 (value model, scaling architecture, compliance, 36 automated checks).
+- [Страница проекта](https://www.synnovator.com/arszlx/ozon-ops-agents)
+- [Сохранённый README, коммит 6694422382](https://www.synnovator.com/arszlx/ozon-ops-agents/src/commit/66944223821820f3b593bbaed3ded088ae3a34dc/README.md)
+- [Конкурсная заявка](https://www.synnovator.com/hackathon/hfhahkjfdhakfhf/submit)
+- [Актуальная разработка](https://github.com/arszs/ozon-ops-crew/tree/feat/cross-border-workspace)
+
+2026-10-13: краткая аннотация, README и описание существующей заявки обновлены через интерфейс Synnovator с акцентом на AIGC. Сайт показал «Project submitted successfully!» и новый заголовок в списке заявок. Трек AI产品资料子赛道 сохранён. 2026-10-14 повторное открытие страницы проекта подтвердило аннотацию и полный README, коммит c35ffb0a53.
+
+Название заявки: **Ozon Ops Crew — AIGC 商品表达与单品利润决策**.
+
+Фокус: китайский продавец, отзыв → проверенные факты → русская инфографика → подтверждение версии; экономика SKU и эксперименты проверяют эффект. Amazon / Shopify / Wildberries / TikTok Shop обозначены будущими API-адаптерами; существующий WB-код описан как предварительная интеграция без проверки реальным аккаунтом. Закупки, ввоз и конвертация закупочной валюты исключены из позиционирования.
+
+Реализация, синтетические проверки, будущие возможности и целевые метрики разделены. Публичное GitHub Pages демо — китайский интерактивный сценарий с настоящими предварительно сгенерированными изображениями OpenAI и синтетическим товаром. Это не онлайн-генерация и не подключённый магазин. xds.studio обозначен ручным этапом, API не проверен. Рабочий интерфейс требует локального сервера. Proposal в main выше — исторический материал; Evaluation уже указывает на текущую ветку; текущие возможности см. в ветке разработки и сохранённом описании у организатора.
+
+## Проверка публичного демо
+
+- [Успешная публикация eec52ee](https://github.com/arszs/ozon-ops-crew/actions/runs/38434836734).
+- 2026-10-14 в браузере проверены китайский стартовый экран, раскрытие сценария, изображения до/после, китайское сообщение при незаполненных проверках и подтверждение после трёх отметок. Подтверждение не выполняет внешних действий.
+- [Описание реализации и границ](AIGC-DEMO.md), [сохранённое доказательство генерации](AIGC-DEMO-EVIDENCE.json).
+
+2026-10-14: [публикация 2f51a09](https://github.com/arszs/ozon-ops-crew/actions/runs/38565000010) добавила после подтверждения изображения интерактивное сравнение дневной прибыли на синтетических данных. В браузере проверены неполные подтверждения, положительный пример и отрицательный результат при увеличении затрат. Это не отчёт о реальном эксперименте. Текущая готовность по уточнённой цели — [EVALUATION.md](EVALUATION.md); новая редакция Specs/статуса пилота синхронизирована с README и формой организатора 2026-10-14.
+
+2026-10-14: сохранён README `66944223821820f3b593bbaed3ded088ae3a34dc` и обновлена существующая заявка. Сайт подтвердил «Project submitted successfully!». Трек и ссылка на демо сохранены. [Точная копия опубликованного описания](ORGANIZER-README.zh.md) включает актуальную связь креатива с экспериментом, Specs, путь запуска, протокол 10 SKU и отсутствие завершённых реальных измерений.

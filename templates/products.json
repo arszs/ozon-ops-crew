@@ -7,9 +7,6 @@
       "category": "Travel",
       "scheme": "FBO",
       "price": 2490,
-      "purchaseCny": 62,
-      "fx": 12.5,
-      "inbound": 160,
       "fulfilment": 220,
       "packaging": 30,
       "returnReserve": 65,
@@ -40,7 +37,8 @@
           "adCost": 1100,
           "settled": true
         }
-      ]
+      ],
+      "unitCost": 775.0
     },
     {
       "id": "CN-002",
@@ -48,9 +46,6 @@
       "category": "Seasonal",
       "scheme": "FBO",
       "price": 3190,
-      "purchaseCny": 80,
-      "fx": 12.5,
-      "inbound": 190,
       "fulfilment": 250,
       "packaging": 40,
       "returnReserve": 80,
@@ -81,7 +76,8 @@
           "adCost": 160,
           "settled": true
         }
-      ]
+      ],
+      "unitCost": 1000.0
     },
     {
       "id": "CN-003",
@@ -89,9 +85,6 @@
       "category": "Home",
       "scheme": "FBS",
       "price": 4290,
-      "purchaseCny": 125,
-      "fx": 12.5,
-      "inbound": 0,
       "fulfilment": 780,
       "packaging": 70,
       "returnReserve": 100,
@@ -122,7 +115,8 @@
           "adCost": 220,
           "settled": true
         }
-      ]
+      ],
+      "unitCost": 1562.5
     },
     {
       "id": "CN-004",
@@ -130,9 +124,6 @@
       "category": "Outdoor",
       "scheme": "FBO",
       "price": 1890,
-      "purchaseCny": 38,
-      "fx": 12.5,
-      "inbound": 120,
       "fulfilment": 170,
       "packaging": 25,
       "returnReserve": 50,
@@ -163,7 +154,8 @@
           "adCost": 210,
           "settled": true
         }
-      ]
+      ],
+      "unitCost": 475.0
     }
   ]
 }
