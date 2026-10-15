@@ -11,10 +11,11 @@ test('live WB detail uses native period costs for test entry and hides supersede
 });
 
 test('Ozon detail shows matching promotion check, explicit no-write boundary and zero-stock reason',()=>{
- const check={id:'check',storeId:'ozon-live',sku:'1',state:'checked',finishedAt:new Date().toISOString(),context:{price:1000,marketingPrice:900,currency:'RUB'},blockers:[{message:'自动促销开启，请核实 <script>'}]};
+ const check={id:'check',storeId:'ozon-live',sku:'1',state:'checked',finishedAt:new Date().toISOString(),context:{price:1000,marketingPrice:900,currency:'RUB',autoAdd:true,actions:{actions:[{title:'秋季促销',value:500}]}},blockers:[{message:'自动促销开启，请核实 <script>'}]};
  const l=structuredClone(live);l.data.rows[0].stock=0;
- let html=skuFocus({...data,priceChecks:[check]},l,{storeId:'ozon-live',sku:'1'});assert.match(html,/自动促销开启/);assert.match(html,/报告库存为 0/);assert.match(html,/仅查询，不修改价格或促销/);assert.ok(!html.includes('<script>'));assert.match(html,/data-price-conditions="ozon-live"/);
+ let html=skuFocus({...data,priceChecks:[check]},l,{storeId:'ozon-live',sku:'1'});assert.match(html,/自动促销开启/);assert.match(html,/报告库存为 0/);assert.match(html,/仅查询，不修改价格或促销/);assert.ok(!html.includes('<script>'));assert.match(html,/data-price-conditions="ozon-live"/);assert.match(html,/id="price-conditions"/);assert.match(html,/秋季促销/);assert.match(html,/自动加入促销/);
  html=skuFocus({...data,priceChecks:[check,{...check,state:'failed',context:undefined}]},l,{storeId:'ozon-live',sku:'1'});assert.match(html,/旧结果不能作为当前条件/);assert.doesNotMatch(html,/自动促销开启/);
  html=skuFocus({...data,priceChecks:[{...check,sku:'2'}]},l,{storeId:'ozon-live',sku:'1'});assert.doesNotMatch(html,/自动促销开启/);assert.match(html,/填写价格方案前/);
  html=skuFocus({...data,priceChecks:[check]},null,{storeId:'wb',sku:'1'});assert.doesNotMatch(html,/data-price-conditions/);
 });
+

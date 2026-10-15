@@ -2,7 +2,7 @@
 
 Status: **not contest-ready**. The product reads real Ozon data and implements reviewed price/CPO workflows, but a complete real experiment and a paired 10-SKU seller pilot have not been demonstrated. Automated tests and synthetic examples do not establish commercial value.
 
-Verified on 2026-10-14 against the local runtime, source code and published demo. Private store records remain in ignored `runtime/`; no seller identifiers, SKU-level finances or credentials are published here.
+Verified on 2026-10-15 against the local runtime, source code and published demo. Private store records remain in ignored `runtime/`; no seller identifiers, SKU-level finances or credentials are published here.
 
 ## Evidence by requirement
 
@@ -17,13 +17,13 @@ Verified on 2026-10-14 against the local runtime, source code and published demo
 
 ## Current real evidence and its limits
 
-- Seller and Performance connections are configured. The cached Ozon snapshot covers 2026-10-07 through 2026-10-13 (Moscow dates), fetched on 2026-10-14. The loaded activity sample contains 50 rows; this is **not a complete catalogue export**.
+- Seller and Performance connections are configured. The latest cached Ozon snapshot covers 2026-10-08 through 2026-10-14 (Moscow dates), fetched on 2026-10-15. The loaded activity sample contains 40 rows; this is **not a complete catalogue export**.
 - Three completed finance reads cover the same one SKU and period, not three independent pilot cases. One completed advertising read also covers one SKU. No seller cost reconciliation is saved.
 - One account-wide CPO source returned `performance_http_404`. Other successful sources do not erase this coverage gap; observed zero advertising spend is not sufficient proof of complete zero spend.
 - The current workspace has no saved real cost profiles, real experiment plans or real results. Existing completed operations are synthetic publication/reply demonstrations. There is no evidence of a real price or advertising write in this workspace.
 - Ten real SKU are prepared privately for the measurement protocol. Eight have positive observed stock; two have zero stock and belong in an availability-review task, not an active selling experiment. Selection is a convenience sample from loaded activity, not representative of the whole store.
 - A fresh read-only price preflight on all eight positive-stock cohort items succeeded: all eight have automatic promotions not disabled; one also has a different marketing price. None currently qualifies for the implemented isolated price workflow. These are observed API constraints, not evidence that the seller should disable promotions. The all-assortment CPO report was retried once and still returned HTTP 404; its documented method/path were reconfirmed in the official documentation. The cause of the 404 remains unknown.
-- Product detail now offers an explicit price/promotion read before costs or a plan. Read attempts, context, blockers and hashes persist; no operation or approval is created. The home view points zero-stock items to availability and previously checked promotion conflicts to review.
+- Product detail offers an explicit price/promotion read before costs or a plan, rendering active promotion titles and autoAdd warnings. Read attempts, context, blockers and hashes persist; no operation or approval is created. The home view points zero-stock items to availability and promotion conflicts to review without contradictory cost advice.
 
 ## Measurement protocol
 
