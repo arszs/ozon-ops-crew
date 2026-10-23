@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {ozonCall} from './ozon-products.mjs';
 import {priceAccount} from './ozon-prices.mjs';
-import {draftReviewAgent,reviewReplyIssues} from '../core/review-agent.mjs';
+import {draftReviewAgent,reviewReplyIssues,guardReviewDraft} from '../core/review-agent.mjs';
 import {audit,hash,maskPII} from '../core/repository.mjs';
 const sourceHash=r=>hash({id:r.id,sku:String(r.sku),text:r.text,rating:r.rating});
 const errorCode=e=>/^[a-z0-9_]{1,100}$/.test(e.message)?e.message:'review_agent_failed';
@@ -41,7 +41,7 @@ export class OzonReviewAgent{
     await service.repo.mutate(db=>{
      const row=db.strategyReviews.find(r=>r.id===id);Object.assign(row,{state:'draft_ready',draft:draft.output,provider:draft.provider,attempts:draft.attempts,error:null,retryAt:null});
      for(const a of db.ownerAlerts)if(a.reviewId===id&&['review_agent_needs_owner','review_agent_failed'].includes(a.code))a.resolved=true;
-     if(draft.output.needsOwner||!draft.output.safeToReply)service.alert(db,{storeId:store.id,sku:policy.sku,code:'review_needs_owner',severity:!draft.output.safeToReply?'urgent':'warning',reviewId:id,summary:{ru:draft.output.summaryRu,zh:draft.output.summaryZh,en:draft.output.summaryEn}});
+     if(draft.output.needsOwner||!draft.output.safeToReply)service.alert(db,{storeId:store.id,sku:policy.sku,code:'review_needs_owner',severity:!draft.output.safeToReply&&draft.output.riskCode!=='factual_question'?'urgent':'warning',reviewId:id,summary:{ru:draft.output.summaryRu,zh:draft.output.summaryZh,en:draft.output.summaryEn}});
      audit(db,{kind:'strategy.review.drafted',reviewId:id,outputHash:hash(draft.output)});
     });
     if(policy.mode==='auto'&&draft.output.safeToReply)await this.sendOrRecordFailure({service,store,policy,item:(await service.repo.read()).strategyReviews.find(r=>r.id===id)});
@@ -54,7 +54,11 @@ export class OzonReviewAgent{
   if(policy.mode!=='auto'||!policy.allowReviews||item.accountRef!==policy.accountRef||item.sku!==policy.sku||item.draft?.safeToReply!==true||item.draft.confidence<.9||reviewReplyIssues(item.draft).length)return;
   const fresh=await this.info(store,item.externalId);
   if(sourceHash(fresh)!==item.sourceHash||fresh.status!=='UNPROCESSED'||(await this.comments(store,item.externalId)).some(c=>c.is_owner))throw Object.assign(Error('review_source_changed'),{noWrite:true});
-  if(await this.account(store)!==policy.accountRef)throw Object.assign(Error('strategy_account_changed'),{noWrite:true});let sending=false;
+  if(await this.account(store)!==policy.accountRef)throw Object.assign(Error('strategy_account_changed'),{noWrite:true});
+  const guarded=guardReviewDraft({textRu:fresh.text,rating:fresh.rating},item.draft);
+  if(hash(guarded)!==hash(item.draft)){await service.repo.mutate(db=>{const row=db.strategyReviews.find(r=>r.id===item.id);if(!row||!['draft_ready','not_sent'].includes(row.state))return;row.draft=guarded;if(!guarded.safeToReply)service.alert(db,{storeId:store.id,sku:policy.sku,code:'review_needs_owner',severity:guarded.riskCode==='factual_question'?'warning':'urgent',reviewId:item.id,summary:{ru:guarded.summaryRu,zh:guarded.summaryZh,en:guarded.summaryEn}});audit(db,{kind:'strategy.review.guards_rechecked',reviewId:item.id,outputHash:hash(guarded)});});item={...item,draft:guarded};}
+  if(!guarded.safeToReply)return;
+  let sending=false;
   await service.repo.mutate(db=>{
    const p=db.policies.find(p=>p.id===policy.id),r=db.strategyReviews.find(r=>r.id===item.id);
    if(db.strategyPaused||p?.mode!=='auto'||p.revision!==policy.revision||p.accountRef!==policy.accountRef||!p.allowReviews||!['draft_ready','not_sent'].includes(r?.state))return;

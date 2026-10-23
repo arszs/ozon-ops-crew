@@ -21,7 +21,7 @@ export async function createLiveService(root,{sync=synchronizeLive,getCredential
    let next=await sync(message=>progress=message);
    const after=await account();if(after!==before){data=null;accountRef=after;throw Error('account_changed_during_sync');}
    lastAttempt.sources=sourceStatus(next?.sources);
-   nextRefreshAt=Math.max(0,...Object.values(lastAttempt.sources).map(s=>Date.parse(s.retryAt)||0));
+   nextRefreshAt=Math.max(0,...Object.values(lastAttempt.sources).filter(s=>!['seller_analytics_daily_limit','seller_analytics_minute_limit'].includes(s.error)).map(s=>Date.parse(s.retryAt)||0));
    if(!usableSnapshot(next))throw Error('all_sources_unavailable');
    next=retainVerifiedAnalytics(next,data);data=next;failures=0;
    try{await writeFile(file+'.tmp',JSON.stringify({version:2,accountRef,data}),{mode:0o600});await rename(file+'.tmp',file);}catch{error='cache_write_failed';}
