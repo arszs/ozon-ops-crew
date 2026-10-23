@@ -1,0 +1,9 @@
+import {readdir,readFile,writeFile,mkdir} from 'node:fs/promises';
+import {parseFragment} from 'parse5';
+import {parse as javascript} from 'acorn';
+const messages=new Set();export const normalize=s=>s.replace(/\s+/g,' ').trim();
+function add(s){s=normalize(s);if(!/[\p{Script=Han}\p{Script=Cyrillic}]/u.test(s)||s.length>2000||/^(?:https?:|\.\/|\/api\/)/.test(s))return;messages.add(s);}
+function html(s){const tree=parseFragment(s);function w(n){if(['script','style','textarea','code','pre'].includes(n.tagName))return;if(n.nodeName==='#text')add(n.value);for(const a of n.attrs||[])if(['placeholder','aria-label','title','alt'].includes(a.name))add(a.value);for(const c of n.childNodes||[])w(c);}w(tree);}
+function strings(code){const ast=javascript(code,{ecmaVersion:'latest',sourceType:'module'});function walk(n){if(!n||typeof n!=='object')return;if(n.type==='Literal'&&typeof n.value==='string'){if(n.value.includes('<'))html(n.value);else add(n.value);}if(n.type==='TemplateLiteral'){const s=n.quasis.map((q,i)=>(q.value.cooked??q.value.raw)+(i<n.expressions.length?'⟦'+i+'⟧':'')).join('');if(s.includes('<'))html(s);else add(s);}for(const [key,v] of Object.entries(n)){if(n.type==='Literal'&&(key==='value'||key==='raw'))continue;if(Array.isArray(v))v.forEach(walk);else if(v&&typeof v==='object')walk(v);}}walk(ast);}
+for(const folder of ['web','core','adapters'])for(const name of await readdir(folder)){if(!/\.(mjs|html)$/.test(name)||/^(?:i18n|ui-messages|demo\.mjs)/.test(name))continue;const code=await readFile(folder+'/'+name,'utf8');if(name.endsWith('.html'))html(code);else strings(code);}
+await mkdir('work',{recursive:true});const list=[...messages].sort();await writeFile(process.argv[2]||'work/ui-messages-source.json',JSON.stringify(list,null,2));console.log(JSON.stringify({messages:list.length,characters:list.reduce((s,x)=>s+x.length,0),patterns:list.filter(s=>s.includes('⟦')).length}));

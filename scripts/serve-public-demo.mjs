@@ -4,6 +4,10 @@ import {fileURLToPath} from 'node:url';
 
 // Serve only built public assets. No workspace API, credentials or runtime files.
 const types = new Map([
+  ['i18n.mjs', 'text/javascript; charset=utf-8'],
+  ['i18n-core.mjs', 'text/javascript; charset=utf-8'],
+  ['ui-messages.mjs', 'text/javascript; charset=utf-8'],
+  ['i18n.css', 'text/css; charset=utf-8'],
   ['index.html', 'text/html; charset=utf-8'],
   ['demo-zh.html', 'text/html; charset=utf-8'],
   ['demo-zh.mjs', 'text/javascript; charset=utf-8'],
