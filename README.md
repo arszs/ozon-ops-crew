@@ -8,7 +8,7 @@
 
 ## 2026-10-24 本地工作台更新
 
-当前开发分支包含 Taobao/Tmall URL/HTML → Qwen/Codex → 俄语图文 → Ozon 的 Product Studio，以及三语商品经营中心 `/strategy.html`。经营中心提供六种策略、成本预览、受限调价、独立CPC广告暂停/预算下调/明确授权后恢复、活动资格核对、评价回复与店主简报。支持最近7天FBS发货状态；未知利润不记为零。实际操作取决于API权限、商品身份和已保存限制。[策略与边界](docs/STRATEGY-AGENTS.md)。
+当前开发分支包含 Taobao/Tmall URL/HTML → Qwen/Codex → 俄语图文 → Ozon 的 Product Studio，以及三语商品经营中心 `/strategy.html`。经营中心提供六种策略、成本预览、受限调价、独立CPC广告暂停/预算下调/明确授权后恢复、活动资格核对、评价回复与店主简报。支持最近7天FBS发货状态；未知利润不记为零。实际操作取决于API权限、商品身份和已保存限制。[策略与边界](docs/STRATEGY-AGENTS.md)。独立的 `/agent-demo.html` 提供醒目标注的练习店铺：使用同一策略引擎和真实Qwen/Codex分析合成评价，不调用真实店铺写入。[练习步骤](docs/AGENT-DEMO.ru.md) · [验证记录](docs/AGENT-VALIDATION.md)。
 
 语言版检查点已单独保存为 `backup-after-i18n-20261023`。下方参赛材料与旧进度保留其原始时间范围；当前开发分支的功能不自动代表公开Pages演示已经连接真实店铺。
 

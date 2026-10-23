@@ -1,3 +1,4 @@
+import {StrategyDemoService} from './strategy-demo.mjs';
 import {completedStrategyPriceTrials} from './strategy-trials.mjs';
 import {StrategyService} from './strategy-service.mjs';
 import {OzonStrategyAdapter} from '../adapters/ozon-strategy.mjs';
@@ -44,6 +45,7 @@ export async function createWorkspaceAPI(root,live){
  const monitoring=new AdMonitor(join(root,'runtime/ad-monitoring.json'),{workspace:ws,advertising});await monitoring.ready;monitoring.start();
  const finance=new FinanceService(join(root,'runtime/finance.json'));await finance.ready;
  const strategyAdapter=new OzonStrategyAdapter({reviews:new OzonReviewAgent(),financial:store=>finance.list([store]),trialReader:async(store,policy)=>{const [db,readings,ads]=await Promise.all([ws.repo.read(),finance.list([store]),advertising.list([store])]);return completedStrategyPriceTrials(db,policy,{finance:readings,advertising:ads});},verifiedLive:()=>live.verified(),live:()=>live.get().data});
+ const agentDemo=new StrategyDemoService(join(root,'runtime/agent-demo.json'));await agentDemo.ready;
  const strategies=new StrategyService(join(root,'runtime/strategies.json'),{workspace:ws,adapter:strategyAdapter,finance});await strategies.ready;strategies.start();
  return async(req,res,url)=>{
   const parts=url.pathname.split('/').filter(Boolean);if(parts[0]!=='api'||parts[1]!=='workspace')return false;
@@ -54,6 +56,16 @@ export async function createWorkspaceAPI(root,live){
    if(req.method!=='GET'&&req.headers.origin&&!['http://'+req.headers.host].includes(req.headers.origin))return send({error:'Origin rejected'},403);
    const [, ,resource,id,action,index]=parts;
    const body=await workspaceBody(req,{resource,id,action});
+   if(resource==='agent-demo'){
+    if(req.method==='GET'&&!id)return send(await agentDemo.view());
+    if(req.method==='GET'&&id==='finance')return send(await agentDemo.financialView(url.searchParams.get('storeId'),url.searchParams.get('sku')));
+    if(req.method==='GET'&&id==='campaigns')return send(await agentDemo.campaignChoices(url.searchParams.get('storeId'),url.searchParams.get('sku')));
+    if(req.method==='POST'){
+     if(id==='preview')return send(strategies.preview(body));if(id==='policies')return send(await agentDemo.configure(body));if(id==='pause')return send(await agentDemo.pause(body.paused));if(id==='pause-policy')return send(await agentDemo.pausePolicy(body.policyId));if(id==='acknowledge')return send(await agentDemo.acknowledge(body.ids));
+     if(id==='run'){agentDemo.tick().catch(()=>{});return send({started:true,simulation:true});}if(id==='refresh')return send(await agentDemo.view());if(id==='scenario'){await agentDemo.scenario(body.scenario);return send(await agentDemo.view());}if(id==='reset'){await agentDemo.reset();return send(await agentDemo.view());}
+     if(id==='reconcile')return send(await agentDemo.reconcile(body.actionId));if(id==='reconcile-review')return send(await agentDemo.reconcileReview(body.reviewId));if(id==='finance-read')return send(await agentDemo.financialRead(body));if(id==='finance-reconcile')return send(await agentDemo.financialReconcile(body));
+    }return send({error:'demo_method_not_supported'},404);
+   }
    if(req.method==='GET'){
     if(resource==='agents'&&id==='finance')return send(await strategies.financialView(url.searchParams.get('storeId'),url.searchParams.get('sku')));
     if(resource==='agents'&&id==='campaigns')return send(await strategies.campaignChoices(url.searchParams.get('storeId'),url.searchParams.get('sku')));
