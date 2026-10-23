@@ -10,8 +10,8 @@ export function catalogueProduct(p){
  const common={productId,offerId:p.offer_id??null,name:p.name??null,price:amount(p.price),currency:typeof p.currency_code==='string'&&/^[A-Z]{3}$/.test(p.currency_code)?p.currency_code:null,identityKind:'ozon_sku'};
  return (skus.length?skus:[null]).map(sku=>{
   const stocks=Array.isArray(p.stocks?.stocks)?p.stocks.stocks.filter(s=>id(s.sku)===sku&&sku!==null):[];
-  const quantities=stocks.map(s=>amount(s.present));
-  return {...common,sku,stock:quantities.length&&quantities.every(n=>n!==null)?quantities.reduce((a,b)=>a+b,0):null};
+  const quantities=stocks.map(s=>amount(s.present)),available=stocks.map(s=>{const present=amount(s.present),reserved=amount(s.reserved);return Number.isSafeInteger(present)&&Number.isSafeInteger(reserved)?Math.max(0,present-reserved):null;});
+  return {...common,sku,availableStock:available.length&&available.every(n=>n!==null)&&Number.isSafeInteger(available.reduce((a,b)=>a+b,0))?available.reduce((a,b)=>a+b,0):null,stock:quantities.length&&quantities.every(n=>n!==null)?quantities.reduce((a,b)=>a+b,0):null};
  });
 }
 export async function readOzonCatalogue(store,{call=ozonCall}={}){
