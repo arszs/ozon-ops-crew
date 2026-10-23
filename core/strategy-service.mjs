@@ -31,7 +31,16 @@ export class StrategyService{
  async pausePolicy(id){await this.ready;return this.repo.mutate(db=>{const p=db.policies.find(p=>p.id===id);if(!p)throw Error('strategy_policy_missing');if(p.mode!=='paused'){p.mode='paused';p.revision++;p.updatedAt=stamp(this.clock);audit(db,{kind:'strategy.policy.paused',policyId:p.id,revision:p.revision});}return {paused:true};});}
  async acknowledge(ids){if(!Array.isArray(ids)||ids.length>100||ids.some(x=>typeof x!=='string'))throw Error('strategy_alert_ids_invalid');return this.repo.mutate(db=>{for(const a of db.ownerAlerts)if(ids.includes(a.id))a.read=true;return {ok:true};});}
  refreshStore(storeId){if(this.overviewPending.has(storeId))return this.overviewPending.get(storeId);const run=this.refreshStoreOnce(storeId).finally(()=>this.overviewPending.delete(storeId));this.overviewPending.set(storeId,run);return run;}
- async refreshStoreOnce(storeId){await this.ready;const ws=await this.workspace.repo.read(),store=this.workspace.resolveStore(ws,storeId);if(store.mode!=='live'||store.marketplace!=='ozon')throw Error('strategy_live_ozon_required');const accountRef=await this.adapter.account(store);try{const overview=await this.adapter.overview(store);if(await this.adapter.account(store)!==accountRef)throw Error('strategy_account_changed');return this.repo.mutate(db=>{const v={storeId,accountRef,...overview,checkedAt:stamp(this.clock),state:'ready'};const i=db.storeOverviews.findIndex(s=>s.storeId===storeId);if(i<0)db.storeOverviews.push(v);else db.storeOverviews[i]=v;for(const a of db.ownerAlerts)if(a.storeId===storeId&&a.code==='store_refresh_failed')a.resolved=true;audit(db,{kind:'strategy.store.refreshed',storeId,outputHash:hash(v)});const {accountRef:privateRef,...pub}=v;return pub;});}catch(e){await this.repo.mutate(db=>this.alert(db,{storeId,code:'store_refresh_failed',severity:'warning'}));throw e;}}
+ async refreshStoreOnce(storeId){await this.ready;const ws=await this.workspace.repo.read(),store=this.workspace.resolveStore(ws,storeId);if(store.mode!=='live'||store.marketplace!=='ozon')throw Error('strategy_live_ozon_required');const accountRef=await this.adapter.account(store);try{const overview=await this.adapter.overview(store);if(await this.adapter.account(store)!==accountRef)throw Error('strategy_account_changed');return this.repo.mutate(db=>{const previous=db.storeOverviews.find(s=>s.storeId===storeId&&s.accountRef===accountRef),v={storeId,accountRef,...overview,checkedAt:stamp(this.clock),state:'ready'};
+   if(v.orders?.state!=='ready'&&previous?.orders?.items)v.orders={...previous.orders,state:'stale',complete:false,error:v.orders?.error||'orders_unavailable'};
+   if(v.orders&&v.orders.state!=='ready')this.alert(db,{storeId,code:'orders_read_unavailable',severity:'warning'});
+   if(v.orders?.state==='ready'){
+    for(const a of db.ownerAlerts)if(a.storeId===storeId&&a.code==='orders_read_unavailable')a.resolved=true;
+    const {needsShipping=0,overdue=0}=v.orders.summary||{};
+    if(needsShipping){const a=this.alert(db,{storeId,code:'orders_shipping_attention',severity:overdue?'urgent':'warning'});if(overdue&&a.severity!=='urgent')a.read=false;Object.assign(a,{severity:overdue?'urgent':'warning',summary:{ru:`FBS за 7 дней: к отгрузке ${needsShipping}, просрочено ${overdue}.`,en:`FBS, last 7 days: ${needsShipping} to ship, ${overdue} overdue.`,zh:`近7天FBS：待发货${needsShipping}，逾期${overdue}。`}});}
+    else for(const a of db.ownerAlerts)if(a.storeId===storeId&&a.code==='orders_shipping_attention')a.resolved=true;
+   }
+   const i=db.storeOverviews.findIndex(s=>s.storeId===storeId);if(i<0)db.storeOverviews.push(v);else db.storeOverviews[i]=v;for(const a of db.ownerAlerts)if(a.storeId===storeId&&a.code==='store_refresh_failed')a.resolved=true;audit(db,{kind:'strategy.store.refreshed',storeId,outputHash:hash(v)});const {accountRef:privateRef,...pub}=v;return pub;});}catch(e){await this.repo.mutate(db=>this.alert(db,{storeId,code:'store_refresh_failed',severity:'warning'}));throw e;}}
  start(){if(this.timer)return;this.timer=setInterval(()=>this.tick().catch(()=>{}),60000);this.timer.unref();this.tick().catch(()=>{});}
  stop(){clearInterval(this.timer);this.timer=null;}
  tick({force=false}={}){if(this.pending)return this.pending;this.pending=this.pump(force).finally(()=>{this.pending=null;this.status.running=false;});return this.pending;}
@@ -55,9 +64,20 @@ export class StrategyService{
     const latestDB=await this.repo.read(),latestPolicy=latestDB.policies.find(p=>p.id===old.id);if(old.allowReviews&&!latestDB.strategyPaused&&latestPolicy?.mode!=='paused'&&latestPolicy?.revision===old.revision){try{const reviewCheck=await this.adapter.processReviews?.({service:this,store,policy:old});await this.repo.mutate(db=>{const r=db.strategyRuns.find(r=>r.id===runId);r.reviewCheck={state:'complete',...reviewCheck};for(const a of db.ownerAlerts)if(a.storeId===old.storeId&&a.sku===old.sku&&a.code==='reviews_read_unavailable')a.resolved=true;});}catch{await this.repo.mutate(db=>{const r=db.strategyRuns.find(r=>r.id===runId);r.reviewCheck={state:'unavailable',error:'reviews_read_unavailable'};this.alert(db,{storeId:old.storeId,sku:old.sku,code:'reviews_read_unavailable',severity:'warning'});});}}
    }catch(e){await this.repo.mutate(db=>{const r=db.strategyRuns.find(r=>r.id===runId);Object.assign(r,{state:'error',finishedAt:stamp(this.clock),error:safeError(e)});this.alert(db,{storeId:old.storeId,sku:old.sku,code:safeError(e),severity:'warning'});if(e.message==='strategy_account_changed'){const p=db.policies.find(p=>p.id===old.id);if(p){p.mode='paused';p.revision++;p.updatedAt=stamp(this.clock);}}audit(db,{kind:'strategy.run.failed',runId,error:safeError(e)});});}
   }
-  for(const storeId of new Set((typeof this.adapter.overview==='function'?due:[]).map(p=>p.storeId))){const current=await this.repo.read(),overview=current.storeOverviews.find(s=>s.storeId===storeId);if(!current.strategyPaused&&(!overview||+this.clock()-Date.parse(overview.checkedAt)>=30*60000)){try{await this.refreshStore(storeId);}catch{}}}
+  await this.refreshDueStores();
   return {checked:due.length};
  }
+ async refreshDueStores(){
+  if(typeof this.adapter.overview!=='function')return;
+  const w=await this.workspace.repo.read(),seen=new Set();let refreshed=0;
+  for(const raw of w.stores){
+   const store=this.workspace.resolveStore(w,raw.id);if(store.mode!=='live'||store.marketplace!=='ozon')continue;
+   let owner;try{owner=await this.adapter.account(store);}catch{continue;}if(!owner||seen.has(owner))continue;seen.add(owner);
+   const db=await this.repo.read();if(db.strategyPaused)return;const old=db.storeOverviews.find(s=>s.storeId===store.id&&s.accountRef===owner);
+   if(!old||!Number.isFinite(Date.parse(old.checkedAt))||+this.clock()-Date.parse(old.checkedAt)>=30*60000){try{await this.refreshStore(store.id);}catch{}if(++refreshed>=2)break;}
+  }
+ }
+
  async execute(store,policy,runId,observation,action){
   const currentDB=await this.repo.read(),currentPolicy=currentDB.policies.find(p=>p.id===policy.id);if(currentDB.strategyPaused||currentPolicy?.mode!=='auto'||currentPolicy.revision!==policy.revision)return {state:'blocked'};
   if(!['price','ads_pause','ads_resume','campaign_pause','campaign_budget','campaign_resume','promotion_join'].includes(action.kind))throw Error('strategy_action_unknown');

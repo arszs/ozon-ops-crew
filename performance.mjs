@@ -76,11 +76,7 @@ export async function performanceEnable(sku,accountRef){
 // One explicitly scoped campaign may only be stopped by this transport.
 // It cannot start campaigns, alter bids or increase any budget.
 export async function performancePauseCampaign(campaignId,accountRef,{canExecute=async()=>true}={}){
- let access,quotaRef;try{
-  if(typeof campaignId!=='string'||! /^[1-9]\d*$/.test(campaignId)||!accountRef)throw Error('invalid_campaign_target');
-  const c=await config();if(identity(c)!==accountRef)throw Error('performance_account_changed');quotaRef=quota(c);access=await token(c);cooldown.check(quotaRef,'performance_http_429');if(identity(await config())!==accountRef)throw Error('performance_account_changed');
- }catch(e){e.noWrite=true;throw e;}
- if(!await canExecute())throw Object.assign(Error('strategy_action_cancelled'),{noWrite:true});
+ const {access,quotaRef}=await campaignWriteAuth(campaignId,accountRef,{canExecute});
  const res=await fetch('https://api-performance.ozon.ru/api/client/campaign/'+campaignId+'/deactivate',{method:'POST',signal:AbortSignal.timeout(30000),headers:{Authorization:'Bearer '+access,'Content-Type':'application/json'},body:JSON.stringify({campaignId})});
  if(res.status===429)cooldown.reject(quotaRef,res,'performance_campaign_pause_http_429');
  if(!res.ok)throw Object.assign(Error('performance_campaign_pause_http_'+res.status),{...([400,403,404].includes(res.status)?{noWrite:true,platformRejected:true}:{})});
@@ -97,13 +93,13 @@ export async function performanceCampaignCSV({from,to},{accountRef}={}){
  if(identity(await config())!==owner)throw Error('performance_account_changed');return {text:Buffer.concat(chunks).toString('utf8'),contentType:response.headers.get('content-type')||'',accountRef:owner,from,to,checkedAt:new Date().toISOString()};
 }
 
-async function campaignWriteAuth(campaignId,accountRef){try{if(typeof campaignId!=='string'||! /^[1-9]\d*$/.test(campaignId)||!accountRef)throw Error('invalid_campaign_target');const c=await config();if(identity(c)!==accountRef)throw Error('performance_account_changed');const access=await token(c);cooldown.check(quota(c),'performance_http_429');if(identity(await config())!==accountRef)throw Error('performance_account_changed');return {access,quotaRef:quota(c)};}catch(e){e.noWrite=true;throw e;}}
+async function campaignWriteAuth(campaignId,accountRef,{canExecute=async()=>true}={}){try{if(typeof campaignId!=='string'||! /^[1-9]\d*$/.test(campaignId)||!accountRef)throw Error('invalid_campaign_target');const c=await config();if(identity(c)!==accountRef)throw Error('performance_account_changed');const access=await token(c);cooldown.check(quota(c),'performance_http_429');if(!await canExecute())throw Error('strategy_action_cancelled');if(identity(await config())!==accountRef)throw Error('performance_account_changed');return {access,quotaRef:quota(c)};}catch(e){e.noWrite=true;throw e;}}
 export async function performanceSetWeeklyBudget(campaignId,weeklyBudget,accountRef,{canExecute=async()=>true}={}){
- if(typeof weeklyBudget!=='string'||! /^[1-9]\d{0,19}$/.test(weeklyBudget))throw Object.assign(Error('campaign_budget_invalid'),{noWrite:true});const {access,quotaRef}=await campaignWriteAuth(campaignId,accountRef);if(!await canExecute())throw Object.assign(Error('strategy_action_cancelled'),{noWrite:true});
+ if(typeof weeklyBudget!=='string'||! /^[1-9]\d{0,19}$/.test(weeklyBudget))throw Object.assign(Error('campaign_budget_invalid'),{noWrite:true});const {access,quotaRef}=await campaignWriteAuth(campaignId,accountRef,{canExecute});
  const res=await fetch('https://api-performance.ozon.ru/api/client/campaign/'+campaignId,{method:'PATCH',signal:AbortSignal.timeout(30000),headers:{Authorization:'Bearer '+access,'Content-Type':'application/json'},body:JSON.stringify({weeklyBudget})});
  if(res.status===429)cooldown.reject(quotaRef,res,'performance_campaign_budget_http_429');if(!res.ok)throw Object.assign(Error('performance_campaign_budget_http_'+res.status),{...([400,403,404].includes(res.status)?{noWrite:true,platformRejected:true}:{})});const d=await res.json();if(!d||Array.isArray(d)||typeof d!=='object'||String(d.id??d.campaignId)!==campaignId)throw Error('campaign_budget_receipt_unknown');return d;
 }
 export async function performanceResumeCampaign(campaignId,accountRef,{canExecute=async()=>true}={}){
- const {access,quotaRef}=await campaignWriteAuth(campaignId,accountRef);if(!await canExecute())throw Object.assign(Error('strategy_action_cancelled'),{noWrite:true});const res=await fetch('https://api-performance.ozon.ru/api/client/campaign/'+campaignId+'/activate',{method:'POST',signal:AbortSignal.timeout(30000),headers:{Authorization:'Bearer '+access,'Content-Type':'application/json'},body:JSON.stringify({campaignId})});
+ const {access,quotaRef}=await campaignWriteAuth(campaignId,accountRef,{canExecute});const res=await fetch('https://api-performance.ozon.ru/api/client/campaign/'+campaignId+'/activate',{method:'POST',signal:AbortSignal.timeout(30000),headers:{Authorization:'Bearer '+access,'Content-Type':'application/json'},body:JSON.stringify({campaignId})});
  if(res.status===429)cooldown.reject(quotaRef,res,'performance_campaign_resume_http_429');if(!res.ok)throw Object.assign(Error('performance_campaign_resume_http_'+res.status),{...([400,403,404].includes(res.status)?{noWrite:true,platformRejected:true}:{})});const d=await res.json();if(!d||Array.isArray(d)||typeof d!=='object'||String(d.id)!==campaignId||typeof d.state!=='string')throw Error('campaign_resume_receipt_unknown');return d;
 }

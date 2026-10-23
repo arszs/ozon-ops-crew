@@ -19,7 +19,7 @@ export function strategyPolicy(input){
  const limits={minMarginPct:[0,90,15],minPrice:[0,1e8,0],maxPrice:[0,1e8,0],maxPriceChangePct:[0,20,5],maxDiscountPct:[0,80,0],adDailyBudget:[0,1e7,0],cpcWeeklyBudget:[0,1e7,0],maxDailyLoss:[0,1e7,0],stockReserve:[0,1e7,1],cooldownHours:[1,168,24]};
  for(const [k,[min,max,fallback]] of Object.entries(limits)){const v=input[k]??fallback;if(!finite(v)||v<min||v>max)throw Error('strategy_limit_invalid:'+k);p[k]=v;}
  if(Math.abs(p.cpcWeeklyBudget*100-Math.round(p.cpcWeeklyBudget*100))>1e-7)throw Error('campaign_budget_precision');
- if(!Number.isInteger(p.stockReserve)||p.maxPrice>0&&p.maxPrice<p.minPrice)throw Error('strategy_price_range_invalid');
+ if(!Number.isInteger(p.stockReserve))throw Error('strategy_stock_reserve_invalid');if(p.maxPrice>0&&p.maxPrice<p.minPrice)throw Error('strategy_price_range_invalid');
  p.allowPrice=input.allowPrice===true;p.allowAds=input.allowAds===true;p.allowPromotions=input.allowPromotions===true;p.allowReviews=input.allowReviews===true;p.allowCampaignResume=input.allowCampaignResume===true;p.managedCampaignId=input.managedCampaignId||'';if(typeof p.managedCampaignId!=='string'||p.managedCampaignId&&!/^[1-9]\d{0,23}$/.test(p.managedCampaignId))throw Error('campaign_identity_invalid');
  p.costs=null;
  if(input.costs!==null&&input.costs!==undefined){
