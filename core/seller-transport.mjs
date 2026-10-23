@@ -7,3 +7,7 @@ export class SellerRequestQueue{
 }
 export const sellerRequests=new SellerRequestQueue();
 export const sellerCooldown=new ApiCooldown();
+
+// Analytics has its own documented method quota; exhausting it must not stop
+// operational reads. Other Seller limits retain conservative account scoping.
+export const sellerCooldownKey=(client,path)=>String(client)+(path==='/v1/analytics/data'?':analytics':':general');
