@@ -27,6 +27,8 @@ import {canonical,DEMO_PRODUCT} from './canonical.mjs';
 import {STAGES,runAgent} from '../adapters/agents.mjs';
 import {importSavedPage} from './page-import.mjs';
 import {landedPrice} from './landed-pricing.mjs';
+import {editOzonText,editOzonMainImage,editOzonPrice,editOzonStock} from './ozon-listing-editor.mjs';
+import {inspectOzonListing,ozonBuyerIdentity} from '../adapters/ozon-listing-check.mjs';
 import {publishPublicImages} from '../adapters/public-media.mjs';
 import {oglPrice,cnyRate} from './ogl-pricing.mjs';
 import {connectOzon} from './connection-setup.mjs';
@@ -204,6 +206,8 @@ export class Workspace{
    audit(db,{kind:'operation.completed',operationId:id,receiptHash:hash(receipt),externalWrite:receipt.externalWrite,mode:op.mode});return op;});}
   catch(e){await this.repo.mutate(db=>{const op=find(db.operations,id);op.state=(['price','cpo_disable','cpo_enable'].includes(op.kind)||op.kind==='publish'&&op.payload.marketplace==='wb')&&e.noWrite?'blocked':'unknown';if(op.kind==='publish'&&op.payload.marketplace==='wb'){op.completedAt=now();if(Number.isFinite(e.retryAt))op.retryAt=e.retryAt;if(e.noWrite){const j=find(db.jobs,op.payload.jobId);j.state='review_gate';delete j.gates.publication;}}if(op.kind.startsWith('cpo_')&&op.payload.phase==='baseline'&&!e.noWrite)find(db.trialPlans,op.payload.planId).baselineExecutedAt=op.executedAt;op.error=op.state==='blocked'?String(e.message).slice(0,350):'执行结果不确定：禁止自动重试';audit(db,{kind:'operation.'+op.state,operationId:id,error:op.error});});throw e;}
  }
+ async editOzonListing(id,kind,input){const handlers={text:editOzonText,image:editOzonMainImage,price:editOzonPrice,stock:editOzonStock};if(!handlers[kind])throw Error('Invalid listing edit');return handlers[kind](this,id,input);}
+ async inspectOzonListing(id){const db=await this.repo.read(),job=find(db.jobs,id),store=this.resolveStore(db,job.storeId);if(store.marketplace!=='ozon'||store.mode!=='live')throw Error('需要真实 Ozon 店铺');const result=await inspectOzonListing(store,job);return this.repo.mutate(db=>{const j=find(db.jobs,id);j.listingCheck=result;Object.assign(j.importResult,{buyerUrl:result.buyerUrl,buyerSkus:result.buyerSkus});audit(db,{kind:'listing.checked',jobId:id,outputHash:hash(result),externalWrite:false});return j;});}
  async hostOzonImages(id,{publish=publishPublicImages}={}){
   const j=await this.getJob(id);if(j.marketplace!=='ozon'||j.mode!=='manual'||j.synthetic||j.state!=='review_gate'||!j.publishConfig?.rightsConfirmed||!j.publishConfig?.imagesReviewed||!j.publishConfig?.complianceConfirmed)throw Error('请先核对商品与图片');
   const media=await publish(j.artifacts.image_edit.output.images);
@@ -232,7 +236,7 @@ export class Workspace{
   if(store.marketplace==='wb')return syncWbPublication(this,id);
   if(!['submitted','imported'].includes(job.state)||!job.receipt?.taskId)throw Error('No import task to poll');
   const result=await importStatus(store,job.receipt.taskId,job.canonical.sku);
-  if(result.imported){const info=await ozonCall(store,'/v3/product/info/list',{offer_id:[job.canonical.sku]});const item=info.items?.find(i=>i.offer_id===job.canonical.sku);result.platformStatus=item?.statuses||null;result.moderationVerified=item?.statuses?.moderate_status==='approved';result.platformErrors=item?.errors||[];const urls=[...(item?.images||[]),...(Array.isArray(item?.primary_image)?item.primary_image:[])];result.imageCount=new Set(urls.filter(u=>typeof u==='string'&&/^https:\/\/[^/]*ozone\.ru\//.test(u))).size;}
+  if(result.imported){const info=await ozonCall(store,'/v3/product/info/list',{offer_id:[job.canonical.sku]});const item=info.items?.find(i=>i.offer_id===job.canonical.sku);Object.assign(result,ozonBuyerIdentity(item));result.platformStatus=item?.statuses||null;result.moderationVerified=item?.statuses?.moderate_status==='approved';result.platformErrors=item?.errors||[];const urls=[...(item?.images||[]),...(Array.isArray(item?.primary_image)?item.primary_image:[])];result.imageCount=new Set(urls.filter(u=>typeof u==='string'&&/^https:\/\/[^/]*ozone\.ru\//.test(u))).size;}
   return this.repo.mutate(db=>{const j=find(db.jobs,id);j.importResult=result;if(j.imageRepair?.state==='accepted'&&result.imageCount>=j.imageRepair.body.images.length){j.imageRepair.state='verified';j.imageRepair.verifiedAt=now();}j.state=result.imported?'imported':'submitted';j.syncedAt=now();audit(db,{kind:'import.status',jobId:id,outputHash:hash(result),externalWrite:false});return j;});
  }
  async syncMessages(storeId){const db=await this.repo.read(),store=this.resolveStore(db,storeId),result=await this.messageReader(store);return this.repo.mutate(db=>{for(const item of result.items){const textRu=maskPII(item.textRu),existing=db.reviews.find(r=>r.storeId===storeId&&r.externalId===item.externalId&&r.kind===item.kind);if(!existing){db.reviews.push({...item,id:randomUUID(),storeId,mode:'live',textRu,textZh:'待翻译，请生成 AI 草稿或人工核对',draftRu:'',status:'unanswered',createdAt:now()});continue;}

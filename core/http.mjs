@@ -108,6 +108,8 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='jobs'&&action==='step')return send(await ws.step(id));
     if(resource==='jobs'&&action==='retry')return send(await ws.retry(id,body.stage));
     if(resource==='jobs'&&action==='setup')return send(await ws.setup(id,body));
+    if(resource==='jobs'&&action==='edit-listing')return send(await ws.editOzonListing(id,body.kind,body));
+    if(resource==='jobs'&&action==='inspect-listing')return send(await ws.inspectOzonListing(id));
     if(resource==='jobs'&&action==='host-images')return send(await ws.hostOzonImages(id));
     if(resource==='jobs'&&action==='repair-images')return send(await ws.repairOzonImages(id));
     if(resource==='jobs'&&action==='ogl-price')return send(await ws.priceOgl(id,body));
