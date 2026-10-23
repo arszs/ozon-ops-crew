@@ -9,7 +9,7 @@ export class OzonReviewAgent{
  constructor({call=ozonCall,account=priceAccount,draft=draftReviewAgent,clock=()=>new Date()}={}){Object.assign(this,{call,account,draft,clock});}
  async info(store,id){const r=await this.call(store,'/v1/review/info',{review_id:id});if(String(r.id)!==id||!/^\d+$/.test(String(r.sku))||typeof r.text!=='string'||!Number.isFinite(r.rating))throw Error('review_identity_unknown');return r;}
  async comments(store,id){const all=[];let offset=0;for(let page=0;page<5;page++){const r=await this.call(store,'/v1/review/comment/list',{review_id:id,sort_dir:'DESC',limit:100,offset});if(!Array.isArray(r.comments)||r.comments.some(c=>typeof c.text!=='string'||typeof c.is_owner!=='boolean'))throw Error('review_comments_unavailable');all.push(...r.comments);if(r.comments.length<100)return all;const next=Number.isSafeInteger(r.offset)&&r.offset>offset?r.offset:offset+r.comments.length;if(next<=offset)throw Error('review_comments_unavailable');offset=next;}throw Error('review_comments_incomplete');}
- async process({service,store,policy}){
+ async process({service,store,policy,maxDrafts=1}){
   if(await this.account(store)!==policy.accountRef)throw Error('strategy_account_changed');
   const rows=[],seen=new Set();let last='';
   for(let page=0;page<3;page++){
@@ -17,7 +17,7 @@ export class OzonReviewAgent{
    for(const v of r.reviews){if(typeof v.id!=='string'||seen.has(v.id))throw Error('review_identity_unknown');seen.add(v.id);if(String(v.sku)===policy.sku)rows.push(v);}
    if(!r.has_next)break;if(typeof r.last_id!=='string'||!r.last_id||r.last_id===last)throw Error('reviews_read_unavailable');last=r.last_id;
   }
-  let processed=0;
+  let processed=0,drafted=0;
   for(const source of rows){
    if(processed>=3)break;
    const existing=((await service.repo.read()).strategyReviews||[]).findLast(r=>r.accountRef===policy.accountRef&&r.externalId===source.id);
@@ -26,7 +26,7 @@ export class OzonReviewAgent{
     continue;
    }
    if(existing&&(existing.state!=='draft_failed'||(existing.draftAttempts||1)>=3||Date.parse(existing.retryAt||0)>+this.clock()))continue;
-   const review=await this.info(store,source.id);if(String(review.sku)!==policy.sku||review.status!=='UNPROCESSED'||!review.text.trim())continue;
+   if(drafted>=maxDrafts)continue;const review=await this.info(store,source.id);if(String(review.sku)!==policy.sku||review.status!=='UNPROCESSED'||!review.text.trim())continue;
    if((await this.comments(store,source.id)).some(c=>c.is_owner===true))continue;
    const id=existing?.id||randomUUID(),key=hash({accountRef:policy.accountRef,reviewId:review.id});let reserved=false;
    await service.repo.mutate(db=>{
@@ -35,7 +35,7 @@ export class OzonReviewAgent{
     if(!row){row={id,key,storeId:store.id,sku:policy.sku,policyId:policy.id,accountRef:policy.accountRef,externalId:review.id,at:this.clock().toISOString()};db.strategyReviews.push(row);}
     Object.assign(row,{sourceHash:sourceHash(review),sourceText:maskPII(review.text).slice(0,8000),rating:review.rating,state:'drafting',draftAttempts:(row.draftAttempts||0)+1,error:null});reserved=true;
    });
-   if(!reserved)continue;processed++;
+   if(!reserved)continue;processed++;drafted++;
    try{
     const draft=await this.draft({textRu:review.text,rating:review.rating});
     await service.repo.mutate(db=>{
@@ -47,7 +47,7 @@ export class OzonReviewAgent{
     if(policy.mode==='auto'&&draft.output.safeToReply)await this.sendOrRecordFailure({service,store,policy,item:(await service.repo.read()).strategyReviews.find(r=>r.id===id)});
    }catch(e){await this.recordFailure(service,store,policy,id,e);}
   }
-  return {processed,scope:'first_300_unprocessed_reviews'};
+  return {processed,drafted,scope:'first_300_unprocessed_reviews'};
  }
  async sendOrRecordFailure(args){try{return await this.sendDraft(args);}catch(e){await this.recordFailure(args.service,args.store,args.policy,args.item.id,e);}}
  async sendDraft({service,store,policy,item}){

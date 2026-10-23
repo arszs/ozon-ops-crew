@@ -1,5 +1,11 @@
 import {currentLanguage} from './i18n.mjs';
 const words={
+ seller_http_429:['Ozon ограничил частоту запросов. Следующие запросы отложены; результат уже отправленного изменения проверяется отдельно.','Ozon rate-limited requests. Further requests are deferred; any submitted change is checked separately.','Ozon限制了请求频率，后续请求已延后；已提交操作将单独核验。'],
+
+ metricsLoading:['Обновляем отчёты в фоне. До завершения показаны предыдущие данные.','Reports are refreshing in the background. Previous data is shown until completion.','报表正在后台更新，完成前显示历史数据。'],refreshReportsStarted:['Каталог обновлён, отчёты загружаются.','Catalogue updated; reports are loading.','目录已更新，报表正在加载。'],
+
+ workerReviews:['Проверяем отзывы. Основные проверки товаров уже выполнены.','Checking reviews. Core product checks have completed.','正在检查评价，商品主要检查已完成。'],reviewQueueCount:['Товаров в очереди отзывов: {value}','Products in the review queue: {value}','评价待检查商品：{value}'],
+
  sourceHealth:['Доступность показателей','Metric availability','指标可用情况'],source_analytics:['Продажи','Sales','销售'],source_finance:['Начисления','Accruals','结算'],source_cpc:['Реклама за клик','Cost-per-click ads','点击付费广告'],source_cpo:['Реклама за заказ','Cost-per-order ads','订单付费广告'],source_ready:['Источник прочитан','Source read','来源已读取'],source_cached:['Предыдущие данные','Previous data','历史数据'],source_partial:['Прочитан частично','Partially read','部分读取'],source_stale:['Данные устарели','Data is stale','数据已过期'],source_unavailable:['Недоступно','Unavailable','不可用'],sourceDataAt:['Данные от','Data from','数据时间'],sourceRetryAt:['Повторное чтение не раньше','Retry no earlier than','最早重试时间'],sourceScopeNote:['Успешное чтение источника не подтверждает полноту прибыли. Расходы по всем рекламным инструментам могут быть доступны не полностью.','Reading a source does not establish complete profit. Spend across all advertising instruments may remain incomplete.','来源读取成功不代表利润数据完整，各广告工具的费用仍可能不全。'],
 
  demo_safety_review:['Опасный отзыв','Safety complaint','安全投诉'],

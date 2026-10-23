@@ -1,22 +1,23 @@
 import {credentials} from '../ozon.mjs';
+import {sellerRequests,sellerCooldown} from '../core/seller-transport.mjs';
 import {hash} from '../core/repository.mjs';
 const GET_READ=new Set(['/v1/actions']);
 const READ=new Set(['/v4/posting/fbs/list','/v1/actions/candidates','/v1/actions/products','/v1/review/list','/v1/review/info','/v1/review/comment/list','/v2/product/pictures/info','/v1/product/info/description','/v4/product/info/attributes','/v4/product/info/stocks','/v2/warehouse/list','/v2/delivery-method/list','/v1/finance/accrual/types','/v1/finance/accrual/by-day','/v5/product/info/prices','/v3/product/list','/v1/description-category/tree','/v1/description-category/attribute','/v1/description-category/attribute/values/search','/v1/description-category/attribute/values','/v1/product/import/info','/v3/product/info/list']);
-let lastCall=0,queue=Promise.resolve();
 export async function ozonCall(store,path,body,{write=false,fetcher=fetch,method='POST',beforeWrite=null,expectedAccountRef=null}={}){
  if(method==='GET'?!GET_READ.has(path):method!=='POST'||!READ.has(path)&&!(write&&['/v3/product/import','/v1/product/import/prices','/v1/product/pictures/import','/v1/product/attributes/update','/v2/products/stocks','/v1/review/comment/create','/v1/actions/products/activate'].includes(path)))throw Object.assign(Error('Ozon method not allowed'),{noWrite:true});
- const run=queue.then(async()=>{
-  const wait=350-(Date.now()-lastCall);if(wait>0)await new Promise(r=>setTimeout(r,wait));lastCall=Date.now();
+ const run=sellerRequests.run(async()=>{
   let c;try{
    c=store.id==='ozon-live'?await credentials():await (await import('./marketplaces.mjs')).envFile(store.envFile).then(v=>({client:v.OZON_CLIENT_ID,key:v.OZON_API_KEY}));
    if(!c.client||!c.key)throw Error('Ozon credentials missing');
+   sellerCooldown.check(String(c.client),'seller_http_429');
    if(write&&expectedAccountRef&&hash({client:c.client})!==expectedAccountRef)throw Error('strategy_account_changed');
    if(write&&beforeWrite&&!await beforeWrite())throw Error('strategy_action_cancelled');
   }catch(e){e.noWrite=true;throw e;}
   const r=await fetcher('https://api-seller.ozon.ru'+path,{method,headers:{'Client-Id':c.client,'Api-Key':c.key,'Content-Type':'application/json'},...(method==='GET'?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(30000)});
+  if(r.status===429)sellerCooldown.reject(String(c.client),r,'seller_http_429');
   if(!r.ok)throw Error('Ozon HTTP '+r.status+(r.status===429?'：达到速率限制，请稍后重试读取；不要重复提交发布':''));
   const d=await r.json();if(d.error||d.code)throw Error('Ozon rejected request');return d;
- });queue=run.catch(()=>{});return run;
+ });return run;
 }
 export async function categoryAttributes(store,categoryId,typeId,call=ozonCall){
  for(const n of [categoryId,typeId])if(!Number.isSafeInteger(Number(n))||Number(n)<=0)throw Error('请选择实际 Ozon 类目和类型');

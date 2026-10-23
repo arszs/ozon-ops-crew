@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {Repository,hash,audit} from './repository.mjs';
 import {STRATEGIES,strategyPolicy,decideStrategy} from './product-strategies.mjs';
-import {draftReviewAgent} from './review-agent.mjs';
+import {draftReviewAgent,guardReviewDraft} from './review-agent.mjs';
 import {financeRange} from '../adapters/ozon-finance.mjs';
 import {reconcileFinance} from './finance-reconciliation.mjs';
 import {strategyFinance} from './strategy-finance.mjs';
@@ -39,7 +39,7 @@ export class StrategyDemoService{
   }return {checked:db.policies.length};
  }
  async processReviews(policy){const db=await this.repo.read();for(const review of db.reviewQueue.filter(r=>r.sku===policy.sku)){
-  const existing=db.strategyReviews.find(r=>r.externalId===review.externalId);if(existing){if(existing.state==='draft_ready'&&policy.mode==='auto'&&existing.draft?.safeToReply)await this.repo.mutate(db=>{const p=db.policies.find(p=>p.id===policy.id),r=db.strategyReviews.find(r=>r.id===existing.id);if(!db.strategyPaused&&p.mode==='auto'&&p.revision===policy.revision)r.state='verified';});continue;}const id=randomUUID();await this.repo.mutate(db=>db.strategyReviews.push({id,externalId:review.externalId,storeId:STORE,sku:policy.sku,rating:review.rating,sourceText:review.textRu,state:'drafting',at:new Date().toISOString(),simulation:true}));
+  const existing=db.strategyReviews.find(r=>r.externalId===review.externalId);if(existing){if(existing.state==='draft_ready'&&policy.mode==='auto'&&existing.draft?.safeToReply)await this.repo.mutate(db=>{const p=db.policies.find(p=>p.id===policy.id),r=db.strategyReviews.find(r=>r.id===existing.id),guarded=guardReviewDraft(review,r.draft);r.draft=guarded;if(!guarded.safeToReply&&!db.ownerAlerts.some(a=>a.reviewId===r.id&&!a.resolved))db.ownerAlerts.push({id:randomUUID(),storeId:STORE,sku:policy.sku,code:'review_needs_owner',severity:guarded.riskCode==='factual_question'?'warning':'urgent',read:false,at:new Date().toISOString(),reviewId:r.id,summary:{ru:guarded.summaryRu,en:guarded.summaryEn,zh:guarded.summaryZh},simulation:true});if(!db.strategyPaused&&p.mode==='auto'&&p.revision===policy.revision&&guarded.safeToReply)r.state='verified';});continue;}const id=randomUUID();await this.repo.mutate(db=>db.strategyReviews.push({id,externalId:review.externalId,storeId:STORE,sku:policy.sku,rating:review.rating,sourceText:review.textRu,state:'drafting',at:new Date().toISOString(),simulation:true}));
   try{const result=await this.draft(review);await this.repo.mutate(db=>{const r=db.strategyReviews.find(r=>r.id===id),p=db.policies.find(p=>p.id===policy.id);Object.assign(r,{state:!db.strategyPaused&&p.mode==='auto'&&p.revision===policy.revision&&result.output.safeToReply?'verified':'draft_ready',draft:result.output,provider:result.provider});if(result.output.needsOwner)db.ownerAlerts.push({id:randomUUID(),storeId:STORE,sku:policy.sku,code:'review_needs_owner',severity:result.output.safeToReply||result.output.riskCode==='factual_question'?'warning':'urgent',read:false,at:new Date().toISOString(),reviewId:id,summary:{ru:result.output.summaryRu,en:result.output.summaryEn,zh:result.output.summaryZh},simulation:true});});}
   catch{await this.repo.mutate(db=>{const r=db.strategyReviews.find(r=>r.id===id);if(!r)return;r.state='draft_failed';r.error='review_agent_needs_owner';db.ownerAlerts.push({id:randomUUID(),storeId:STORE,sku:policy.sku,code:'review_agent_needs_owner',severity:'warning',read:false,at:new Date().toISOString(),reviewId:id,simulation:true});});}
  }}

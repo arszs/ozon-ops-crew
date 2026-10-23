@@ -44,7 +44,7 @@ export async function createWorkspaceAPI(root,live){
  const advertising=new AdReadingService(join(root,'runtime/advertising.json'));await advertising.ready;
  const monitoring=new AdMonitor(join(root,'runtime/ad-monitoring.json'),{workspace:ws,advertising});await monitoring.ready;monitoring.start();
  const finance=new FinanceService(join(root,'runtime/finance.json'));await finance.ready;
- const strategyAdapter=new OzonStrategyAdapter({reviews:new OzonReviewAgent(),financial:store=>finance.list([store]),trialReader:async(store,policy)=>{const [db,readings,ads]=await Promise.all([ws.repo.read(),finance.list([store]),advertising.list([store])]);return completedStrategyPriceTrials(db,policy,{finance:readings,advertising:ads});},verifiedLive:()=>live.verified(),live:()=>live.get().data});
+ const strategyAdapter=new OzonStrategyAdapter({reviews:new OzonReviewAgent(),financial:store=>finance.list([store]),trialReader:async(store,policy)=>{const [db,readings,ads]=await Promise.all([ws.repo.read(),finance.list([store]),advertising.list([store])]);return completedStrategyPriceTrials(db,policy,{finance:readings,advertising:ads});},verifiedLive:(force=false)=>live.verified(force),live:()=>live.get().data});
  const agentDemo=new StrategyDemoService(join(root,'runtime/agent-demo.json'));await agentDemo.ready;
  const strategies=new StrategyService(join(root,'runtime/strategies.json'),{workspace:ws,adapter:strategyAdapter,finance});await strategies.ready;strategies.start();
  return async(req,res,url)=>{
@@ -103,7 +103,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='agents'&&id==='pause-policy')return send(await strategies.pausePolicy(body.policyId));
     if(resource==='agents'&&id==='pause')return send(await strategies.pause(body.paused));
     if(resource==='agents'&&id==='acknowledge')return send(await strategies.acknowledge(body.ids));
-    if(resource==='agents'&&id==='refresh'){await strategies.refreshStore(body.storeId);return send(await strategies.view());}
+    if(resource==='agents'&&id==='refresh'){await strategies.refreshStore(body.storeId,{forceMetrics:true});return send(await strategies.view());}
     if(resource==='agents'&&id==='run'){strategies.tick({force:true}).catch(()=>{});return send({started:true});}
     if(resource==='agents'&&id==='reconcile-review')return send(await strategies.reconcileReview(body.reviewId));
     if(resource==='agents'&&id==='reconcile')return send(await strategies.reconcile(body.actionId));
