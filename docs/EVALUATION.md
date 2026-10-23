@@ -41,7 +41,7 @@ Commercial effect remains unverified until an approved experiment completes both
 ## Judge verification path
 
 1. Open the [Chinese public demo](https://arszs.github.io/ozon-ops-crew/). Review the synthetic source, real generated before/after images and approval checks. In the profit example, raise test-period costs to 48,000 RUB: more orders must not become a positive profit conclusion. Clear a cost or confirmation: the demo must reject or withhold a conclusion.
-2. Use the current source branch `feat/cross-border-workspace` ([PR #1](https://github.com/arszs/ozon-ops-crew/pull/1)); see [SPECS.md](SPECS.md) for the core workflow and exact boundaries. The default branch also retains historical simulator code; it is not the current connected workspace.
+2. Use the exact contest tag `contest-2026-10-23`, integrated into `main` through [PR #1](https://github.com/arszs/ozon-ops-crew/pull/1); see [CONTEST-RELEASE.md](CONTEST-RELEASE.md) and [SPECS.md](SPECS.md). Historical simulator code remains in the tree, but does not define the current contest walkthrough.
 3. Run `npm ci`, `npm test`, then `npm start` with Node >=22.13. Open the local Chinese workspace. Real reads require an authorized local connection; do not distribute credentials or expose the local service publicly.
 4. Inspect the local audit and source-bound plan, approval, receipt and result records. Synthetic test receipts cannot stand in for real platform execution.
 5. Review measured pilot records only when completed and consented for disclosure. Until then, score the evidence gap as unfinished, not as inferred success.

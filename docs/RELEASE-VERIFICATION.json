@@ -25,7 +25,9 @@
     "private_paths": "404",
     "POST": "405"
   },
-  "dependency_note": "Local tests use existing sharp installation; clean dependency installation and CI are verified separately in the final delivery receipt.",
+  "dependency_note": "Clean npm ci completed; 535 tests passed afterward. GitHub checks for the prepared head passed; exact run URLs and final publication are in the accompanying delivery receipt.",
   "real_case": "unmeasured",
-  "publication": "See GitHub tag/release and accompanying delivery receipt; this file does not establish an organizer save."
+  "publication": "See GitHub tag/release and accompanying delivery receipt; this file does not establish an organizer save.",
+  "syntax_modules_checked": 117,
+  "material_links": "current contest entry points checked; all local targets resolve"
 }

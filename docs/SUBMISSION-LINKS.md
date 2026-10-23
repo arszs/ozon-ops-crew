@@ -1,6 +1,6 @@
 # Prepared edition · 2026-10-23
 
-[Use this local contest index](CONTEST-RELEASE.md). Remote URLs below are existing entry points, not proof that this edition is published. The former proposal in main is historical. This file retains historical organizer-save records; no new organizer save is claimed.
+[Use this local contest index](CONTEST-RELEASE.md). Remote URLs below are existing entry points, not proof that this edition is published. The former proposal is preserved under docs/archive/. This file retains historical organizer-save records; no new organizer save is claimed.
 
 # Submission links / 提交链接
 

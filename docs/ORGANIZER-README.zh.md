@@ -1,7 +1,3 @@
-# 准备好的主办方说明 · 2026-10-23
-
-**这是待同步文本，不是已经发布的证明。** 2026-10-14 的历史保存副本见 [archive/ORGANIZER-README.zh.md](archive/ORGANIZER-README.zh.md)。本地准备不能证明主办方接受更新。
-
 # Ozon Ops Crew — AIGC 商品表达与单品利润决策
 
 参赛方向：品牌出海场景 / **AI产品资料子赛道**。材料整理：2026-10-23。当前是可演示原型，真实用户效益尚未测量。
@@ -22,7 +18,7 @@
 
 输入与来源检查 → 有限文本生成 → 结构校验 → 等待外部图片 → 人工审核 → 冻结版本 → 可选的同 SKU 经营实验。持久化状态、来源哈希、版本检查及工具日志用于追溯；改图会使旧审核失效。阶段代表明确的软件职责，不等于六个自主大模型协同。
 
-[架构与代码入口](ARCHITECTURE.md) · [接口与人机边界](SPECS.md)。经济计算使用确定性代码；价格/CPO 的准备、确认、执行与回读分别处理。预算/亏损阈值不是保证自动停止平台支出的限额。
+[架构与代码入口](https://github.com/arszs/ozon-ops-crew/blob/main/docs/ARCHITECTURE.md) · [接口与人机边界](https://github.com/arszs/ozon-ops-crew/blob/main/docs/SPECS.md)。经济计算使用确定性代码；价格/CPO 的准备、确认、执行与回读分别处理。预算/亏损阈值不是保证自动停止平台支出的限额。
 
 ## 4. 可运行演示
 
@@ -32,9 +28,9 @@
 
 ## 5. 证据与实际效益
 
-已经存在真实 Ozon 读取记录、结构化文本调用记录、图片哈希与合成测试。历史账户读取有覆盖与权限缺口；详见 [EVALUATION](EVALUATION.md)，本次整理没有刷新账户数据。
+已经存在真实 Ozon 读取记录、结构化文本调用记录、图片哈希与合成测试。历史账户读取有覆盖与权限缺口；详见 [EVALUATION](https://github.com/arszs/ozon-ops-crew/blob/main/docs/EVALUATION.md)，本次整理没有刷新账户数据。
 
-**未完成真实卖家的人工/辅助配对测量；未证明节省时间、降低退货或增加利润。** 已准备的十个 SKU 不是十个已完成案例。优先用同一商品输入比较手工与辅助制作图文的活跃时间、总耗时、纠错与审核质量，保留失败和负向结果。[内容试点协议](CONTENT-PILOT.md)。
+**未完成真实卖家的人工/辅助配对测量；未证明节省时间、降低退货或增加利润。** 已准备的十个 SKU 不是十个已完成案例。优先用同一商品输入比较手工与辅助制作图文的活跃时间、总耗时、纠错与审核质量，保留失败和负向结果。[内容试点协议](https://github.com/arszs/ozon-ops-crew/blob/main/docs/CONTENT-PILOT.md)。
 
 已审核图文可关联同店同 SKU 的经营实验，但实际发布及平台展示需另行核对。利润验证要完成可比期间、全部成本和退款/广告核对；顺序比较不能直接证明因果。真实价格或广告修改不是展示内容制作效率的前提。
 
@@ -53,6 +49,6 @@
 
 Ozon 为主要验证场景；WB 是未经真实账户验证的预研。Taobao 使用结构化输入，不声称已接通账号。采购、进口、采购币种兑换不属于主场景。身份认证、多租户隔离与分布式后台未完成。
 
-[当前材料索引](CONTEST-RELEASE.md) · [三分钟讲稿](PITCH-3MIN.zh.md) · [六分钟演示](DEMO-SCRIPT.zh.md) · [问答](FINAL-QA.zh.md) · [安全边界](COMPLIANCE.md)。不使用历史模拟器视频、模型化收益或工具延迟替代真实用户结果。
+[当前材料索引](https://github.com/arszs/ozon-ops-crew/blob/main/docs/CONTEST-RELEASE.md) · [三分钟讲稿](https://github.com/arszs/ozon-ops-crew/blob/main/docs/PITCH-3MIN.zh.md) · [六分钟演示](https://github.com/arszs/ozon-ops-crew/blob/main/docs/DEMO-SCRIPT.zh.md) · [问答](https://github.com/arszs/ozon-ops-crew/blob/main/docs/FINAL-QA.zh.md) · [安全边界](https://github.com/arszs/ozon-ops-crew/blob/main/docs/COMPLIANCE.md)。不使用历史模拟器视频、模型化收益或工具延迟替代真实用户结果。
 
 官方规则：https://www.synnovator.com/hackathon/hfhahkjfdhakfhf （2026-10-23 查阅）。页面列明线下决赛为 10 月 24–25 日，线上阶段已结束；个人演示时刻及补充材料权限需主办方确认。
