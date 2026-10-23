@@ -108,6 +108,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='jobs'&&action==='step')return send(await ws.step(id));
     if(resource==='jobs'&&action==='retry')return send(await ws.retry(id,body.stage));
     if(resource==='jobs'&&action==='setup')return send(await ws.setup(id,body));
+    if(resource==='jobs'&&action==='ogl-price')return send(await ws.priceOgl(id,body));
     if(resource==='jobs'&&action==='landed-price')return send(await ws.priceLanded(id,body));
     if(resource==='assets'&&!id){if(Buffer.isBuffer(body.imageBytes))return send(await saveImage(body.imageBytes));if(typeof body.base64!=='string'||body.base64.length>1_800_000)throw Error('旧版 base64 上传最多 1.3 MB；请使用图片文件上传（最多 12 MB）');return send(await saveImage(Buffer.from(body.base64,'base64')));}
     if(resource==='jobs'&&action==='edit')return send(await ws.edit(id,body));

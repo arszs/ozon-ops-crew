@@ -27,6 +27,7 @@ import {canonical,DEMO_PRODUCT} from './canonical.mjs';
 import {STAGES,runAgent} from '../adapters/agents.mjs';
 import {importSavedPage} from './page-import.mjs';
 import {landedPrice} from './landed-pricing.mjs';
+import {oglPrice,cnyRate} from './ogl-pricing.mjs';
 import {connectOzon} from './connection-setup.mjs';
 import {readStore,dictionaries,executeMarketplace,readMessages} from '../adapters/marketplaces.mjs';
 import {assessStore,unitEconomics} from './assessment.mjs';
@@ -69,6 +70,11 @@ export class Workspace{
   j.artifacts.image_edit={agent:'Photo selection',tool:'human.keep_originals',output,outputHash:hash(output),at:now(),durationMs:0};j.state='map_attributes';delete j.error;delete j.failedStage;
   audit(db,{kind:'images.originals_selected',jobId:id,revision:j.revision,outputHash:hash(output)});return j;
  });}
+ async priceOgl(id,input={}){
+  const job=await this.getJob(id),rate=await cnyRate();const quote=oglPrice(job,{...input,...rate,rateDate:rate.date,rateSource:rate.source});
+  await this.setup(id,{publishConfig:{...(job.publishConfig||{}),price:quote.price,currency:quote.currency}});
+  return this.repo.mutate(db=>{const j=find(db.jobs,id);j.landedPricing=quote;audit(db,{kind:'job.ogl_price',jobId:id,inputHash:hash(quote.input)});return j;});
+ }
  async priceLanded(id,input){
   const j=await this.getJob(id);
   const quote=landedPrice({...input,targetNet:{amount:j.canonical.price,currency:j.canonical.currency}});
