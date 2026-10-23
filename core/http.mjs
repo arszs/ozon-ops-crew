@@ -72,6 +72,9 @@ export async function createWorkspaceAPI(root,live){
     }if(job.marketplace==='wb'&&job.mode==='manual'){try{job.wbListingErrors=await wbListingErrors.get(ws.resolveStore(await ws.repo.read(),job.storeId),{vendorCode:job.canonical.sku});}catch{job.wbListingErrors={state:'unavailable',error:'WB 草稿错误连接不可用'};}}return send(job);}
    }
    if(req.method==='POST'){
+    if(resource==='connections'&&id==='ozon')return send(await ws.connectOzon(body));
+    if(resource==='jobs'&&action==='source-images')return send(await ws.keepSourceImages(id));
+    if(resource==='page-imports'&&!id)return send(await ws.importPage({html:body.html,storeId:url.searchParams.get('storeId'),sourceUrl:url.searchParams.get('sourceUrl')||undefined,sourceImageRightsConfirmed:url.searchParams.get('sourceImageRightsConfirmed')==='true'}));
     if(resource==='stores'&&!id)return send(await ws.addStore(body));
     if(resource==='stores'&&action==='wb-finance-reconcile')return send(await wbFinance.reconcile(ws.resolveStore(await ws.repo.read(),id),body));
     if(resource==='stores'&&action==='wb-allocation-preview')return send(await wbFinance.skuCosts.preview(ws.resolveStore(await ws.repo.read(),id),body));
@@ -105,6 +108,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='jobs'&&action==='step')return send(await ws.step(id));
     if(resource==='jobs'&&action==='retry')return send(await ws.retry(id,body.stage));
     if(resource==='jobs'&&action==='setup')return send(await ws.setup(id,body));
+    if(resource==='jobs'&&action==='landed-price')return send(await ws.priceLanded(id,body));
     if(resource==='assets'&&!id){if(Buffer.isBuffer(body.imageBytes))return send(await saveImage(body.imageBytes));if(typeof body.base64!=='string'||body.base64.length>1_800_000)throw Error('旧版 base64 上传最多 1.3 MB；请使用图片文件上传（最多 12 MB）');return send(await saveImage(Buffer.from(body.base64,'base64')));}
     if(resource==='jobs'&&action==='edit')return send(await ws.edit(id,body));
     if(resource==='jobs'&&action==='category-approval')return send(await ws.approveCategory(id,body.revision));

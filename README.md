@@ -40,6 +40,10 @@
 
 [证据与缺口](https://github.com/arszs/ozon-ops-crew/blob/main/docs/EVALUATION.md) · [Specs / Agent 流程](https://github.com/arszs/ozon-ops-crew/blob/main/docs/SPECS.md) · [10 SKU 试点协议](https://github.com/arszs/ozon-ops-crew/blob/main/docs/PILOT-PROTOCOL.md) · [6 分钟中文演示稿](https://github.com/arszs/ozon-ops-crew/blob/main/docs/DEMO-SCRIPT.zh.md)
 
+## 已保存商品页导入
+
+商品迁移支持上传 Taobao / Tmall 保存的 HTML：本地 Qwen 先提取，原文证据不足时交给 Codex；仍有疑问则导出核对包。店铺币种与物流、税费参数用于计算保留源商品净回款的售价。缺失成本不会记零，也不会直接发布。[配置与边界](docs/SAVED-PAGE-IMPORT.md)
+
 ## 本地工作台
 
 需要 Node.js >=22.13；main 提供完整工作台源码，GitHub Pages 只提供独立的合成演示。精确参赛版使用标签 `contest-2026-10-23`：
@@ -58,8 +62,8 @@ npm start
 
 ## 范围与扩展
 
-Ozon 是主要验证场景。Taobao 没有真实账户时使用结构化导出；不伪装 API 抓取。现有 WB 内容、价格、库存和财务适配代码保留，尚未用真实 WB 账户验证。Amazon / Shopify / Wildberries / TikTok Shop 为后续 API 适配方向。
+Ozon 是主要验证场景。Taobao 支持保存页面 HTML 与结构化导出；不伪装已接入淘宝 API。现有 WB 内容、价格、库存和财务适配代码保留，尚未用真实 WB 账户验证。Amazon / Shopify / Wildberries / TikTok Shop 为后续 API 适配方向。
 
-不包含采购、进口或采购货币兑换。卖家提供的真实成本只用于商品经济核算。生产认证、多租户隔离和分布式后台执行仍待完善。
+不代办采购或进口。净回款定价只使用用户核定的物流、税费和汇率参数，不自动判断税制或生成承运商报价。生产认证、多租户隔离和分布式后台执行仍待完善。
 
 [历史原型资料](docs/HISTORY.md) 与旧录像不代表当前界面或实际收益。项目与 Ozon/WB 并非官方关联；公开仓库不含店铺密钥和私有财务数据。未选择开源许可证前不授予开源许可。

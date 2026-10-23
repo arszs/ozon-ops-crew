@@ -40,3 +40,11 @@
 .wb-settlement{border:1px solid var(--line);border-radius:10px;padding:18px;margin:18px 0;background:#f7f9f4}.wb-settlement h3{margin-top:0}.wb-net-currency+.wb-net-currency{border-top:1px solid var(--line);padding-top:14px}.wb-net-value{font-size:26px;font-weight:650;margin:12px 0}.wb-settlement summary{cursor:pointer}.wb-settlement small{display:block;color:var(--muted)}
 
 .wb-allocation form,.wb-sku-contribution form{padding:16px 0;border-top:1px solid var(--line)}.wb-allocation-preview{margin-top:18px;padding:18px;border:1px solid var(--line);border-radius:10px;background:#f7f9f4}.wb-sku-contribution>summary,.wb-allocation>summary{cursor:pointer;font-weight:600}.wb-sku-contribution small{overflow-wrap:anywhere}.wb-allocation [hidden]{display:none}
+
+.transfer-steps{display:flex;list-style:none;gap:24px;padding:0;margin:4px 0 28px;color:var(--muted)}.transfer-steps li{display:flex;align-items:center;gap:9px}.transfer-steps b{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#edf0ea}.transfer-steps .current{color:var(--ink);font-weight:650}.transfer-steps .current b{background:#254b3b;color:white}.transfer-steps .done b{background:#d8e8dc}.transfer-steps+details, #transfer-tools,#transfer-history,#transfer-evidence{margin:18px 0}#transfer-tools>summary,#transfer-history>summary,#transfer-evidence>summary,#transfer-another>summary{padding:12px 0;cursor:pointer;color:var(--muted)}#page-import-form{max-width:620px}#page-import-form>label{margin:16px 0}#page-import-form button{margin-top:18px}#transfer-source-link{margin:12px 0}.job-detail .pipeline{font-size:12px}.job-detail .target{margin-top:18px}@media(max-width:650px){.transfer-steps{gap:12px;font-size:12px}.transfer-steps b{width:24px;height:24px}}
+
+input[type="checkbox"],input[type="radio"]{width:auto;display:inline-block;margin-right:8px}label:has(>input[type="checkbox"]){display:flex;align-items:flex-start;gap:8px}label>input[type="checkbox"]{margin-top:4px;flex:none}.pricing-card{padding-top:22px;margin-top:24px;border-top:1px solid var(--line)}.pricing-card details{margin:16px 0}
+
+.source-photo-grid{display:flex;gap:12px;overflow:auto;margin:16px 0}.source-photo-grid img{width:140px;height:140px;object-fit:contain;border:1px solid var(--line);border-radius:8px}.photo-choice{margin-top:22px}
+
+[hidden]{display:none!important}
