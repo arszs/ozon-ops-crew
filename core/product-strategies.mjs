@@ -50,12 +50,12 @@ export function decideStrategy(policy,observation,{now=new Date(),lastPriceAt=nu
  const economics=contributionAt(o.price,p),limits=Object.fromEntries(['minMarginPct','minPrice','maxPrice','adDailyBudget','maxDailyLoss'].map(k=>[k,p[k]]));
  const add=(kind,target,reason,extra={})=>actions.push({kind,target,reason,...extra});
  if(!blockers.length){
-  if(!p.costs)insights.push('costs_missing');if(p.allowPrice&&['sales','clearance','launch'].includes(p.strategy)&&p.referencePrice===null)insights.push('reference_price_required');
+  if(!p.costs&&(p.allowPrice||p.allowPromotions||p.allowCampaignResume))insights.push('costs_missing');if(p.allowPrice&&['sales','clearance','launch'].includes(p.strategy)&&p.referencePrice===null)insights.push('reference_price_required');
   if(!validStock)insights.push('stock_unknown');
   if(economics&&economics.marginPct<p.minMarginPct)insights.push('margin_below_floor');
   const cooldown=lastPriceAt&&(!Number.isFinite(Date.parse(lastPriceAt))||+now-Date.parse(lastPriceAt)<p.cooldownHours*3600000);
   if(p.allowPrice&&economics&&!cooldown){
-   let target=o.price,reason='hold_price';const discountFloor=p.referencePrice?Math.ceil(p.referencePrice*(1-p.maxDiscountPct/100)*100)/100:0,floor=Math.max(p.minPrice,economics.minimumPrice||Infinity,discountFloor);
+   let target=o.price,reason='hold_price';const discountFloor=p.referencePrice?Math.ceil(p.referencePrice*(1-p.maxDiscountPct/100)*100)/100:0,floor=Math.max(p.minPrice,economics.minimumPrice??Infinity,discountFloor);
    // Evidence-based exploitation only: no claim that a price increase by itself raises profit.
    const comparable=trials.filter(t=>t.storeId===p.storeId&&t.sku===p.sku&&t.currency===p.currency&&t.verified===true&&t.settledOrders>=20&&finite(t.profitPerDay)&&cents(t.price)&&t.price>0&&t.completedAt&&+now-Date.parse(t.completedAt)>=0&&+now-Date.parse(t.completedAt)<30*86400000);
    const baseline=comparable.find(t=>t.price===o.price),best=[...comparable].sort((a,b)=>b.profitPerDay-a.profitPerDay)[0];
@@ -110,4 +110,13 @@ export function decideStrategy(policy,observation,{now=new Date(),lastPriceAt=nu
   }
  }
  return {strategy:p.strategy,mode:p.mode,checkedAt:now.toISOString(),currency:p.currency,economics,limits,blockers,insights,actions:actions.map(a=>({...a,execution:p.mode==='auto'?'eligible':'recommendation'})),actualProfit:finite(o.metrics?.confirmedProfit)&&o.metrics?.profitComplete===true?o.metrics.confirmedProfit:null,profitKind:'confirmed_or_unknown',metrics:o.metrics||null};
+}
+
+// A cost scenario only; it never predicts demand or authorizes a write.
+export function strategyPreview(input){
+ const policy=strategyPolicy(input),estimate=contributionAt(input.currentPrice,policy);let scenario=null;
+ if(estimate&&policy.maxPrice>0){const floor=Math.max(0.01,policy.minPrice,estimate.minimumPrice??Infinity,policy.referencePrice?Math.ceil(policy.referencePrice*(1-policy.maxDiscountPct/100)*100)/100:0),ceiling=policy.maxPrice;
+  if(floor<=ceiling){const requested=typeof input.scenarioPrice==='number'&&Number.isFinite(input.scenarioPrice)?input.scenarioPrice:input.currentPrice,price=roundMoney(Math.max(floor,Math.min(ceiling,requested))),economics=contributionAt(price,policy);scenario={price,floor,ceiling,economics,sameContributionVolumePct:estimate.contribution>0&&economics.contribution>0?roundMoney(estimate.contribution/economics.contribution*100):null,kind:'cost_scenario_no_demand_forecast'};}
+ }
+ return {currency:policy.currency,estimate,scenario,actualProfit:null};
 }

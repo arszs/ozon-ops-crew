@@ -1,6 +1,8 @@
+import {AnalyticsQuota} from './core/analytics-quota.mjs';
+import {fileURLToPath} from 'node:url';
 import {ApiCooldown} from './core/api-cooldown.mjs';
 import {createHash} from 'node:crypto';
-const cooldown=new ApiCooldown();
+const cooldown=new ApiCooldown(),analyticsQuota=new AnalyticsQuota(fileURLToPath(new URL('./runtime/analytics-quota.json',import.meta.url)));
 import {readFile} from 'node:fs/promises';
 export async function credentials(){
  const cfg={...process.env};
@@ -11,6 +13,7 @@ const READ_PATHS=new Set(['/v3/product/list','/v3/product/info/list','/v1/financ
 export async function sellerRead(path,body){
  if(!READ_PATHS.has(path))throw Error('seller_method_not_allowed');
  const c=await credentials();if(!c.client||!c.key)throw Error('seller_not_configured');const ref=createHash('sha256').update(String(c.client)).digest('hex');cooldown.check(ref,'seller_http_429');
+ if(path==='/v1/analytics/data')await analyticsQuota.reserve(ref);
  const res=await fetch('https://api-seller.ozon.ru'+path,{method:'POST',signal:AbortSignal.timeout(30000),headers:{'Client-Id':c.client,'Api-Key':c.key,'Content-Type':'application/json'},body:JSON.stringify(body)});
  if(res.status===429)cooldown.reject(ref,res,'seller_http_429');if(!res.ok)throw Error('seller_http_'+res.status);
  try{return await res.json();}catch{throw Error('seller_invalid_response');}
