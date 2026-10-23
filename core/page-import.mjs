@@ -25,19 +25,20 @@ export function parseSavedPage(html,{sourceUrl}={}){
  if(typeof html!=='string'||!html.trim()||Buffer.byteLength(html)>PAGE_UPLOAD_BYTES)throw Error('请选择不超过 8 MB 的已保存 HTML');
  const saved=html.match(/saved from url=\(\d+\)(https?:\/\/[^\s>]+)/i)?.[1];
  const url=cleanSource(sourceUrl||saved||'');
+ if(saved&&sourceUrl){const a=new URL(cleanSource(saved)),b=new URL(url);if(a.searchParams.get('skuId')&&b.searchParams.get('skuId')&&a.searchParams.get('skuId')!==b.searchParams.get('skuId'))throw Error('链接规格与保存页不一致，请保存所选规格页面');}
  if(saved&&new URL(cleanSource(saved)).searchParams.get('id')!==new URL(url).searchParams.get('id'))throw Error('保存页面与输入链接的商品 id 不一致');
- const tree=parse(html),lines=[],titles=[],prices=[],variants=[],imageNames=new Set();
+ const tree=parse(html),lines=[],titles=[],prices=[],variants=[],imageNames=new Set(),preferredImages=[];
  walk(tree,n=>{
   const cls=attr(n,'class');
   if(n.tagName==='title')titles.unshift(compact(nodeText(n)).replace(/[-–]\s*(?:淘宝网|天猫).*$/,''));
   if(/(?:^|\s)mainTitle--/.test(cls))titles.push(compact(nodeText(n)));
-  if(/highlightPrice--/.test(cls)){const value=compact(nodeText(n)).replace(/[￥¥,\s]/g,'');if(/^\d+(\.\d+)?$/.test(value))prices.push(Number(value));}
+  if(/highlightPrice--/.test(cls)){const value=compact(nodeText(n)).replace(/[￥¥,\s]/g,'').replace(/(?:起|到手价|券后|约)/g,'');if(/^\d+(\.\d+)?$/.test(value))prices.push(Number(value));}
   if(/valueItem--/.test(cls)&&/isSelected--/.test(cls)){
    let label='';walk(n,c=>{if(/valueItemText--/.test(attr(c,'class')))label=compact(nodeText(c));});
    variants.push(label||compact(nodeText(n)));
   }
   if(n.nodeName==='#text'&&n.value.trim())lines.push(compact(n.value));
-  if(n.tagName==='img'){const name=imageName(attr(n,'src'));if(name)imageNames.add(name);}
+  if(n.tagName==='img'){const name=imageName(attr(n,'src'));if(name&&!/avatar|sns_logo|userheader/i.test(cls+' '+attr(n,'src'))){imageNames.add(name);if(/mainPic--/.test(cls))preferredImages.unshift(name);else if(/thumbnailPic--|descV6-mobile-image/.test(cls))preferredImages.push(name);}}
  });
  const title=titles.find(Boolean)||'';
  const body=lines.join('\n'),anchor=body.lastIndexOf('参数信息');
@@ -48,8 +49,9 @@ export function parseSavedPage(html,{sourceUrl}={}){
  const candidates=[];
  for(const match of html.matchAll(/https:\/\/(?:img|gw)\.alicdn\.com\/[^\s<>"'\\]+?\.(?:jpg|jpeg|png|webp)/gi)){
   const value=match[0],name=imageName(value);
-  if(name&&imageNames.has(name)&&!/(?:shopmanager|tps-|gg_dtc)/i.test(name)&&!candidates.some(v=>imageName(v)===name))candidates.push(value);
+  if(name&&imageNames.has(name)&&!/(?:shopmanager|tps-|gg_dtc|userheader|sns_logo)/i.test(value)&&!candidates.some(v=>imageName(v)===name))candidates.push(value);
  }
+ candidates.sort((a,b)=>{const rank=u=>{const i=preferredImages.indexOf(imageName(u));return i<0?1000:i;};return rank(a)-rank(b);});
  return {sourceUrl:url,itemId:new URL(url).searchParams.get('id'),skuId:new URL(url).searchParams.get('skuId'),title,
   text:content,displayedPrices:[...new Set(prices)],selectedVariants:[...new Set(variants)],imageUrls:candidates.slice(0,10),
   sourceHash:hash(html),evidenceHash:hash({title,content,prices,variants,candidates})};

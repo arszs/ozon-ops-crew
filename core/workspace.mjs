@@ -26,6 +26,7 @@ import {Repository,audit,hash,maskPII,verifyAudit} from './repository.mjs';
 import {canonical,DEMO_PRODUCT} from './canonical.mjs';
 import {STAGES,runAgent} from '../adapters/agents.mjs';
 import {importSavedPage} from './page-import.mjs';
+import {applyPriceMultiplier} from './price-policy.mjs';
 import {landedPrice} from './landed-pricing.mjs';
 import {editOzonText,editOzonMainImage,editOzonPrice,editOzonStock} from './ozon-listing-editor.mjs';
 import {inspectOzonListing,ozonBuyerIdentity} from '../adapters/ozon-listing-check.mjs';
@@ -74,13 +75,13 @@ export class Workspace{
   audit(db,{kind:'images.originals_selected',jobId:id,revision:j.revision,outputHash:hash(output)});return j;
  });}
  async priceOgl(id,input={}){
-  const job=await this.getJob(id),rate=await cnyRate();const quote=oglPrice(job,{...input,...rate,rateDate:rate.date,rateSource:rate.source});
+  const job=await this.getJob(id),rate=await cnyRate();const quote=applyPriceMultiplier(oglPrice(job,{...input,...rate,rateDate:rate.date,rateSource:rate.source}),3);
   await this.setup(id,{publishConfig:{...(job.publishConfig||{}),price:quote.price,currency:quote.currency}});
   return this.repo.mutate(db=>{const j=find(db.jobs,id);j.landedPricing=quote;audit(db,{kind:'job.ogl_price',jobId:id,inputHash:hash(quote.input)});return j;});
  }
  async priceLanded(id,input){
   const j=await this.getJob(id);
-  const quote=landedPrice({...input,targetNet:{amount:j.canonical.price,currency:j.canonical.currency}});
+  const quote=applyPriceMultiplier(landedPrice({...input,targetNet:{amount:j.canonical.price,currency:j.canonical.currency}}),3);
   await this.setup(id,{publishConfig:{...(j.publishConfig||{}),price:quote.price,currency:quote.currency}});
   return this.repo.mutate(db=>{const job=find(db.jobs,id);job.landedPricing=quote;audit(db,{kind:'job.landed_price',jobId:id,inputHash:quote.inputHash});return job;});
  }

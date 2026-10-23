@@ -19,12 +19,14 @@ import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {homedir} from 'node:os';
 import {Workspace} from './workspace.mjs';
+import {ProductStudio} from './product-studio.mjs';
 import {DEMO_PRODUCT} from './canonical.mjs';
 const esc=s=>String(s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
 export const wbStoredReportQuery=url=>Object.fromEntries(['sku','from','to'].map(key=>[key,url.searchParams.get(key)]));
 export async function createWorkspaceAPI(root,live){
  let config={};try{config=JSON.parse(await readFile(join(homedir(),'.config/ozon-ops-crew/connection.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
  const ws=new Workspace(join(root,'runtime/workspace.json'),{stores:config.stores||[],liveSnapshot:()=>live.get().data});await ws.init();
+ const studio=new ProductStudio(ws);await studio.init();
  const catalogue=new CatalogueService(join(root,'runtime/catalogue.sqlite'));
  ws.wbPriceProduct=async(store,nmID)=>{const owner=await wbAccount(store);try{return await catalogue.product(store,String(nmID),owner);}catch(e){const db=await ws.repo.read(),job=db.jobs.find(j=>j.storeId===store.id&&j.state==='imported'&&String(j.importResult?.productId)===String(nmID)),op=job&&db.operations.findLast(o=>o.kind==='publish'&&o.payload.jobId===job.id&&o.state==='verified');if(!job||op?.payload.wbContext?.accountRef!==owner)throw e;return {sku:String(nmID),offerId:job.canonical.sku};}};
  ws.wbStockProduct=ws.wbPriceProduct;
@@ -47,6 +49,7 @@ export async function createWorkspaceAPI(root,live){
    const [, ,resource,id,action,index]=parts;
    const body=await workspaceBody(req,{resource,id,action});
    if(req.method==='GET'){
+    if(resource==='studio')return send(id?await studio.refresh(id):await studio.list());
     if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&['ozon','wb'].includes(s.marketplace)).map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));view.wbFinance=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbFinance.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 财务连接不可用'}];}})));view.wbAds=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbAds.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 广告连接不可用'}];}})));view.adMonitors=await monitoring.list();view.adMonitorWorker=monitoring.status;view.adReadings=await advertising.list(view.stores.map(s=>ws.resolveStore(db,s.id)));view.financeReadings=await finance.list(view.stores.map(s=>ws.resolveStore(db,s.id)));for(const t of view.trials)if(t.source==='api_accruals_seller_costs')t.sourceStatus=ledgerTrialStatus(t,view.financeReadings,view.adReadings,view.trialPlans.find(p=>p.id===t.planId));for(const t of view.trials)if(t.source==='wb_reports_seller_costs'){try{t.sourceStatus=await wbTrials.status(ws.resolveStore(db,t.storeId),db.trialPlans?.find(p=>p.id===t.planId),t);}catch{t.sourceStatus='unavailable';}}return send(view);}
     if(resource==='trial-plans'&&action==='wb-evidence')return send(await wbTrials.get(id));
     if(resource==='creatives'&&!id)return send(creativeViews(await ws.repo.read()));
@@ -72,6 +75,11 @@ export async function createWorkspaceAPI(root,live){
     }if(job.marketplace==='wb'&&job.mode==='manual'){try{job.wbListingErrors=await wbListingErrors.get(ws.resolveStore(await ws.repo.read(),job.storeId),{vendorCode:job.canonical.sku});}catch{job.wbListingErrors={state:'unavailable',error:'WB 草稿错误连接不可用'};}}return send(job);}
    }
    if(req.method==='POST'){
+    if(resource==='studio'&&action==='recheck-sources')return send(await studio.recheckResearch(id));
+    if(resource==='studio'&&action==='reprice')return send(await studio.reprice(id,body));
+    if(resource==='studio'&&action==='publish')return send(await studio.publish(id,body));
+    if(resource==='studio'&&action==='retry')return send(await studio.retry(id));
+    if(resource==='studio-imports')return send(await studio.start({...body,...Object.fromEntries(url.searchParams)}));
     if(resource==='connections'&&id==='ozon')return send(await ws.connectOzon(body));
     if(resource==='jobs'&&action==='source-images')return send(await ws.keepSourceImages(id));
     if(resource==='page-imports'&&!id)return send(await ws.importPage({html:body.html,storeId:url.searchParams.get('storeId'),sourceUrl:url.searchParams.get('sourceUrl')||undefined,sourceImageRightsConfirmed:url.searchParams.get('sourceImageRightsConfirmed')==='true'}));

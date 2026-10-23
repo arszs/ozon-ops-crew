@@ -19,11 +19,11 @@ export async function cnyRate({fetcher=fetch,date=new Date()}={}){
  if(!Number.isFinite(value)||value<=0||!Number.isFinite(nominal)||nominal<=0)throw Error('央行人民币汇率缺失');
  return {rubPerCny:value/nominal,date:xml.match(/Date="([^"]+)"/)?.[1]||null,source:url};
 }
-export function oglPrice(job,{rubPerCny,rateDate,rateSource,packaging=2,reservePct=2,domesticShipping,taxPct=0}={}){
+export function oglPrice(job,{rubPerCny,rateDate,rateSource,packaging=2,reservePct=2,domesticShipping,taxPct=0,commissionPct}={}){
  if(job.canonical.currency!=='CNY')throw Error('OGL 自动估价当前支持人民币源商品');
- const type=Number(job.mapping?.typeId||job.artifacts.map_attributes?.output.category.id);
+ const type=Number(job.mapping?.typeId||job.artifacts?.map_attributes?.output.category.id);
  // Exact type row 2639, Full ChinaHK: Motorcycle Tail Light, All brands.
- if(type!==971168876)throw Error('此商品类型尚无自动佣金快照，请在高级费用中填写实际佣金');
+ if(type!==971168876&&commissionPct===undefined)throw Error('此商品类型尚无自动佣金快照，请在高级费用中填写实际佣金');
  const p=job.publishConfig||{},weight=positive(p.weight,'重量 g'),dimensions=['width','height','depth'].map(k=>positive(p[k],k)/10);
  if(!Number.isInteger(weight)||weight>35000||Math.max(...dimensions)>200)throw Error('包装超出 OGL 费率表限制');
  const net=positive(job.canonical.price,'源价'),fx=positive(rubPerCny,'人民币汇率');
@@ -31,7 +31,7 @@ export function oglPrice(job,{rubPerCny,rateDate,rateSource,packaging=2,reserveP
  const domestic=nonnegative(domesticShipping??(match?Number(match[1]):undefined),'中国境内运费');
  const pack=nonnegative(packaging,'包装'),reserve=nonnegative(reservePct,'费用预留')/100,tax=nonnegative(taxPct,'税费')/100;
  if(String(p.vat)!=='0')throw Error('请先保存明确的税率；OGL 简易估价当前按已指定的零增值税方案计算');
- const bands=[[.01,1500,.12],[1500.01,5000,.17],[5000.01,22525,.17]],candidates=[];
+ const bands=commissionPct===undefined?[[.01,1500,.12],[1500.01,5000,.17],[5000.01,22525,.17]]:[[.01,22525,nonnegative(commissionPct,'佣金')/100]],candidates=[];
  for(const [group,min,max,minWeight,maxWeight,base,variable,volume] of groups){
   if(weight<minWeight||weight>maxWeight)continue;
   const billable=volume?Math.max(weight,dimensions.reduce((a,b)=>a*b,1)/12):weight,freight=base+variable*billable;
@@ -50,7 +50,7 @@ export function oglPrice(job,{rubPerCny,rateDate,rateSource,packaging=2,reserveP
  return {...chosen,price:chosen.price.toFixed(2),currency:'CNY',targetNet:net,shipping:{amount:chosen.internationalFreight,currency:'CNY'},
   sources:{logistics:OGL_SOURCE,commission:COMMISSION_SOURCE,service:'https://global-help.ozon.com/zh/commissions/ozon-fees/ogl-rates?region=CHN',fx:rateSource||null},
   tariffDate:'2026-08-24',commissionDate:'2025-12-01',rubPerCny:fx,rateDate:rateDate||null,
-  assumptions:[`包装费用 ${pack} CNY、其他费用预留 ${reserve*100}% 为可修改估计值，不是官方收费。`,'销售佣金按该商品类型 realFBS 档估算；OGL 实际结算以店铺账单为准。','中国境内运费来自保存页的展示路线，实际入仓路线可能不同。','不含广告及额外退货损失；未设置库存或预约发货。'],
+  assumptions:[`包装费用 ${pack} CNY、其他费用预留 ${reserve*100}% 为可修改估计值，不是官方收费。`,commissionPct===undefined?'销售佣金按该商品类型 realFBS 档估算；OGL 实际结算以店铺账单为准。':`佣金 ${commissionPct}% 是显式估计参数，尚未核实该类目实际佣金。`,'中国境内运费来自保存页的展示路线，实际入仓路线可能不同。','不含广告及额外退货损失；未设置库存或预约发货。'],
   scope:'OGL tariff-based estimate with explicit reserves, not guaranteed settlement.',
   input:{rubPerCny,rateDate,rateSource,packaging:pack,reservePct:reserve*100,domesticShipping:domestic,taxPct:tax*100}};
 }

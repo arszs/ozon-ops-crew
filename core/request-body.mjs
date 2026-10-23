@@ -10,7 +10,7 @@ export async function workspaceBody(req,{resource,id,action}){
  if(req.method==='GET')return {};
  const type=String(req.headers['content-type']||'').split(';')[0].trim().toLowerCase();
  const binary=req.method==='POST'&&resource==='assets'&&!id&&!action&&imageTypes.has(type);
- const html=req.method==='POST'&&resource==='page-imports'&&!id&&!action&&type==='text/html';
+ const html=req.method==='POST'&&['page-imports','studio-imports'].includes(resource)&&!id&&!action&&type==='text/html';
  const limit=html?PAGE_UPLOAD_BYTES:binary?IMAGE_UPLOAD_BYTES:JSON_BYTES;
  if(Number(req.headers['content-length'])>limit)throw tooLarge();
  const chunks=[];let size=0;
