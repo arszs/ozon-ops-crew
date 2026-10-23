@@ -53,7 +53,7 @@ export async function performanceDisable(sku,accountRef,{canExecute=async()=>tru
   if(typeof sku!=='string'||! /^[1-9]\d*$/.test(sku)||!accountRef)throw Error('Invalid CPO disable target');
   const c=await config();if(identity(c)!==accountRef)throw Error('performance_account_changed');quotaRef=quota(c);access=await token(c);cooldown.check(quotaRef,'performance_http_429');if(identity(await config())!==accountRef)throw Error('performance_account_changed');
  }catch(e){e.noWrite=true;throw e;}
- if(!await canExecute())throw Object.assign(Error('strategy_action_cancelled'),{noWrite:true});
+ try{if(!await canExecute())throw Error('strategy_action_cancelled');if(identity(await config())!==accountRef)throw Error('performance_account_changed');}catch(e){e.noWrite=true;throw e;}
  const res=await fetch('https://api-performance.ozon.ru/api/client/search_promo/product/disable',{method:'POST',signal:AbortSignal.timeout(30000),headers:{Authorization:'Bearer '+access,'Content-Type':'application/json'},body:JSON.stringify({skus:[sku]})});
  if(res.status===429)cooldown.reject(quotaRef,res,'performance_disable_http_429');if(!res.ok)throw Error('performance_disable_http_'+res.status);
  // The documented success response is an empty object. A timeout/foreign response stays unknown.

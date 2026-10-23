@@ -37,7 +37,7 @@ export function priceBody(context,target){
 export function submitPrice(store,op,options={}){const c=op.payload?.context;return withProductMutation(c?.accountRef,c?.productId,()=>submitPriceLocked(store,op,options));}
 async function submitPriceLocked(store,op,{read=readPrice,call=ozonCall}={}){
  let current;try{current=await read(store,op.payload.sku);if(current.fingerprint!==op.payload.context.fingerprint||hash(priceBody(current,op.payload.target))!==hash(op.payload.apiBody))throw Error('平台价格或条件已变化，请重新拟定并确认');}catch(e){e.noWrite=true;throw e;}
- const d=await call(store,'/v1/product/import/prices',op.payload.apiBody,{write:true});
+ const d=await call(store,'/v1/product/import/prices',op.payload.apiBody,{write:true,expectedAccountRef:current.accountRef});
  if(!Array.isArray(d.result)||d.result.length!==1||String(d.result[0].product_id)!==current.productId||d.result[0].offer_id!==current.offerId)throw Error('Price receipt identity unknown');
  const r=d.result[0];if(r.updated===false){const e=Error('Ozon 拒绝调价：'+JSON.stringify(r.errors||[]).slice(0,250));e.noWrite=true;throw e;}
  if(r.updated!==true||!Array.isArray(r.errors)||r.errors.length)throw Error('Price update result ambiguous');

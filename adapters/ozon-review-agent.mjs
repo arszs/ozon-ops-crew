@@ -65,7 +65,7 @@ export class OzonReviewAgent{
    const db=await service.repo.read(),p=db.policies.find(p=>p.id===policy.id),r=db.strategyReviews.find(r=>r.id===item.id);
    return !db.strategyPaused&&p?.mode==='auto'&&p.revision===policy.revision&&p.accountRef===policy.accountRef&&p.allowReviews===true&&r?.state==='executing';
   };
-  const receipt=await this.call(store,'/v1/review/comment/create',{review_id:item.externalId,text:item.draft.replyRu,mark_review_as_processed:true},{write:true,beforeWrite});
+  const receipt=await this.call(store,'/v1/review/comment/create',{review_id:item.externalId,text:item.draft.replyRu,mark_review_as_processed:true},{write:true,beforeWrite,expectedAccountRef:policy.accountRef});
   if(typeof receipt.comment_id!=='string'||!receipt.comment_id)throw Error('review_reply_receipt_unknown');
   let verified=false;try{verified=(await this.comments(store,item.externalId)).some(c=>c.id===receipt.comment_id&&c.is_owner===true&&c.text===item.draft.replyRu);}catch{}
   await service.repo.mutate(db=>{

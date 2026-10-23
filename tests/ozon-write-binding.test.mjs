@@ -1,0 +1,8 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {ozonCall} from '../adapters/ozon-products.mjs';import {hash} from '../core/repository.mjs';
+test('queued Seller writes bind the exact loaded credentials to the expected account before any network call',async t=>{
+ const keys=['OZON_ENV_FILE','OZON_CLIENT_ID','OZON_API_KEY'],old=new Map(keys.map(k=>[k,process.env[k]]));t.after(()=>{for(const [k,v] of old)if(v===undefined)delete process.env[k];else process.env[k]=v;});delete process.env.OZON_ENV_FILE;process.env.OZON_CLIENT_ID='unit-account';process.env.OZON_API_KEY='unit-key';let writes=0;const options={write:true,expectedAccountRef:hash({client:'unit-account'}),fetcher:async(url,opts)=>{writes++;assert.equal(opts.headers['Client-Id'],'unit-account');return {ok:true,json:async()=>({result:[]})};}},store={id:'ozon-live'};
+ await ozonCall(store,'/v1/product/import/prices',{prices:[]},options);assert.equal(writes,1);
+ process.env.OZON_CLIENT_ID='different-account';await assert.rejects(ozonCall(store,'/v1/product/import/prices',{prices:[]},options),e=>e.noWrite===true&&e.message==='strategy_account_changed');assert.equal(writes,1);
+ process.env.OZON_CLIENT_ID='unit-account';await assert.rejects(ozonCall(store,'/v1/product/import/prices',{prices:[]},{...options,beforeWrite:async()=>{throw Error('policy_read_failed');}}),e=>e.noWrite===true);assert.equal(writes,1);
+ await assert.rejects(ozonCall(store,'/v1/product/import/prices',{prices:[]},{...options,beforeWrite:async()=>false}),e=>e.noWrite===true&&e.message==='strategy_action_cancelled');assert.equal(writes,1);
+});
