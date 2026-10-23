@@ -44,7 +44,7 @@ export async function createWorkspaceAPI(root,live){
  const monitoring=new AdMonitor(join(root,'runtime/ad-monitoring.json'),{workspace:ws,advertising});await monitoring.ready;monitoring.start();
  const finance=new FinanceService(join(root,'runtime/finance.json'));await finance.ready;
  const strategyAdapter=new OzonStrategyAdapter({reviews:new OzonReviewAgent(),financial:store=>finance.list([store]),trialReader:async(store,policy)=>{const [db,readings,ads]=await Promise.all([ws.repo.read(),finance.list([store]),advertising.list([store])]);return completedStrategyPriceTrials(db,policy,{finance:readings,advertising:ads});},verifiedLive:()=>live.verified(),live:()=>live.get().data});
- const strategies=new StrategyService(join(root,'runtime/strategies.json'),{workspace:ws,adapter:strategyAdapter});await strategies.ready;strategies.start();
+ const strategies=new StrategyService(join(root,'runtime/strategies.json'),{workspace:ws,adapter:strategyAdapter,finance});await strategies.ready;strategies.start();
  return async(req,res,url)=>{
   const parts=url.pathname.split('/').filter(Boolean);if(parts[0]!=='api'||parts[1]!=='workspace')return false;
   res.setHeader('Content-Type','application/json');
@@ -55,6 +55,7 @@ export async function createWorkspaceAPI(root,live){
    const [, ,resource,id,action,index]=parts;
    const body=await workspaceBody(req,{resource,id,action});
    if(req.method==='GET'){
+    if(resource==='agents'&&id==='finance')return send(await strategies.financialView(url.searchParams.get('storeId'),url.searchParams.get('sku')));
     if(resource==='agents'&&id==='campaigns')return send(await strategies.campaignChoices(url.searchParams.get('storeId'),url.searchParams.get('sku')));
     if(resource==='agents'&&!id)return send(await strategies.view());
     if(resource==='studio')return send(id?await studio.refresh(id):await studio.list());
@@ -83,6 +84,8 @@ export async function createWorkspaceAPI(root,live){
     }if(job.marketplace==='wb'&&job.mode==='manual'){try{job.wbListingErrors=await wbListingErrors.get(ws.resolveStore(await ws.repo.read(),job.storeId),{vendorCode:job.canonical.sku});}catch{job.wbListingErrors={state:'unavailable',error:'WB 草稿错误连接不可用'};}}return send(job);}
    }
    if(req.method==='POST'){
+    if(resource==='agents'&&id==='finance-read')return send(await strategies.financialRead(body));
+    if(resource==='agents'&&id==='finance-reconcile')return send(await strategies.financialReconcile(body));
     if(resource==='agents'&&id==='preview')return send(strategies.preview(body));
     if(resource==='agents'&&id==='policies'&&!action)return send(await strategies.configure(body));
     if(resource==='agents'&&id==='pause-policy')return send(await strategies.pausePolicy(body.policyId));

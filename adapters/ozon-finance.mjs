@@ -77,8 +77,8 @@ export async function readFinanceTypes(store,{call=ozonCall}={}){
  return {items,hash:hash(d),at:new Date().toISOString(),source:'Ozon /v1/finance/accrual/types'};
 }
 export function summarizeFinanceDays(days){
- const totals={},components={},storeUnallocated={};let matchedAccruals=0;
+ const totals={},components={},storeUnallocated={},storeTotals={};let matchedAccruals=0;
  const merge=(to,from)=>{for(const [currency,amount] of Object.entries(from)){const m=money({currency,amount});add(to,currency,m.cents);}};
- for(const d of days){merge(totals,d.totals);merge(storeUnallocated,d.storeUnallocated);matchedAccruals+=d.matchedAccruals;for(const [k,v] of Object.entries(d.components)){components[k]??={};merge(components[k],v);}}
- return {totals:decimal(totals),dailyAverage:Object.fromEntries(Object.entries(totals).map(([c,n])=>[c,Math.round(n/days.length)/100])),components:Object.fromEntries(Object.entries(components).map(([k,v])=>[k,decimal(v)])),storeUnallocated:decimal(storeUnallocated),matchedAccruals,days:days.length,profit:null,source:'Ozon /v1/finance/accrual/by-day',basis:'accrual_date',settlementFinal:false};
+ for(const d of days){merge(totals,d.totals);merge(storeUnallocated,d.storeUnallocated);merge(storeTotals,d.storeTotals||{});matchedAccruals+=d.matchedAccruals;for(const [k,v] of Object.entries(d.components)){components[k]??={};merge(components[k],v);}}
+ return {totals:decimal(totals),storeTotals:decimal(storeTotals),dailyAverage:Object.fromEntries(Object.entries(totals).map(([c,n])=>[c,Math.round(n/days.length)/100])),components:Object.fromEntries(Object.entries(components).map(([k,v])=>[k,decimal(v)])),storeUnallocated:decimal(storeUnallocated),matchedAccruals,days:days.length,profit:null,source:'Ozon /v1/finance/accrual/by-day',basis:'accrual_date',settlementFinal:false};
 }
