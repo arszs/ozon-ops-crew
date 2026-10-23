@@ -1,16 +1,20 @@
+# Prepared edition · 2026-10-23
+
+[Use this local contest index](CONTEST-RELEASE.md). Remote URLs below are existing entry points, not proof that this edition is published. The former proposal in main is historical. This file retains historical organizer-save records; no new organizer save is claimed.
+
 # Submission links / 提交链接
 
 - Source: https://github.com/arszs/ozon-ops-crew
 - Demo: https://arszs.github.io/ozon-ops-crew/
 - Chinese proposal: https://github.com/arszs/ozon-ops-crew/blob/main/docs/SUBMISSION.zh.md
-- Evaluation: https://github.com/arszs/ozon-ops-crew/blob/feat/cross-border-workspace/docs/EVALUATION.md
+- Evaluation: https://github.com/arszs/ozon-ops-crew/blob/main/docs/EVALUATION.md
 
 ## Актуальное описание у организатора
 
 - [Страница проекта](https://www.synnovator.com/arszlx/ozon-ops-agents)
 - [Сохранённый README, коммит 6694422382](https://www.synnovator.com/arszlx/ozon-ops-agents/src/commit/66944223821820f3b593bbaed3ded088ae3a34dc/README.md)
 - [Конкурсная заявка](https://www.synnovator.com/hackathon/hfhahkjfdhakfhf/submit)
-- [Актуальная разработка](https://github.com/arszs/ozon-ops-crew/tree/feat/cross-border-workspace)
+- [Актуальная разработка](https://github.com/arszs/ozon-ops-crew/tree/main)
 
 2026-10-13: краткая аннотация, README и описание существующей заявки обновлены через интерфейс Synnovator с акцентом на AIGC. Сайт показал «Project submitted successfully!» и новый заголовок в списке заявок. Трек AI产品资料子赛道 сохранён. 2026-10-14 повторное открытие страницы проекта подтвердило аннотацию и полный README, коммит c35ffb0a53.
 
@@ -28,4 +32,4 @@
 
 2026-10-14: [публикация 2f51a09](https://github.com/arszs/ozon-ops-crew/actions/runs/38565000010) добавила после подтверждения изображения интерактивное сравнение дневной прибыли на синтетических данных. В браузере проверены неполные подтверждения, положительный пример и отрицательный результат при увеличении затрат. Это не отчёт о реальном эксперименте. Текущая готовность по уточнённой цели — [EVALUATION.md](EVALUATION.md); новая редакция Specs/статуса пилота синхронизирована с README и формой организатора 2026-10-14.
 
-2026-10-14: сохранён README `66944223821820f3b593bbaed3ded088ae3a34dc` и обновлена существующая заявка. Сайт подтвердил «Project submitted successfully!». Трек и ссылка на демо сохранены. [Точная копия опубликованного описания](ORGANIZER-README.zh.md) включает актуальную связь креатива с экспериментом, Specs, путь запуска, протокол 10 SKU и отсутствие завершённых реальных измерений.
+2026-10-14: сохранён README `66944223821820f3b593bbaed3ded088ae3a34dc` и обновлена существующая заявка. Сайт подтвердил «Project submitted successfully!». Трек и ссылка на демо сохранены. [Историческая копия опубликованного описания](archive/ORGANIZER-README.zh.md) включает актуальную связь креатива с экспериментом, Specs, путь запуска, протокол 10 SKU и отсутствие завершённых реальных измерений.

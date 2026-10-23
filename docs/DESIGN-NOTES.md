@@ -1,3 +1,5 @@
+> Historical / exploratory reference. For the 2026-10-23 contest edition use [CONTEST-RELEASE.md](CONTEST-RELEASE.md), [ARCHITECTURE.md](ARCHITECTURE.md) and [COMPLIANCE.md](COMPLIANCE.md). Models and future designs below are not measured seller results or deployed production features.
+
 # Interface revision 0.4
 
 Research checked 2026-10-11:

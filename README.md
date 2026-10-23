@@ -2,9 +2,13 @@
 
 **把俄语买家的疑问，变成更清楚的商品图，再验证单品利润。**
 
-[体验中文 AIGC 演示](https://arszs.github.io/ozon-ops-crew/) · [当前开发分支](https://github.com/arszs/ozon-ops-crew/tree/feat/cross-border-workspace) · [参赛项目](https://www.synnovator.com/arszlx/ozon-ops-agents)
+[体验中文 AIGC 演示](https://arszs.github.io/ozon-ops-crew/) · [统一源码](https://github.com/arszs/ozon-ops-crew/tree/main) · [参赛项目](https://www.synnovator.com/arszlx/ozon-ops-agents)
 
 面向缺少俄语团队的中国卖家：从评价中发现尺寸、用法等表达问题，核对商品事实，生成俄语文案与图像编辑方案，对比新旧图片并由卖家确认。随后关联单品实验，验证内容、价格或广告方案的经营效果。
+
+## 本次参赛材料
+
+[2026-10-23 统一版本索引](docs/CONTEST-RELEASE.md) · [当前中文提案](docs/SUBMISSION.zh.md) · [三分钟讲稿](docs/PITCH-3MIN.zh.md) · [当前问答](docs/FINAL-QA.zh.md) · [内容测量协议](docs/CONTENT-PILOT.md)。版本标识：`contest-2026-10-23`；发布回执随交付包提供。旧视频和模拟器不是当前参赛演示。
 
 ## 一件商品的完整路径
 
@@ -32,16 +36,16 @@
 
 **完整真实闭环尚未完成。** 已读取真实 Ozon 数据；价格/CPO 的确认、执行和读取核对已实现，但未证明真实写入和完成后的收益。10 个真实 SKU 已私下准备，人工/辅助耗时、确认成本及商业效果仍未测量。
 
-一个 CPO 来源返回 HTTP 404，不能据此认定广告费为零。八件有库存的候选商品存在促销限制，不能直接进入当前隔离价格实验。预算与亏损上限不是保证自动停止的平台限额。
+截至 2026-10-15 的历史检查中，一个 CPO 来源返回 HTTP 404；另一次接口检查不支持该账号启用 CPO，评价/问答读取返回权限错误。全部 17 件有库存的已读商品均启用自动促销。不能据此把广告费记零或直接执行价格实验；本次材料整理没有刷新账号状态。预算与亏损上限不是保证自动停止的平台限额。
 
-[证据与缺口](https://github.com/arszs/ozon-ops-crew/blob/feat/cross-border-workspace/docs/EVALUATION.md) · [Specs / Agent 流程](https://github.com/arszs/ozon-ops-crew/blob/feat/cross-border-workspace/docs/SPECS.md) · [10 SKU 试点协议](https://github.com/arszs/ozon-ops-crew/blob/feat/cross-border-workspace/docs/PILOT-PROTOCOL.md) · [6 分钟中文演示稿](https://github.com/arszs/ozon-ops-crew/blob/feat/cross-border-workspace/docs/DEMO-SCRIPT.zh.md)
+[证据与缺口](https://github.com/arszs/ozon-ops-crew/blob/main/docs/EVALUATION.md) · [Specs / Agent 流程](https://github.com/arszs/ozon-ops-crew/blob/main/docs/SPECS.md) · [10 SKU 试点协议](https://github.com/arszs/ozon-ops-crew/blob/main/docs/PILOT-PROTOCOL.md) · [6 分钟中文演示稿](https://github.com/arszs/ozon-ops-crew/blob/main/docs/DEMO-SCRIPT.zh.md)
 
 ## 本地工作台
 
-需要 Node.js >=22.13；默认分支的公开演示不是当前连接店铺的完整工作台，请使用开发分支：
+需要 Node.js >=22.13；main 提供完整工作台源码，GitHub Pages 只提供独立的合成演示。精确参赛版使用标签 `contest-2026-10-23`：
 
 ```sh
-git clone --branch feat/cross-border-workspace https://github.com/arszs/ozon-ops-crew.git
+git clone --branch contest-2026-10-23 https://github.com/arszs/ozon-ops-crew.git
 cd ozon-ops-crew
 npm ci
 npm test
@@ -50,7 +54,7 @@ npm start
 
 打开 http://127.0.0.1:4173/ 。首页保留店铺经济总览、待决事项和 AIGC 入口。未知成本不记为零，不同店铺与币种分开。真实连接通过服务端配置，密钥文件放在仓库之外；不要把本地 API 暴露到公网。
 
-[API 范围](https://github.com/arszs/ozon-ops-crew/blob/feat/cross-border-workspace/docs/LIVE-API.md) · [AIGC 实现与证据](docs/AIGC-DEMO.md) · [订阅生成与本地化](https://github.com/arszs/ozon-ops-crew/blob/feat/cross-border-workspace/docs/SUBSCRIPTION-PIPELINE.md)
+[API 范围](https://github.com/arszs/ozon-ops-crew/blob/main/docs/LIVE-API.md) · [AIGC 实现与证据](docs/AIGC-DEMO.md) · [订阅生成与本地化](https://github.com/arszs/ozon-ops-crew/blob/main/docs/SUBSCRIPTION-PIPELINE.md)
 
 ## 范围与扩展
 

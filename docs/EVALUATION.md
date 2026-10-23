@@ -1,8 +1,10 @@
 # Evidence and contest readiness
 
-Status: **not contest-ready**. The product reads real Ozon data and implements reviewed price/CPO workflows, but a complete real experiment and a paired 10-SKU seller pilot have not been demonstrated. Automated tests and synthetic examples do not establish commercial value.
+Status: **real seller validation incomplete**. Contest edition 2026-10-23 prioritizes the reviewed AIGC content case; the complete real Ozon action experiment is a follow-up, not a prerequisite for measuring content-production time. See [CONTENT-PILOT](CONTENT-PILOT.md).
 
-Verified on 2026-10-15 against the local runtime, source code and published demo. Private store records remain in ignored `runtime/`; no seller identifiers, SKU-level finances or credentials are published here.
+Historical economics assessment: The product reads real Ozon data and implements reviewed price/CPO workflows, but a complete real experiment and a paired 10-SKU seller pilot have not been demonstrated. Automated tests and synthetic examples do not establish commercial value.
+
+The account evidence below was recorded on 2026-10-15; it was not refreshed on 2026-10-23. Current code/build verification is in [RELEASE-VERIFICATION.json](RELEASE-VERIFICATION.json). Historical verification was against the local runtime, source code and published demo. Private store records remain in ignored `runtime/`; no seller identifiers, SKU-level finances or credentials are published here.
 
 ## Evidence by requirement
 

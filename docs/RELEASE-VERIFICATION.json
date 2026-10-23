@@ -1,0 +1,31 @@
+{
+  "edition": "contest-2026-10-23",
+  "verified_on": "2026-10-23",
+  "source_base": "72bf6b0",
+  "scope": "code and synthetic demo; no fresh seller API reads, real generation, marketplace writes or pilot measurements",
+  "tests": {
+    "command": "npm test",
+    "passed": 535,
+    "failed": 0,
+    "skipped": 0
+  },
+  "static_demo": {
+    "build": "npm run demo:build",
+    "serve": "npm run demo:serve",
+    "http_smoke": "passed",
+    "assets_checked": [
+      "index.html",
+      "demo-zh.mjs",
+      "demo-profit.mjs",
+      "demo-zh.css",
+      "aigc-before.png",
+      "aigc-after.png",
+      "xds-brief.zh.txt"
+    ],
+    "private_paths": "404",
+    "POST": "405"
+  },
+  "dependency_note": "Local tests use existing sharp installation; clean dependency installation and CI are verified separately in the final delivery receipt.",
+  "real_case": "unmeasured",
+  "publication": "See GitHub tag/release and accompanying delivery receipt; this file does not establish an organizer save."
+}

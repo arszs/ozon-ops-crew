@@ -1,20 +1,15 @@
-# Submission readiness — verified 2026-10-14
+# Contest edition checklist · 2026-10-23
 
-A published page or passing tests do not establish competition readiness.
+- [x] One AIGC product-materials story across README, Chinese proposal, architecture, safety, Q&A and pitch.
+- [x] Historical simulator material/video explicitly separated; originals retained.
+- [x] Portable public synthetic demo can be built and served without store credentials or online generation.
+- [x] Blank real-case input and paired time/quality recording forms.
+- [ ] Real target seller, rights and allowed disclosure confirmed.
+- [ ] One real reviewed content case completed; manual/assisted attempts measured with quality review.
+- [ ] Ten paired cases completed; incomplete and failed attempts retained.
+- [ ] New current-screen video recorded. The old demo.mp4 is not current.
+- [ ] GitHub edition and Pages publication: see the accompanying delivery receipt for the exact final status.
+- [ ] Organizer text accepted and verified, if amendments allowed.
+- [ ] Owner's presentation time/attendance confirmed with organizer.
 
-- [x] Chinese public demo, with genuine generated artifacts and explicitly synthetic profit arithmetic.
-- [x] Current workspace source is available in `feat/cross-border-workspace` / [PR #1](https://github.com/arszs/ozon-ops-crew/pull/1).
-- [x] [Core Specs and Agent process](SPECS.md), [measurement evidence/limits](EVALUATION.md), [current Chinese walkthrough](DEMO-SCRIPT.zh.md).
-- [x] Real read-only Ozon sources observed locally; keys stay outside published assets.
-- [x] Ten real SKU and their source snapshot prepared privately for a paired pilot.
-- [ ] Target seller profile and current manual process confirmed.
-- [ ] Confirmed SKU costs and paired manual/assisted measurements for ten real products.
-- [ ] One real proposed action, exact human approval, API receipt and readback.
-- [ ] Completed comparable periods and verified contribution result, or measured time saving with commercial effect explicitly unverified.
-- [ ] Same-input comparison with seller's current process and available competitor.
-- [x] Current Specs, walkthrough and measurement-status update synchronized to the organizer repository/submission.
-- [ ] Judge independently repeats the primary Ozon scenario from the current materials.
-
-The organizer README and existing submission were updated and saved on 2026-10-14 with the core Ozon workflow, current AIGC implementation, Specs links and explicitly unmeasured pilot; see [SUBMISSION-LINKS.md](SUBMISSION-LINKS.md). Those saves are not proof that the new core-scenario requirements or measurements are complete. The old 2026-10-11 video shows a historical simulator.
-
-Competition deadlines, attendance and award obligations require checking the current organizer notice before taking a consequential action. Earlier dates/conditions recorded in this repository are historical, not reconfirmed here.
+Code/test/build evidence is in [RELEASE-VERIFICATION.json](RELEASE-VERIFICATION.json). The closed online phase and historical Approved status do not establish permission for amendments. Profit uplift, real image publication and real price/CPO execution remain unverified; do not invent receipts to fill the gaps. [Owner input](OWNER-INPUT.ru.md).

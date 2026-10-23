@@ -1,6 +1,6 @@
 # Ops Crew — core Ozon scenario specification
 
-The target is a Chinese-speaking seller making a justified SKU-level price or advertising decision from real Ozon evidence. The primary outcome is a verified decision and measured contribution, not automatic profit maximization. Existing localization, AIGC and preliminary WB functions remain available.
+Contest priority (2026-10-23): a Chinese-speaking seller turns verified product facts and a buyer objection into reviewed Russian content and an external image-generation brief. See [ARCHITECTURE](ARCHITECTURE.md) and [CONTENT-PILOT](CONTENT-PILOT.md). The table below specifies the optional Ozon economics/action pipeline, not a prerequisite for the content case. Content-production time saving and commercial contribution are measured separately. Preliminary WB functions remain available.
 
 ## User path and contracts
 
@@ -49,7 +49,7 @@ Adapters, gates, deterministic calculations and synthetic end-to-end tests are i
 ## Reproduce the current workspace
 
 ```sh
-git clone --branch feat/cross-border-workspace https://github.com/arszs/ozon-ops-crew.git
+git clone --branch contest-2026-10-23 https://github.com/arszs/ozon-ops-crew.git
 cd ozon-ops-crew
 npm ci
 npm test

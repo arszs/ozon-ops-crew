@@ -1,0 +1,1 @@
+case_id,input_sha256,mode_manual_or_assisted,order,participant_alias,started_at,active_seconds,elapsed_seconds,correction_count,correction_notes,facts_pass,appearance_pass,russian_pass,rights_pass,reviewer_alias,quality_accepted,actual_cost,currency,cost_basis,artifact_reference,timer_log_reference,status,notes

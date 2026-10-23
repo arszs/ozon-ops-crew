@@ -1,3 +1,5 @@
+> Historical / exploratory reference. For the 2026-10-23 contest edition use [CONTEST-RELEASE.md](CONTEST-RELEASE.md), [ARCHITECTURE.md](ARCHITECTURE.md) and [COMPLIANCE.md](COMPLIANCE.md). Models and future designs below are not measured seller results or deployed production features.
+
 # 业务价值模型 / Business value model
 
 评审规则要求「效益数据具有可信依据」。本文件给出一个**可复现**的价值模型：用真实的决策引擎跑一个固定随机种子的合成卖家组合，聚合引擎决策所处理的价值敞口。

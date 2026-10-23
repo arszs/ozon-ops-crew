@@ -6,7 +6,9 @@
   "description": "Chinese seller workspace with gated marketplace migration and store operations",
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "demo:build": "node scripts/build-public-demo.mjs",
+    "demo:serve": "node scripts/serve-public-demo.mjs"
   },
   "engines": {
     "node": ">=22.13"

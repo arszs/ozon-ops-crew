@@ -1,3 +1,5 @@
+> Historical / exploratory reference. For the 2026-10-23 contest edition use [CONTEST-RELEASE.md](CONTEST-RELEASE.md), [ARCHITECTURE.md](ARCHITECTURE.md) and [COMPLIANCE.md](COMPLIANCE.md). Models and future designs below are not measured seller results or deployed production features.
+
 # Площадки и API-адаптеры
 
 Ozon — основной сценарий продукта: китайский интерфейс, подготовка русских карточек, экономика SKU и проверка ценовых/рекламных гипотез. Amazon, Shopify, Wildberries и TikTok Shop — направления расширения через отдельные API-адаптеры.
