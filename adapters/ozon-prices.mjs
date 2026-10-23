@@ -1,3 +1,4 @@
+import {withProductMutation} from '../core/product-mutation-lock.mjs';
 import {ozonCall} from './ozon-products.mjs';
 import {catalogueProduct} from './ozon-catalogue.mjs';
 import {credentials} from '../ozon.mjs';
@@ -33,7 +34,8 @@ export function priceBody(context,target){
  const productId=Number(context.productId);if(!Number.isSafeInteger(productId)||productId<=0)throw Error('Invalid product ID');
  return {prices:[{product_id:productId,price:target.toFixed(2),currency_code:'RUB',old_price:String(context.oldPrice),vat:context.vat,auto_add_to_ozon_actions_list_enabled:'UNKNOWN',price_strategy_enabled:'UNKNOWN'}]};
 }
-export async function submitPrice(store,op,{read=readPrice,call=ozonCall}={}){
+export function submitPrice(store,op,options={}){const c=op.payload?.context;return withProductMutation(c?.accountRef,c?.productId,()=>submitPriceLocked(store,op,options));}
+async function submitPriceLocked(store,op,{read=readPrice,call=ozonCall}={}){
  let current;try{current=await read(store,op.payload.sku);if(current.fingerprint!==op.payload.context.fingerprint||hash(priceBody(current,op.payload.target))!==hash(op.payload.apiBody))throw Error('平台价格或条件已变化，请重新拟定并确认');}catch(e){e.noWrite=true;throw e;}
  const d=await call(store,'/v1/product/import/prices',op.payload.apiBody,{write:true});
  if(!Array.isArray(d.result)||d.result.length!==1||String(d.result[0].product_id)!==current.productId||d.result[0].offer_id!==current.offerId)throw Error('Price receipt identity unknown');

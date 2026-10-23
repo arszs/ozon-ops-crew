@@ -1,3 +1,4 @@
+import {completedStrategyPriceTrials} from './strategy-trials.mjs';
 import {StrategyService} from './strategy-service.mjs';
 import {OzonStrategyAdapter} from '../adapters/ozon-strategy.mjs';
 import {OzonReviewAgent} from '../adapters/ozon-review-agent.mjs';
@@ -42,7 +43,7 @@ export async function createWorkspaceAPI(root,live){
  const advertising=new AdReadingService(join(root,'runtime/advertising.json'));await advertising.ready;
  const monitoring=new AdMonitor(join(root,'runtime/ad-monitoring.json'),{workspace:ws,advertising});await monitoring.ready;monitoring.start();
  const finance=new FinanceService(join(root,'runtime/finance.json'));await finance.ready;
- const strategyAdapter=new OzonStrategyAdapter({reviews:new OzonReviewAgent(),live:()=>live.get().data});
+ const strategyAdapter=new OzonStrategyAdapter({reviews:new OzonReviewAgent(),financial:store=>finance.list([store]),trialReader:async(store,policy)=>{const [db,readings,ads]=await Promise.all([ws.repo.read(),finance.list([store]),advertising.list([store])]);return completedStrategyPriceTrials(db,policy,{finance:readings,advertising:ads});},verifiedLive:()=>live.verified(),live:()=>live.get().data});
  const strategies=new StrategyService(join(root,'runtime/strategies.json'),{workspace:ws,adapter:strategyAdapter});await strategies.ready;strategies.start();
  return async(req,res,url)=>{
   const parts=url.pathname.split('/').filter(Boolean);if(parts[0]!=='api'||parts[1]!=='workspace')return false;
@@ -54,6 +55,7 @@ export async function createWorkspaceAPI(root,live){
    const [, ,resource,id,action,index]=parts;
    const body=await workspaceBody(req,{resource,id,action});
    if(req.method==='GET'){
+    if(resource==='agents'&&id==='campaigns')return send(await strategies.campaignChoices(url.searchParams.get('storeId'),url.searchParams.get('sku')));
     if(resource==='agents'&&!id)return send(await strategies.view());
     if(resource==='studio')return send(id?await studio.refresh(id):await studio.list());
     if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&['ozon','wb'].includes(s.marketplace)).map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));view.wbFinance=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbFinance.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 财务连接不可用'}];}})));view.wbAds=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbAds.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 广告连接不可用'}];}})));view.adMonitors=await monitoring.list();view.adMonitorWorker=monitoring.status;view.adReadings=await advertising.list(view.stores.map(s=>ws.resolveStore(db,s.id)));view.financeReadings=await finance.list(view.stores.map(s=>ws.resolveStore(db,s.id)));for(const t of view.trials)if(t.source==='api_accruals_seller_costs')t.sourceStatus=ledgerTrialStatus(t,view.financeReadings,view.adReadings,view.trialPlans.find(p=>p.id===t.planId));for(const t of view.trials)if(t.source==='wb_reports_seller_costs'){try{t.sourceStatus=await wbTrials.status(ws.resolveStore(db,t.storeId),db.trialPlans?.find(p=>p.id===t.planId),t);}catch{t.sourceStatus='unavailable';}}return send(view);}
@@ -83,6 +85,7 @@ export async function createWorkspaceAPI(root,live){
    if(req.method==='POST'){
     if(resource==='agents'&&id==='preview')return send(strategies.preview(body));
     if(resource==='agents'&&id==='policies'&&!action)return send(await strategies.configure(body));
+    if(resource==='agents'&&id==='pause-policy')return send(await strategies.pausePolicy(body.policyId));
     if(resource==='agents'&&id==='pause')return send(await strategies.pause(body.paused));
     if(resource==='agents'&&id==='acknowledge')return send(await strategies.acknowledge(body.ids));
     if(resource==='agents'&&id==='refresh'){await strategies.refreshStore(body.storeId);return send(await strategies.view());}

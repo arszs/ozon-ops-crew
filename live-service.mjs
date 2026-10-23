@@ -28,7 +28,7 @@ export async function createLiveService(root,{sync=synchronizeLive,getCredential
    state='ready';lastAttempt.state='ready';progress='Данные обновлены';
   })().catch(e=>{state='error';error=code(e.message);lastAttempt.state='failed';lastAttempt.error=error;failures++;nextRefreshAt=Math.max(nextRefreshAt,now()+Math.min(ttlMs,retryBaseMs*2**Math.min(failures-1,6)));progress='Не удалось обновить данные';}).finally(()=>{lastAttempt.finishedAt=new Date(now()).toISOString();checkingAccount=false;pending=null;});
  }
- return {get(force=false){
+ return {async verified(force=false){const current=await account();if(current!==accountRef){data=null;accountRef=current;nextRefreshAt=0;state=pending?'syncing':'idle';if(!pending)lastAttempt=null;}return this.get(force);},get(force=false){
   const stamp=Date.parse(data?.fetchedAt),outdated=!data||!Number.isFinite(stamp)||data.period.to!==lastCompleteWeek(new Date(now())).to||now()-stamp>=ttlMs;
   if((force||outdated||state==='error')&&now()>=nextRefreshAt)refresh();
   const due=Math.max(nextRefreshAt,state==='error'||!Number.isFinite(stamp)?now():stamp+ttlMs);

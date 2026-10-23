@@ -1,7 +1,7 @@
 import entries from './ui-messages.mjs';
-import {createTranslator,LANGUAGES,LANGUAGE_KEY} from './i18n-core.mjs';
+import {createTranslator,LANGUAGES,LANGUAGE_KEY,preferredLanguage} from './i18n-core.mjs';
 const translate=createTranslator(entries),textRecords=new WeakMap(),attributeRecords=new WeakMap();
-function savedLanguage(){try{const v=localStorage.getItem(LANGUAGE_KEY);return LANGUAGES.includes(v)?v:'ru';}catch{return 'ru';}}
+function savedLanguage(){const browser=globalThis.navigator?.languages||[globalThis.navigator?.language];try{return preferredLanguage(localStorage.getItem(LANGUAGE_KEY)||localStorage.getItem('ops-lang'),browser);}catch{return preferredLanguage(null,browser);}}
 let language=savedLanguage(),scheduled=false;const ownValidation=new Set();
 const excluded='script,style,code,pre,textarea,[contenteditable], [data-no-i18n], [data-language-control], [lang="ru"]:not(html)';
 export const currentLanguage=()=>language;

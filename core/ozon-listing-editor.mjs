@@ -1,3 +1,5 @@
+import {withProductMutation} from './product-mutation-lock.mjs';
+import {priceAccount} from '../adapters/ozon-prices.mjs';
 import {ozonCall} from '../adapters/ozon-products.mjs';
 import {publishPublicImages} from '../adapters/public-media.mjs';
 import {hash,audit} from './repository.mjs';
@@ -24,11 +26,13 @@ export async function editOzonMainImage(w,id,input,{call=ozonCall,publish=publis
  return w.repo.mutate(db=>{const j=find(db,id);j.newMainImage={assetId:input.assetId,url:media.urls[0],expectedCount:body.images.length};return j;});
 }
 async function price(c,call){const d=await call(c.store,'/v5/product/info/prices',{filter:{product_id:[String(c.productId)],visibility:'ALL'},limit:1,cursor:''});const item=d.items?.find(p=>Number(p.product_id)===c.productId&&p.offer_id===c.j.canonical.sku);if(!item?.price)throw Error('无法核对平台价格');return item.price;}
-export async function editOzonPrice(w,id,input,{call=ozonCall}={}){const c=await context(w,id);await product(c,call);const p=await price(c,call),target=Number(input.price);if(p.currency_code!=='CNY'||!Number.isFinite(target)||target<=0||Math.abs(target*100-Math.round(target*100))>1e-7||Number(p.old_price)>0&&target>=Number(p.old_price))throw Error('请核对 CNY 目标价和现有划线价');
+export async function editOzonPrice(w,id,input,options={}){const c=await context(w,id);return withProductMutation(await (options.account||priceAccount)(c.store),String(c.productId),()=>editOzonPriceLocked(w,id,input,options));}
+async function editOzonPriceLocked(w,id,input,{call=ozonCall}={}){const c=await context(w,id);await product(c,call);const p=await price(c,call),target=Number(input.price);if(p.currency_code!=='CNY'||!Number.isFinite(target)||target<=0||Math.abs(target*100-Math.round(target*100))>1e-7||Number(p.old_price)>0&&target>=Number(p.old_price))throw Error('请核对 CNY 目标价和现有划线价');
  if(Number(p.price)!==target){const body={prices:[{product_id:c.productId,price:target.toFixed(2),currency_code:p.currency_code,vat:String(p.vat),old_price:String(p.old_price),auto_add_to_ozon_actions_list_enabled:'UNKNOWN',price_strategy_enabled:'UNKNOWN'}]};await write(w,id,'price',body,async()=>{const r=await call(c.store,'/v1/product/import/prices',body,{write:true});if(!r.result?.some(x=>Number(x.product_id)===c.productId&&x.updated===true&&!(x.errors||[]).length))throw Error('Цена не подтверждена, проверьте результат');return r;});}
  const observed=await price(c,call);if(Number(observed.price)!==target)throw Error('Новая цена ещё не подтверждена Ozon; остаток пока не менялся');return w.repo.mutate(db=>{const j=find(db,id);j.livePrice={price:target.toFixed(2),currency:'CNY',observed:true,marketingPrice:observed.marketing_seller_price};return j;});
 }
-export async function editOzonStock(w,id,input,{call=ozonCall}={}){const c=await context(w,id);await product(c,call);const quantity=Number(input.stock),warehouseId=Number(input.warehouseId),p=await price(c,call);
+export async function editOzonStock(w,id,input,options={}){const c=await context(w,id);return withProductMutation(await (options.account||priceAccount)(c.store),String(c.productId),()=>editOzonStockLocked(w,id,input,options));}
+async function editOzonStockLocked(w,id,input,{call=ozonCall}={}){const c=await context(w,id);await product(c,call);const quantity=Number(input.stock),warehouseId=Number(input.warehouseId),p=await price(c,call);
  if(!Number.isInteger(quantity)||quantity<0||quantity>100000||!Number.isSafeInteger(warehouseId))throw Error('请填写真实库存与仓库');
  const configured=c.j.listingCheck?.warehouses.find(x=>Number(x.id)===warehouseId&&x.type==='rfbs'&&x.status!=='disabled');if(!configured)throw Error('请先核对自有有效仓库');
  if(!c.j.livePrice?.observed||Number(p.price)!==Number(c.j.livePrice.price)||Number(p.marketing_seller_price)>0&&Number(p.marketing_seller_price)<Number(c.j.livePrice.price))throw Error('Сначала подтвердите повышенную цену и проверьте акционную цену');

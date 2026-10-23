@@ -20,3 +20,4 @@ export function createTranslator(entries){
   if(translated===undefined)return raw;const leading=raw.match(/^\s*/)?.[0]||'',trailing=raw.match(/\s*$/)?.[0]||'';return leading+translated+trailing;
  };
 }
+export function preferredLanguage(saved,languages=[]){if(LANGUAGES.includes(saved))return saved;for(const locale of languages){const code=String(locale).toLowerCase().split(/[-_]/)[0];if(LANGUAGES.includes(code))return code;}return 'ru';}
