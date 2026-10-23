@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {assessStore,unitEconomics} from '../core/assessment.mjs';
+const e={priceRub:1000,unitCost:400,costCurrency:'RUB',commissionPct:20,logisticsRub:50,adsRub:50,taxPct:5,returnsRub:25};
+const url='https://shop123456.taobao.com';
+test('assortment evaluates each SKU independently of a profitable average and separately for each platform',()=>{const a=assessStore({url,ozon:e,wb:e,products:[{sku:'A',targets:{ozon:e,wb:{...e,unitCost:900}}},{sku:'B'}]});assert.deepEqual(a.targets.ozon.sampleSummary,{candidates:1,revise:0,missing:1});assert.deepEqual(a.targets.wb.sampleSummary,{candidates:0,revise:1,missing:1});assert.equal(a.products[1].targets.ozon.verdict,'needs_data');assert.equal(a.sourceFetched,false);assert.equal(a.evidence.at(-1).value[0].targets.ozon.unitCost,400);});
+test('per-order ad allowance preserves 15% contribution and is not a CPC bid',()=>{const r=unitEconomics(e);assert.equal(r.unitProfit,225);assert.equal(r.maxAdPerOrderAt15Pct,125);assert.equal(unitEconomics({...e,adsRub:125}).marginPct,15);assert.ok(unitEconomics({...e,unitCost:900}).maxAdPerOrderAt15Pct<0);});
+test('duplicates, malformed sample and missing cost must not produce fabricated candidates',()=>{for(const products of [{},[null],[{sku:'A'},{sku:' A '}],[{sku:''}]])assert.throws(()=>assessStore({url,products}));assert.equal(unitEconomics({...e,unitCost:' '}).complete,false);assert.throws(()=>unitEconomics({...e,unitCost:false}));});

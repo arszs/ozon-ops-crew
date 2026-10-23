@@ -1,3 +1,5 @@
+> Historical / exploratory reference. For the 2026-10-23 contest edition use [CONTEST-RELEASE.md](CONTEST-RELEASE.md), [ARCHITECTURE.md](ARCHITECTURE.md) and [COMPLIANCE.md](COMPLIANCE.md). Models and future designs below are not measured seller results or deployed production features.
+
 # 规模化方案：服务数千中国跨境卖家 / Scaling to thousands of sellers
 
 评审规则「创新性与可扩展性」要求说明方案能否复制到更多品牌、市场、平台与业务场景。本文件给出从当前原型到多租户服务的具体路径。当前原型为单机浏览器演示；以下为生产设计，按阶段实施，不声称已经实现。

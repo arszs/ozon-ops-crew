@@ -17,9 +17,8 @@ const SELLERS=200, SKUS_PER_SELLER=50; // 10,000 SKU portfolio — the scale tar
 const POLICY=defaults;
 
 function makeSku(sellerIdx,skuIdx){
- const fx=12.5; // RUB per CNY, fixed for reproducibility
- const purchaseCny=pick(8,120);
- const price=Math.round(purchaseCny*fx*pick(1.6,2.8));
+ const unitCost=pick(100,1500);
+ const price=Math.round(unitCost*pick(1.6,2.8));
  const dailyDemand=Math.round(pick(0.2,8)*10)/10;
  const stock=pickInt(0,Math.max(10,dailyDemand*pickInt(20,120)));
  const settled=rnd()>0.08; // ~8% of observation rows unsettled
@@ -32,8 +31,8 @@ function makeSku(sellerIdx,skuIdx){
  });
  return {
   id:`S${sellerIdx}-SKU${skuIdx}`,name:`Synth ${sellerIdx}/${skuIdx}`,scheme:rnd()>0.4?'FBO':'FBS',
-  price,purchaseCny:Math.round(purchaseCny*100)/100,fx,
-  inbound:pickInt(40,180),fulfilment:pickInt(60,220),packaging:pickInt(10,40),returnReserve:pickInt(15,60),
+  price,unitCost:Math.round(unitCost*100)/100,
+  fulfilment:pickInt(60,220),packaging:pickInt(10,40),returnReserve:pickInt(15,60),
   commission:pick(0.05,0.15),stock,dailyDemand,
   incomingDays:rnd()>0.5?pickInt(5,25):0,incomingQty:rnd()>0.5?pickInt(20,200):0,
   storageDay:Math.round(pick(0.4,4)*100)/100,seasonFactor:pick(0.8,1.6),historyDays:pickInt(10,400),

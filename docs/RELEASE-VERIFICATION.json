@@ -1,0 +1,33 @@
+{
+  "edition": "contest-2026-10-23",
+  "verified_on": "2026-10-23",
+  "source_base": "72bf6b0",
+  "scope": "code and synthetic demo; no fresh seller API reads, real generation, marketplace writes or pilot measurements",
+  "tests": {
+    "command": "npm test",
+    "passed": 535,
+    "failed": 0,
+    "skipped": 0
+  },
+  "static_demo": {
+    "build": "npm run demo:build",
+    "serve": "npm run demo:serve",
+    "http_smoke": "passed",
+    "assets_checked": [
+      "index.html",
+      "demo-zh.mjs",
+      "demo-profit.mjs",
+      "demo-zh.css",
+      "aigc-before.png",
+      "aigc-after.png",
+      "xds-brief.zh.txt"
+    ],
+    "private_paths": "404",
+    "POST": "405"
+  },
+  "dependency_note": "Clean npm ci completed; 535 tests passed afterward. GitHub checks for the prepared head passed; exact run URLs and final publication are in the accompanying delivery receipt.",
+  "real_case": "unmeasured",
+  "publication": "See GitHub tag/release and accompanying delivery receipt; this file does not establish an organizer save.",
+  "syntax_modules_checked": 117,
+  "material_links": "current contest entry points checked; all local targets resolve"
+}

@@ -1,0 +1,20 @@
+{
+  "status": "unmeasured",
+  "case_id": null,
+  "sku_private": null,
+  "source_card_reference": null,
+  "source_image_reference": null,
+  "verified_facts": {},
+  "buyer_objection_redacted": null,
+  "objection_source_type": null,
+  "rights_confirmed": null,
+  "external_processing_allowed": null,
+  "selected_provider": null,
+  "judge_display_allowed": null,
+  "public_display_allowed": false,
+  "participant_role": null,
+  "participant_experience": null,
+  "usual_tools": null,
+  "russian_reviewer": null,
+  "source_snapshot_sha256": null
+}

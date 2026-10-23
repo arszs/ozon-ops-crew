@@ -1,3 +1,5 @@
+> Historical / exploratory reference. For the 2026-10-23 contest edition use [CONTEST-RELEASE.md](CONTEST-RELEASE.md), [ARCHITECTURE.md](ARCHITECTURE.md) and [COMPLIANCE.md](COMPLIANCE.md). Models and future designs below are not measured seller results or deployed production features.
+
 # 历史原型资料 / История прототипа
 
 Архив старого README. Возможности, метрики, сроки и видео ниже относятся к прошлым версиям, не описывают текущий продукт. Актуальный статус: [EVALUATION.md](EVALUATION.md), [SPECS.md](SPECS.md). Старые относительные ссылки сохранены как в оригинале.

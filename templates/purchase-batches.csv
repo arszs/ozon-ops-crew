@@ -1,2 +1,2 @@
-batch_id,sku,purchase_date,quantity,purchase_total_cny,fx_rub_per_cny,fx_date,inbound_total_rub,other_total_rub,expected_arrival,status
-DEMO-B001,CN-001,2026-10-01,100,6200,12.5,2026-10-01,16000,0,2026-11-01,planned
+batch_id,sku,date,quantity,unit_cost_rub,expected_arrival,status
+DEMO-B001,CN-001,2026-10-01,100,775,2026-11-01,planned
