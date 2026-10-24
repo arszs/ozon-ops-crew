@@ -115,6 +115,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='studio'&&action==='enhance-media')return send(await studio.enhanceMedia(id,body));
     if(resource==='studio'&&action==='repair-content')return send(await studio.repairContent(id));
     if(resource==='studio'&&action==='repair-manufacturer')return send(await studio.repairManufacturer(id));
+    if(resource==='studio'&&action==='correct-brand')return send(await studio.correctBrand(id,body));
     if(resource==='studio'&&action==='document-facts')return send(await studio.documentFacts(id,body));
     if(resource==='studio'&&action==='redesign')return send(await studio.redesign(id,body));
     if(resource==='studio'&&action==='recheck-sources')return send(await studio.recheckResearch(id));
