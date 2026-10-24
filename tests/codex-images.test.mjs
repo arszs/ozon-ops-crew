@@ -84,7 +84,7 @@ test('missing or malformed output never exposes raw provider output',async t=>{
 });
 
 test('outside, missing, stale and symlinked outputs fail path verification without leaking paths',async t=>{
- const cases={outside:"const path=join(root,'outside.png');await writeFile(path,'image');",missing:"const path=join(root,'generated_images','missing.png');",stale:"const path=join(root,'generated_images','stale.png');await writeFile(path,'image');await utimes(path,new Date(0),new Date(0));",symlink:"const original=join(root,'outside.png'),path=join(root,'generated_images','linked.png');await writeFile(original,'image');await symlink(original,path);"};
+ const cases={outside:"const path=join(root,'outside.png');await writeFile(path,'image');",missing:"const path=join(root,'generated_images','missing.png');",stale:"const path=join(root,'generated_images','stale.png');await writeFile(path,'image');await utimes(path,new Date(0),new Date(0));",symlink:"const original=join(root,'outside.png'),path=join(root,'generated_images','linked.png');await writeFile(original,'image');await symlink(original,path).catch(e=>{if(e.code!=='EEXIST')throw e;});"};
  for(const [name,body] of Object.entries(cases))await t.test(name,async sub=>{
   const f=await fixture(sub,body+'await writeFile(out,JSON.stringify({imagePath:path}));');await failed(localizeSourceImage(input,f.options),'invalid_output_path',{exitCode:0,signal:null});
  });
@@ -97,4 +97,20 @@ test('spawn failures do not expose binary paths and do not retry',async()=>{
 test('errors crossing the adapter boundary always receive a fixed safe message',async t=>{
  const f=await fixture(t,"const path=join(root,'generated_images','image.png');await writeFile(path,'image');await writeFile(out,JSON.stringify({imagePath:path}));");
  await failed(localizeSourceImage(input,{...f.options,save:async()=>{throw Object.assign(Error(secret+' /private/secret-file'),{sourceCode:'invalid_output',retryable:true});}}),'invalid_output',{exitCode:0,signal:null});
+});
+
+
+test('an invalid generated path is retried once without accepting outside or old files',async t=>{
+ const f=await fixture(t,`
+const {readFile}=await import('node:fs/promises');
+let count=0;try{count=Number(await readFile(join(root,'attempts'),'utf8'));}catch{}
+await writeFile(join(root,'attempts'),String(count+1));
+const path=join(root,count?'generated_images':'outside',count?'fresh.png':'unverified.png');
+await mkdir(join(root,'outside'),{recursive:true});await writeFile(path,'generated-image');
+await writeFile(out,JSON.stringify({imagePath:path}));
+emit({type:'item.completed',item:{type:'image_generation'}});
+`);
+ const r=await localizeSourceImage(input,f.options);
+ assert.equal(r.assetId,'saved-image');assert.equal(r.outputVerified,true);
+ assert.equal(await readFile(join(f.root,'attempts'),'utf8'),'2');
 });
