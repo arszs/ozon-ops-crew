@@ -28,3 +28,9 @@ test('Chinese marketing and photos of another color still take the localization 
  for(const analysis of [{...row.analysis,textZh:'中文营销'},{...row.analysis,otherColor:true}])await composeMediaPack([{...row,analysis}],{edit:async()=>{edits++;return a;},run:async request=>{reviews++;assert.equal(request.images.length,2);return {output:approved};}});
  assert.equal(edits,2);assert.equal(reviews,2);
 });
+
+test('thin Taobao layout slices stay archived and never generate a rich image',async t=>{
+ const {row}=await fixture(t),strip=await saveImage(await sharp({create:{width:1500,height:19,channels:3,background:'white'}}).png().toBuffer());let edits=0;
+ const result=await composeMediaPack([row,{...row,key:'strip',role:'detail',selected:false,assetId:strip.assetId}],{edit:async()=>{edits++;throw Error('layout strip must not generate');},run:async()=>({output:{...approved,keepOriginal:true}})});
+ assert.equal(edits,0);assert.equal(result.images.length,1);assert.equal(result.richImages.length,0);assert.equal(result.sourceCount,2);assert.equal(result.excluded[0].key,'strip');assert.match(result.excluded[0].reason,/фрагмент/);
+});
