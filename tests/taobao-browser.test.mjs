@@ -23,6 +23,17 @@ test('source images without a public URL cannot trigger a guessed download',asyn
  await assert.rejects(captureTaobaoSource(url,{root,platform:'darwin',pause:async()=>{},fetchPage:async()=>{throw Error('shell');},download:async()=>{downloads++;return Buffer.from('image');},script:async code=>{if(code.includes('make new window'))return '101\n102';if(code.includes('save captureTab')){const path=JSON.parse(code.match(/POSIX file ("[^\n]+") as/)[1]);await writeFile(path,html.replace(' data-original="https://img.alicdn.com/photo.jpg"',''));return url;}return '';}}),e=>e.capture?.sourceIssue==='images_unavailable');assert.equal(downloads,0);
 });
 
+test('Chrome export can create its HTML after more than forty seconds without stopping the import',async t=>{
+ const root=await mkdtemp(join(tmpdir(),'native-slow-save-'));t.after(()=>rm(root,{recursive:true,force:true}));let path,waitMs=0,closed=false;
+ const result=await captureTaobaoSource(url,{root,platform:'darwin',fetchPage:async()=>{throw Error('shell');},pause:async ms=>{waitMs+=ms;if(waitMs===45000){await mkdir(join(dirname(path),'source_files'));await writeFile(path,html);await writeFile(join(dirname(path),'source_files','photo.jpg'),'image');}},save:async()=>({assetId:'a'.repeat(64)}),script:async code=>{if(code.includes('make new window'))return '101\n102';if(code.includes('save captureTab')){path=JSON.parse(code.match(/POSIX file ("[^\n]+") as/)[1]);return url;}if(code.includes('close captureTab'))closed=true;return '';}});
+ assert.equal(waitMs,45000);assert.equal(result.capture.state,'verified');assert.equal(result.files.length,1);assert.equal(closed,true);
+});
+
+test('missing Chrome export has a bounded timeout and an accurate save error',async t=>{
+ const root=await mkdtemp(join(tmpdir(),'native-save-timeout-'));t.after(()=>rm(root,{recursive:true,force:true}));let waitMs=0;
+ await assert.rejects(captureTaobaoSource(url,{root,platform:'darwin',fetchPage:async()=>{throw Error('shell');},pause:async ms=>{waitMs+=ms;},script:async code=>code.includes('make new window')?'101\n102':url}),e=>e.capture?.sourceIssue==='save_timeout'&&e.message.includes('сохранение страницы'));assert.equal(waitMs,120000);
+});
+
 test('an unselected URL chooses the first explicitly available SKU, reloads it and excludes unrelated saved UI images',async t=>{
  const root=await mkdtemp(join(tmpdir(),'native-variant-'));t.after(()=>rm(root,{recursive:true,force:true}));const bare='https://item.taobao.com/item.htm?id=123',data={skuBase:{props:[{pid:'1',name:'款式',values:[{vid:'8',name:'Нет в наличии'},{vid:'9',name:'标准版'}]}],skus:[{skuId:'455',propPath:'1:8'},{skuId:'456',propPath:'1:9'}]},skuCore:{sku2info:{455:{quantity:0},456:{quantity:2}}}},scriptData='<script>window.product='+JSON.stringify(data)+'</script>';let saves=0,selectedURL;const requests=[];
  const result=await captureTaobaoSource(bare,{root,platform:'darwin',pause:async()=>{},fetchPage:async()=>{throw Error('shell');},save:async()=>({assetId:'a'.repeat(64)}),script:async code=>{requests.push(code);if(code.includes('make new window'))return '101\n102';if(code.includes('to set URL')){selectedURL=JSON.parse(code.match(/ to ("https:[^\n]+")$/)[1]);return '';}
