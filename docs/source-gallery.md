@@ -55,3 +55,11 @@ For Taobao pages without separate product-description images, Studio reuses alre
 ### Owner-selected draft category and copy edits
 
 `POST /api/workspace/studio/:id/edit-draft` accepts `expectedHash`, an optional `{categoryId,typeId}` category, and an optional Russian `description`. It changes only a ready, unsent draft; the exact type must exist in the live seller tree. Selection is bound to the source product and included in the review hash. Earlier content and category versions are retained. Submitted jobs, pending media work and stale reviews remain blocked. Owner-edited copy is also preserved by the subsequent rich-content preparation instead of being overwritten by automatic copy expansion. Source evidence, photos, price and stock remain untouched.
+
+### Quark dictionary disambiguation and catalogue audience (2026-10-24)
+
+Two exact `Quark` values are returned by the live Ozon dictionary: `971334830` (no image) and `972200296` (an appliance image). The latter's dictionary picture was inspected: a metal meat grinder bearing a separate Q/QUARK mark, unrelated to the supplied Alibaba/夸克 glasses. The selected record for this import is `971334830`. This is a researched identification by elimination, retained with its reasoning in `brandSelection`; the blank picture alone is not evidence. The dictionary picture URL is `https://cdn1.ozonusercontent.com/s3/product-service-meta-media/987c983e-efb3-4a25-b29f-4305111292c2.png`; the brand's first-party website is `https://www.quark.cn/`.
+
+`edit-draft` now accepts a reviewed brand record and reason. A record must have the same source-brand spelling/known alias, exist in the current category dictionary and remain bound to the product and category. The normal ambiguous-brand guard remains active unless such a selection exists. The selected record is included in the review hash and revalidated during mapping; it cannot authorize an unrelated brand.
+
+The ordinary glasses type requires audience attribute `9163`, a collection of up to two values, with no `Unisex` dictionary value. The reviewed catalogue audience uses both adult entries (`22880` Male, `22881` Female), retained separately from manufacturer/source facts. No child audience, dimensions, certifications, or technical specifications are inferred from this classification. Review-hash and live-dictionary guards also cover this selection.
