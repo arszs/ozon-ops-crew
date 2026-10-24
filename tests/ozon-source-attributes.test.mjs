@@ -12,3 +12,12 @@ test('semantic dictionary resolution uses only returned IDs and selected photo c
  assert.equal(result.attributes[0].values[0].dictionary_value_id,61704);assert.equal(result.attributes[1].evidence.kind,'selected-photo');assert.equal(result.attributes[1].evidence.assetId,ref);
  const bad=await sourceBackedOptionalAttributes({}, {...input,inventory:[]},{run:async request=>({output:request.prompt.startsWith('Choose')?{id:123456}:{attributes:[{id:6383,valueRu:'Поликарбонат',evidenceZh:'PC/ABS'}]}}),call:async()=>({result:[{id:9,value:'Пластик'}]})});assert.equal(bad.attributes.length,0);
 });
+
+
+test('single-character dictionary values use enumeration and a failed optional dictionary does not discard other verified attributes',async()=>{
+ const {attributeValues}=await import('../adapters/ozon-products.mjs');
+ for(const query of ['1','г','😀']){await attributeValues({}, {categoryId:1,typeId:2,attributeId:3,query},async(s,path,body)=>{assert.ok(path.endsWith('/attribute/values'));assert.equal(body.value,undefined);return {result:[{id:7,value:query}]};});}
+ const input={product:{descriptionZh:'型号：S200。材质：钢化玻璃。'},schema:{categoryId:1,typeId:2,attributes:[{id:10,name:'Модель',type:'String'},{id:11,name:'Материал',dictionary_id:1}]}};
+ const result=await sourceBackedOptionalAttributes({},input,{run:async()=>({output:{attributes:[{id:10,valueRu:'S200',evidenceZh:'S200'},{id:11,valueRu:'Закалённое стекло',evidenceZh:'钢化玻璃'}]}}),call:async()=>{throw Error('Ozon HTTP 503');}});
+ assert.deepEqual(result.attributes.map(a=>a.id),[10]);assert.equal(result.unfilled[0].id,11);
+});

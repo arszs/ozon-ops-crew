@@ -28,7 +28,9 @@ export async function categoryAttributes(store,categoryId,typeId,call=ozonCall){
 export async function attributeValues(store,{categoryId,typeId,attributeId,query='',lastValueId=0},call=ozonCall){
  const body={description_category_id:Number(categoryId),type_id:Number(typeId),attribute_id:Number(attributeId),limit:100};
  for(const n of [body.description_category_id,body.type_id,body.attribute_id])if(!Number.isSafeInteger(n)||n<=0)throw Error('Invalid dictionary identifier');
- const d=query?await call(store,'/v1/description-category/attribute/values/search',{...body,value:String(query).slice(0,100)}):await call(store,'/v1/description-category/attribute/values',{...body,last_value_id:Number(lastValueId),language:'RU'});
+ const term=String(query).trim();
+ // Ozon search requires at least two Unicode code points; short dictionary values use enumeration.
+ const d=Array.from(term).length>=2?await call(store,'/v1/description-category/attribute/values/search',{...body,value:Array.from(term).slice(0,100).join('')}):await call(store,'/v1/description-category/attribute/values',{...body,last_value_id:Number(lastValueId),language:'RU'});
  return {items:d.result||[],hasNext:d.has_next??null,source:'Ozon attribute values'};
 }
 export async function validateMapping(store,mapping,call=ozonCall){

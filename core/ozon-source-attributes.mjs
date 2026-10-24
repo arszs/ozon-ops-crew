@@ -35,7 +35,7 @@ export async function sourceBackedOptionalAttributes(store,{product,inventory=[]
   value=numericValue(value,a.evidenceZh,def);if(value===null)continue;
   if(!['integer','decimal','number'].includes(String(def.type).toLowerCase())&&(value.match(/\d+(?:[.,]\d+)?/g)||[]).some(n=>!(a.evidenceZh.match(/\d+(?:[.,]\d+)?/g)||[]).map(v=>v.replace(',','.')).includes(n.replace(',','.'))))continue;
   seen.add(a.id);let entry={value};
-  if(def.dictionary_id){entry=await dictionaryEntry(store,schema,def,value,a.evidenceZh,{run,call,known:dictionaries.get(def.id)||[]});if(!entry){unfilled.push({id:a.id,name:def.name,reason:'Нет однозначного подтверждённого значения справочника'});continue;}}
+  if(def.dictionary_id){try{entry=await dictionaryEntry(store,schema,def,value,a.evidenceZh,{run,call,known:dictionaries.get(def.id)||[]});}catch(e){unfilled.push({id:a.id,name:def.name,reason:'Не удалось проверить справочник: '+String(e.message).slice(0,180)});continue;}if(!entry){unfilled.push({id:a.id,name:def.name,reason:'Нет однозначного подтверждённого значения справочника'});continue;}}
   else if(String(def.type).toLowerCase()==='boolean'&&!['true','false'].includes(value))continue;
   out.push({id:a.id,complex_id:0,values:[entry],evidenceZh:a.evidenceZh});
  }
