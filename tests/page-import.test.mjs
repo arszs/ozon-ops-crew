@@ -55,3 +55,10 @@ test('original photo selection preserves watermarks and clears old approvals wit
 });
 
 test('decimal punctuation is localized without treating the same voltage as a fabricated number',()=>{const e=parseSavedPage(html),o=extraction();e.text+=' 额定电压 3.7V 电压 5V';o.localized.description+=' Напряжение 3,7 В, питание 5 В.';assert.deepEqual(assessPageExtraction(o,e),[]);o.localized.description+=' Емкость 3,8 литра.';assert.ok(assessPageExtraction(o,e).includes('localized_number_not_in_source'));});
+
+test('an expanded abbreviated model year is repaired once under unchanged factual validation',async()=>{
+ const source=html.replace('颜色 灰色','颜色 灰色 年款23-24'),bad=extraction();bad.localized.description+=' Модель 2023–2024.';let calls=0;
+ const r=await importSavedPage(source,{local:async()=>{throw Error('unavailable');},strong:async request=>{calls++;const output=structuredClone(bad);if(calls===2){assert.match(request.prompt,/Repair the prior draft/);output.localized.description='Версия 23–24. Цвет серый.';}return {provider:'codex',output};},loadImage:async()=>({width:800,height:800})});
+ assert.equal(r.state,'ready');assert.equal(calls,2);assert.equal(r.attempts.at(-1).phase,'repair');assert.deepEqual(r.attempts.at(-1).issues,[]);
+ const denied=await importSavedPage(source,{local:async()=>{throw Error('unavailable');},strong:async()=>({output:bad})});assert.equal(denied.state,'needs_review');assert.ok(denied.issues.includes('localized_number_not_in_source'));
+});
