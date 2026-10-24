@@ -1,0 +1,2 @@
+import globals from 'globals';
+export default [{ignores:['node_modules/**','runtime/**','work/**','dist/**']},{files:['**/*.mjs'],languageOptions:{ecmaVersion:'latest',sourceType:'module',globals:{...globals.node,...globals.browser}},rules:{'no-undef':'error','no-dupe-keys':'error','no-unreachable':'error','no-constant-binary-expression':'error','constructor-super':'error','no-async-promise-executor':'error'}}];

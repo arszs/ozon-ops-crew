@@ -1,3 +1,8 @@
+import {StrategyDemoService} from './strategy-demo.mjs';
+import {completedStrategyPriceTrials} from './strategy-trials.mjs';
+import {StrategyService} from './strategy-service.mjs';
+import {OzonStrategyAdapter} from '../adapters/ozon-strategy.mjs';
+import {OzonReviewAgent} from '../adapters/ozon-review-agent.mjs';
 import {startCreative,retryCreative,cancelCreative,creativeViews,attachCreativeImage,approveCreative} from './review-creatives.mjs';
 import {workspaceBody} from './request-body.mjs';
 import {hash} from './repository.mjs';
@@ -19,12 +24,14 @@ import {readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {homedir} from 'node:os';
 import {Workspace} from './workspace.mjs';
+import {ProductStudio} from './product-studio.mjs';
 import {DEMO_PRODUCT} from './canonical.mjs';
 const esc=s=>String(s).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
 export const wbStoredReportQuery=url=>Object.fromEntries(['sku','from','to'].map(key=>[key,url.searchParams.get(key)]));
 export async function createWorkspaceAPI(root,live){
  let config={};try{config=JSON.parse(await readFile(join(homedir(),'.config/ozon-ops-crew/connection.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
  const ws=new Workspace(join(root,'runtime/workspace.json'),{stores:config.stores||[],liveSnapshot:()=>live.get().data});await ws.init();
+ const studio=new ProductStudio(ws);await studio.init();studio.startPolling();
  const catalogue=new CatalogueService(join(root,'runtime/catalogue.sqlite'));
  ws.wbPriceProduct=async(store,nmID)=>{const owner=await wbAccount(store);try{return await catalogue.product(store,String(nmID),owner);}catch(e){const db=await ws.repo.read(),job=db.jobs.find(j=>j.storeId===store.id&&j.state==='imported'&&String(j.importResult?.productId)===String(nmID)),op=job&&db.operations.findLast(o=>o.kind==='publish'&&o.payload.jobId===job.id&&o.state==='verified');if(!job||op?.payload.wbContext?.accountRef!==owner)throw e;return {sku:String(nmID),offerId:job.canonical.sku};}};
  ws.wbStockProduct=ws.wbPriceProduct;
@@ -37,6 +44,9 @@ export async function createWorkspaceAPI(root,live){
  const advertising=new AdReadingService(join(root,'runtime/advertising.json'));await advertising.ready;
  const monitoring=new AdMonitor(join(root,'runtime/ad-monitoring.json'),{workspace:ws,advertising});await monitoring.ready;monitoring.start();
  const finance=new FinanceService(join(root,'runtime/finance.json'));await finance.ready;
+ const strategyAdapter=new OzonStrategyAdapter({reviews:new OzonReviewAgent(),financial:store=>finance.list([store]),trialReader:async(store,policy)=>{const [db,readings,ads]=await Promise.all([ws.repo.read(),finance.list([store]),advertising.list([store])]);return completedStrategyPriceTrials(db,policy,{finance:readings,advertising:ads});},verifiedLive:(force=false)=>live.verified(force),live:()=>live.get().data});
+ const agentDemo=new StrategyDemoService(join(root,'runtime/agent-demo.json'));await agentDemo.ready;
+ const strategies=new StrategyService(join(root,'runtime/strategies.json'),{workspace:ws,adapter:strategyAdapter,finance});await strategies.ready;strategies.start();
  return async(req,res,url)=>{
   const parts=url.pathname.split('/').filter(Boolean);if(parts[0]!=='api'||parts[1]!=='workspace')return false;
   res.setHeader('Content-Type','application/json');
@@ -46,10 +56,25 @@ export async function createWorkspaceAPI(root,live){
    if(req.method!=='GET'&&req.headers.origin&&!['http://'+req.headers.host].includes(req.headers.origin))return send({error:'Origin rejected'},403);
    const [, ,resource,id,action,index]=parts;
    const body=await workspaceBody(req,{resource,id,action});
+   if(resource==='agent-demo'){
+    if(req.method==='GET'&&!id)return send(await agentDemo.view());
+    if(req.method==='GET'&&id==='finance')return send(await agentDemo.financialView(url.searchParams.get('storeId'),url.searchParams.get('sku')));
+    if(req.method==='GET'&&id==='campaigns')return send(await agentDemo.campaignChoices(url.searchParams.get('storeId'),url.searchParams.get('sku')));
+    if(req.method==='POST'){
+     if(id==='preview')return send(strategies.preview(body));if(id==='policies')return send(await agentDemo.configure(body));if(id==='pause')return send(await agentDemo.pause(body.paused));if(id==='pause-policy')return send(await agentDemo.pausePolicy(body.policyId));if(id==='acknowledge')return send(await agentDemo.acknowledge(body.ids));
+     if(id==='run'){agentDemo.tick().catch(()=>{});return send({started:true,simulation:true});}if(id==='refresh')return send(await agentDemo.view());if(id==='scenario'){await agentDemo.scenario(body.scenario);return send(await agentDemo.view());}if(id==='reset'){await agentDemo.reset();return send(await agentDemo.view());}
+     if(id==='reconcile')return send(await agentDemo.reconcile(body.actionId));if(id==='reconcile-review')return send(await agentDemo.reconcileReview(body.reviewId));if(id==='finance-read')return send(await agentDemo.financialRead(body));if(id==='finance-reconcile')return send(await agentDemo.financialReconcile(body));
+    }return send({error:'demo_method_not_supported'},404);
+   }
    if(req.method==='GET'){
+    if(resource==='agents'&&id==='finance')return send(await strategies.financialView(url.searchParams.get('storeId'),url.searchParams.get('sku')));
+    if(resource==='agents'&&id==='campaigns')return send(await strategies.campaignChoices(url.searchParams.get('storeId'),url.searchParams.get('sku')));
+    if(resource==='agents'&&!id)return send(await strategies.view());
+    if(resource==='studio'&&!action)return send(id?await studio.refresh(id):await studio.list());
     if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&['ozon','wb'].includes(s.marketplace)).map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));view.wbFinance=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbFinance.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 财务连接不可用'}];}})));view.wbAds=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbAds.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 广告连接不可用'}];}})));view.adMonitors=await monitoring.list();view.adMonitorWorker=monitoring.status;view.adReadings=await advertising.list(view.stores.map(s=>ws.resolveStore(db,s.id)));view.financeReadings=await finance.list(view.stores.map(s=>ws.resolveStore(db,s.id)));for(const t of view.trials)if(t.source==='api_accruals_seller_costs')t.sourceStatus=ledgerTrialStatus(t,view.financeReadings,view.adReadings,view.trialPlans.find(p=>p.id===t.planId));for(const t of view.trials)if(t.source==='wb_reports_seller_costs'){try{t.sourceStatus=await wbTrials.status(ws.resolveStore(db,t.storeId),db.trialPlans?.find(p=>p.id===t.planId),t);}catch{t.sourceStatus='unavailable';}}return send(view);}
     if(resource==='trial-plans'&&action==='wb-evidence')return send(await wbTrials.get(id));
     if(resource==='creatives'&&!id)return send(creativeViews(await ws.repo.read()));
+    if(resource==='studio'&&action==='content-rating')return send(await studio.contentRating(id));
     if(resource==='assets'&&id){res.setHeader('Content-Type','image/png');res.end(await readFile(assetPath(id)));return true;}
     if(resource==='stores'&&action==='wb-economics')return send(await wbFinance.skuCosts.query(ws.resolveStore(await ws.repo.read(),id),Object.fromEntries(url.searchParams)));
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.query(store,{q:url.searchParams.get('q')||'',offset:Number(url.searchParams.get('offset')||0)}));}
@@ -72,6 +97,41 @@ export async function createWorkspaceAPI(root,live){
     }if(job.marketplace==='wb'&&job.mode==='manual'){try{job.wbListingErrors=await wbListingErrors.get(ws.resolveStore(await ws.repo.read(),job.storeId),{vendorCode:job.canonical.sku});}catch{job.wbListingErrors={state:'unavailable',error:'WB 草稿错误连接不可用'};}}return send(job);}
    }
    if(req.method==='POST'){
+    if(resource==='agents'&&id==='finance-read')return send(await strategies.financialRead(body));
+    if(resource==='agents'&&id==='finance-reconcile')return send(await strategies.financialReconcile(body));
+    if(resource==='agents'&&id==='preview')return send(strategies.preview(body));
+    if(resource==='agents'&&id==='policies'&&!action)return send(await strategies.configure(body));
+    if(resource==='agents'&&id==='pause-policy')return send(await strategies.pausePolicy(body.policyId));
+    if(resource==='agents'&&id==='pause')return send(await strategies.pause(body.paused));
+    if(resource==='agents'&&id==='acknowledge')return send(await strategies.acknowledge(body.ids));
+    if(resource==='agents'&&id==='refresh'){await strategies.refreshStore(body.storeId,{forceMetrics:true});return send(await strategies.view());}
+    if(resource==='agents'&&id==='run'){strategies.tick({force:true}).catch(()=>{});return send({started:true});}
+    if(resource==='agents'&&id==='reconcile-review')return send(await strategies.reconcileReview(body.reviewId));
+    if(resource==='agents'&&id==='reconcile')return send(await strategies.reconcile(body.actionId));
+    if(resource==='studio'&&action==='refresh-source')return send(await studio.checkSource(id));
+    if(resource==='studio'&&action==='source-media')return send(await studio.attachSourceMedia(id,body));
+    if(resource==='studio'&&action==='reconcile-media-rejection')return send(await studio.reconcileMediaRejection(id,body));
+    if(resource==='studio'&&action==='apply-media')return send(await studio.applyMedia(id));
+    if(resource==='studio'&&action==='enhance-media')return send(await studio.enhanceMedia(id,body));
+    if(resource==='studio'&&action==='repair-content')return send(await studio.repairContent(id));
+    if(resource==='studio'&&action==='repair-manufacturer')return send(await studio.repairManufacturer(id));
+    if(resource==='studio'&&action==='correct-brand')return send(await studio.correctBrand(id,body));
+    if(resource==='studio'&&action==='restore-owner-copy')return send(await studio.restoreOwnerCopy(id,body));
+    if(resource==='studio'&&action==='repair-media-moderation')return send(await studio.repairMediaModeration(id,body));
+    if(resource==='studio'&&action==='recover-publication')return send(await studio.resumePublication(id,body));
+    if(resource==='studio'&&action==='pause-publication-agent')return send(await studio.pausePublicationAgent(id));
+    if(resource==='studio'&&action==='edit-draft')return send(await studio.editDraft(id,body));
+    if(resource==='studio'&&action==='document-facts')return send(await studio.documentFacts(id,body));
+    if(resource==='studio'&&action==='redesign')return send(await studio.redesign(id,body));
+    if(resource==='studio'&&action==='recheck-sources')return send(await studio.recheckResearch(id));
+    if(resource==='studio'&&action==='reprice')return send(await studio.reprice(id,body));
+    if(resource==='studio'&&action==='publish')return send(await studio.publish(id,body));
+    if(resource==='studio'&&action==='retry')return send(await studio.retry(id));
+    if(resource==='studio'&&action==='remove')return send(await studio.remove(id,body));
+    if(resource==='studio-imports')return send(await studio.start({...body,...Object.fromEntries(url.searchParams)}));
+    if(resource==='connections'&&id==='ozon')return send(await ws.connectOzon(body));
+    if(resource==='jobs'&&action==='source-images')return send(await ws.keepSourceImages(id));
+    if(resource==='page-imports'&&!id)return send(await ws.importPage({html:body.html,storeId:url.searchParams.get('storeId'),sourceUrl:url.searchParams.get('sourceUrl')||undefined,sourceImageRightsConfirmed:url.searchParams.get('sourceImageRightsConfirmed')==='true'}));
     if(resource==='stores'&&!id)return send(await ws.addStore(body));
     if(resource==='stores'&&action==='wb-finance-reconcile')return send(await wbFinance.reconcile(ws.resolveStore(await ws.repo.read(),id),body));
     if(resource==='stores'&&action==='wb-allocation-preview')return send(await wbFinance.skuCosts.preview(ws.resolveStore(await ws.repo.read(),id),body));
@@ -105,6 +165,12 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='jobs'&&action==='step')return send(await ws.step(id));
     if(resource==='jobs'&&action==='retry')return send(await ws.retry(id,body.stage));
     if(resource==='jobs'&&action==='setup')return send(await ws.setup(id,body));
+    if(resource==='jobs'&&action==='edit-listing')return send(await ws.editOzonListing(id,body.kind,body));
+    if(resource==='jobs'&&action==='inspect-listing')return send(await ws.inspectOzonListing(id));
+    if(resource==='jobs'&&action==='host-images')return send(await ws.hostOzonImages(id));
+    if(resource==='jobs'&&action==='repair-images')return send(await ws.repairOzonImages(id));
+    if(resource==='jobs'&&action==='ogl-price')return send(await ws.priceOgl(id,body));
+    if(resource==='jobs'&&action==='landed-price')return send(await ws.priceLanded(id,body));
     if(resource==='assets'&&!id){if(Buffer.isBuffer(body.imageBytes))return send(await saveImage(body.imageBytes));if(typeof body.base64!=='string'||body.base64.length>1_800_000)throw Error('旧版 base64 上传最多 1.3 MB；请使用图片文件上传（最多 12 MB）');return send(await saveImage(Buffer.from(body.base64,'base64')));}
     if(resource==='jobs'&&action==='edit')return send(await ws.edit(id,body));
     if(resource==='jobs'&&action==='category-approval')return send(await ws.approveCategory(id,body.revision));

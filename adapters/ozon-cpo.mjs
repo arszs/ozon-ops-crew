@@ -28,12 +28,13 @@ export async function readCpo(store,sku,{seller=ozonCall,read=performanceRead,ac
  const state={sku,productId:product.productId,offerId:product.offerId,name:product.name,accountRef,sellerRef,enabled:match.searchPromoStatus,available:match.isSearchPromoAvailable,bidPct:numeric(match.bid),bidRub:typeof match.bidPrice==='string'?match.bidPrice:null,carrotsStatus:match.carrotsStatus||null,carrotsAdditive:numeric(match.carrotsAdditive)};
  return {...state,fingerprint:hash(state),fixedBid,fixedBidStatus,pages,checkedAt:new Date().toISOString(),scope:'specific_sku_cpo',allAssortmentVerified:false};
 }
-export async function submitCpoDisable(store,op,{read=readCpo,disable=performanceDisable}={}){
+export async function submitCpoDisable(store,op,{read=readCpo,disable=performanceDisable,canExecute=async()=>true}={}){
  let current;try{
   supported(store,op.payload.sku);current=await read(store,op.payload.sku);
   if(op.kind!=='cpo_disable'||op.payload.target!==false||!current.enabled||current.fingerprint!==op.payload.context.fingerprint||hash(op.payload.apiBody)!==hash({skus:[current.sku]}))throw Error('CPO 状态或账户已变化，请重新拟定并确认');
  }catch(e){e.noWrite=true;throw e;}
- await disable(current.sku,current.accountRef);
+ if(!await canExecute())throw Object.assign(Error('strategy_action_cancelled'),{noWrite:true});
+ await disable(current.sku,current.accountRef,{canExecute});
  return {mode:'live',externalWrite:true,status:'accepted',sku:current.sku,payloadHash:op.payloadHash,stateObserved:false,scope:'specific_sku_cpo'};
 }
 

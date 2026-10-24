@@ -1,6 +1,8 @@
-import {ApiCooldown} from './core/api-cooldown.mjs';
+import {AnalyticsQuota} from './core/analytics-quota.mjs';
+import {fileURLToPath} from 'node:url';
+import {sellerRequests,sellerCooldown,sellerCooldownKey} from './core/seller-transport.mjs';
 import {createHash} from 'node:crypto';
-const cooldown=new ApiCooldown();
+const cooldown=sellerCooldown,analyticsQuota=new AnalyticsQuota(fileURLToPath(new URL('./runtime/analytics-quota.json',import.meta.url)));
 import {readFile} from 'node:fs/promises';
 export async function credentials(){
  const cfg={...process.env};
@@ -8,12 +10,15 @@ export async function credentials(){
  return {client:cfg.OZON_CLIENT_ID,key:cfg.OZON_API_KEY};
 }
 const READ_PATHS=new Set(['/v3/product/list','/v3/product/info/list','/v1/finance/accrual/by-day','/v1/finance/accrual/types','/v1/analytics/data']);
-export async function sellerRead(path,body){
+export async function sellerRead(path,body,{fetcher=fetch,getCredentials=credentials,quota=analyticsQuota}={}){
  if(!READ_PATHS.has(path))throw Error('seller_method_not_allowed');
- const c=await credentials();if(!c.client||!c.key)throw Error('seller_not_configured');const ref=createHash('sha256').update(String(c.client)).digest('hex');cooldown.check(ref,'seller_http_429');
- const res=await fetch('https://api-seller.ozon.ru'+path,{method:'POST',signal:AbortSignal.timeout(30000),headers:{'Client-Id':c.client,'Api-Key':c.key,'Content-Type':'application/json'},body:JSON.stringify(body)});
- if(res.status===429)cooldown.reject(ref,res,'seller_http_429');if(!res.ok)throw Error('seller_http_'+res.status);
+ return sellerRequests.run(async()=>{
+ const c=await getCredentials();if(!c.client||!c.key)throw Error('seller_not_configured');const ref=createHash('sha256').update(String(c.client)).digest('hex'),cooldownRef=sellerCooldownKey(c.client,path);cooldown.check(cooldownRef,'seller_http_429');
+ if(path==='/v1/analytics/data')await quota.reserve(ref);
+ const res=await fetcher('https://api-seller.ozon.ru'+path,{method:'POST',signal:AbortSignal.timeout(30000),headers:{'Client-Id':c.client,'Api-Key':c.key,'Content-Type':'application/json'},body:JSON.stringify(body)});
+ if(res.status===429)cooldown.reject(cooldownRef,res,'seller_http_429');if(!res.ok)throw Error('seller_http_'+res.status);
  try{return await res.json();}catch{throw Error('seller_invalid_response');}
+ });
 }
 export async function catalog(cursor='',{read=sellerRead,limit=20}={}){
  const d=await read('/v3/product/list',{filter:{visibility:'ALL'},limit,last_id:cursor});const r=d.result;if(!r||!Array.isArray(r.items)||!Number.isInteger(r.total)||r.total<0)throw Error('catalog_schema');

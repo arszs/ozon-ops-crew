@@ -71,3 +71,4 @@ test('expense dictionary preserves official names and a dictionary failure does 
 });
 
 test('an accrual repeated across dates cannot be counted twice in a completed period',async t=>{const {service}=await setup(t,{readDay:async(_s,q)=>({...day(q.date),accrualKeys:['same-accrual']})});const r=await service.start(store,{sku,from:date,to:'2026-08-02'});await service.wait(r.id);const saved=(await service.list([store]))[0];assert.equal(saved.state,'error');assert.equal(saved.loadedDays,1);assert.match(saved.error,/跨日重复/);});
+test('financial summaries retain whole-store totals needed to verify shared allocation',()=>{const first=financeDay([a()],{sku,date}),second=financeDay([],{sku,date:'2026-08-02'}),sum=summarizeFinanceDays([first,second]);assert.deepEqual(sum.storeTotals,first.storeTotals);assert.deepEqual(sum.storeUnallocated,first.storeUnallocated);});

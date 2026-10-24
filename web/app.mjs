@@ -1,3 +1,4 @@
+import {t as uiText,currentLanguage} from './i18n.mjs';
 import {liveDashboard,bindLiveDashboard} from './live-dashboard.mjs';
 import {experimentScreen,bindExperiments,dashboardScreen} from './experiments.mjs';
 import {optimizeAds,uniformAds} from './ad-optimizer.mjs';
@@ -7,7 +8,7 @@ import {evaluate,defaults,validatePolicy,economics} from './engine.mjs';
 import {demoProducts} from './demo.mjs';
 import {stressPortfolio} from './stress.mjs';
 let liveState={state:'syncing',data:null},liveSelected=null,livePoll=null;
-let lang=localStorage.getItem('ops-lang')||'ru',page='dashboard',products=structuredClone(demoProducts),selected=products[0].id;
+let lang=currentLanguage()==='zh'?'zh':'ru',page='dashboard',products=structuredClone(demoProducts),selected=products[0].id;
 let policy={...defaults}, overrides={},events=[],audit=[];
 try{policy=validatePolicy({...defaults,...JSON.parse(localStorage.getItem('ops-policy')||'{}')});overrides=JSON.parse(localStorage.getItem('ops-overrides')||'{}');events=JSON.parse(localStorage.getItem('ops-events')||'[]');audit=JSON.parse(localStorage.getItem('ops-audit')||'[]');}catch{}
 let storeBudget=2000,paused=false,dataSource='demo',snapshotAt=Date.now(),autoEnabled=false,autoTimer=null,cycleHistory=[],campaigns={};
@@ -19,8 +20,8 @@ let experiments=[];try{const saved=JSON.parse(localStorage.getItem('ops-experime
 function experimentsPage(){return experimentScreen(products,selected,experiments);}
 function dashboard(){return liveDashboard(liveState,{page,selected:liveSelected});}
 const words={dashboard:['Экономика магазина','店铺经营'],experiments:['Товары и реклама','商品与广告'],efficiency:['Отдача рекламы','广告回报'],pitch:['Для жюри','评审说明'],autopilot:['Автопилот рекламы','广告自动控制'],planning:['Планирование','库存计划'],overview:['Обзор магазина','店铺总览'],strategies:['Стратегии товаров','商品策略'],limits:['Лимиты и контроль','风控设置'],notifications:['Уведомления','通知中心'],data:['Данные и API','数据与补货'],store:['Центр управления','店铺控制中心'],demo:['Демонстрационный режим','演示模式'],disclaimer:['Синтетические данные. Изменения не отправляются в Ozon.','全部为模拟数据。不会向 Ozon 发送操作。'],simulation:['Демо · без записи в Ozon','演示 · 不写入 Ozon'],foot:['Каждое решение — с расчётом и объяснением','每项决策均可解释、可追溯']};
-const tr=(ru,cn)=>lang==='ru'?ru:cn;const t=k=>words[k]?.[lang==='ru'?0:1]||k;
-const money=n=>new Intl.NumberFormat(lang==='ru'?'ru-RU':'zh-CN',{style:'currency',currency:'RUB',maximumFractionDigits:0}).format(n);
+const tr=(ru,cn)=>uiText(lang==='ru'?ru:cn);const t=k=>uiText(words[k]?.[lang==='ru'?0:1]||k);
+const money=n=>new Intl.NumberFormat(currentLanguage()==='en'?'en-US':lang==='ru'?'ru-RU':'zh-CN',{style:'currency',currency:'RUB',maximumFractionDigits:0}).format(n);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const policyFor=p=>({...policy,...overrides[p.id]});let resultCache=new Map();const refreshResults=()=>{resultCache=new Map(portfolio(products,policy,overrides,storeBudget,paused,adAssumptions).map(r=>[r.id,r]));};const result=p=>resultCache.get(p.id);
 const names={stop:['Остановить рекламу','暂停广告'],protect:['Беречь остаток','保护库存'],hold:['Удержать до сезона','等待旺季'],clear:['Ускорить продажи','加速销售'],test:['Ограниченный тест','小额测试'],observe:['Дождаться начислений','等待结算']};
@@ -92,3 +93,5 @@ async function loadLive(refresh=false){
  catch{liveState={...liveState,state:'error',error:'live_connection_failed',progress:'Локальный API недоступен. Запустите сервер проекта.'};render();}
 }
 loadLive();
+
+document.addEventListener('ops:languagechange',e=>{lang=e.detail.language==='zh'?'zh':'ru';});

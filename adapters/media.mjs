@@ -21,7 +21,7 @@ export async function saveImage(bytes){
 }
 export function publicIPv4(address){const p=address.split('.').map(Number);return p.length===4&&p.every(v=>Number.isInteger(v)&&v>=0&&v<=255)&&![0,10,127].includes(p[0])&&!(p[0]===169&&p[1]===254)&&!(p[0]===172&&p[1]>=16&&p[1]<=31)&&!(p[0]===192&&[0,168].includes(p[1]))&&!(p[0]===100&&p[1]>=64&&p[1]<=127)&&p[0]<224&&p[0]!==198;}
 export async function downloadImage(value){
- const u=new URL(value);const hosts=['alicdn.com',...(process.env.OPS_IMAGE_HOSTS||'').split(',').filter(Boolean)];
+ const u=new URL(value);const hosts=['alicdn.com','ywgimg.yiwugo.com','img1.yiwugo.com',...(process.env.OPS_IMAGE_HOSTS||'').split(',').filter(Boolean)];
  if(u.protocol!=='https:'||u.username||u.password||u.port||!hosts.some(h=>u.hostname===h||u.hostname.endsWith('.'+h)))throw Error('图片域名未授权；请上传 PNG/JPEG，或在本机配置 OPS_IMAGE_HOSTS');
  return new Promise((resolve,reject)=>{
   const req=https.get(u,{timeout:20000,lookup:(host,options,cb)=>lookup(host,{family:4},(err,address,family)=>{if(err||!publicIPv4(address))cb(Error('Non-public image address'));else if(options.all)cb(null,[{address,family}]);else cb(null,address,family);})},res=>{
