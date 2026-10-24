@@ -53,3 +53,5 @@ test('original photo selection preserves watermarks and clears old approvals wit
  const j=await w.importProduct({storeId:'ozon-live',product});await w.step(j.id);await w.step(j.id);
  const chosen=await w.keepSourceImages(j.id);assert.equal(chosen.state,'map_attributes');assert.equal(chosen.artifacts.image_edit.output.ocrVerified,false);assert.equal(chosen.artifacts.image_edit.output.images[0].url,product.images[0].url);assert.equal(chosen.artifacts.image_edit.output.mode,'source_original');assert.equal(chosen.artifacts.image_edit.output.images[0].translatedText,'');assert.deepEqual(chosen.gates,{});
 });
+
+test('decimal punctuation is localized without treating the same voltage as a fabricated number',()=>{const e=parseSavedPage(html),o=extraction();e.text+=' 额定电压 3.7V 电压 5V';o.localized.description+=' Напряжение 3,7 В, питание 5 В.';assert.deepEqual(assessPageExtraction(o,e),[]);o.localized.description+=' Емкость 3,8 литра.';assert.ok(assessPageExtraction(o,e).includes('localized_number_not_in_source'));});

@@ -31,7 +31,7 @@ export const wbStoredReportQuery=url=>Object.fromEntries(['sku','from','to'].map
 export async function createWorkspaceAPI(root,live){
  let config={};try{config=JSON.parse(await readFile(join(homedir(),'.config/ozon-ops-crew/connection.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
  const ws=new Workspace(join(root,'runtime/workspace.json'),{stores:config.stores||[],liveSnapshot:()=>live.get().data});await ws.init();
- const studio=new ProductStudio(ws);await studio.init();
+ const studio=new ProductStudio(ws);await studio.init();studio.startPolling();
  const catalogue=new CatalogueService(join(root,'runtime/catalogue.sqlite'));
  ws.wbPriceProduct=async(store,nmID)=>{const owner=await wbAccount(store);try{return await catalogue.product(store,String(nmID),owner);}catch(e){const db=await ws.repo.read(),job=db.jobs.find(j=>j.storeId===store.id&&j.state==='imported'&&String(j.importResult?.productId)===String(nmID)),op=job&&db.operations.findLast(o=>o.kind==='publish'&&o.payload.jobId===job.id&&o.state==='verified');if(!job||op?.payload.wbContext?.accountRef!==owner)throw e;return {sku:String(nmID),offerId:job.canonical.sku};}};
  ws.wbStockProduct=ws.wbPriceProduct;

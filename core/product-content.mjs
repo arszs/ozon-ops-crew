@@ -17,7 +17,7 @@ export function contentIssues(o,product){
  if(/\p{Script=Han}/u.test(text))issues.push('untranslated_buyer_text');
  if(['小米米家','米家','Mijia'].includes(product.brand)&&/\bXiaomi\b/i.test(text))issues.push('parent_brand_mismatch');
  let numericText=text;if(typeof product.sku==='string'&&product.sku.trim()){const escaped=product.sku.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),identifier=new RegExp('(?<![\\p{L}\\p{N}_-])'+escaped+'(?![\\p{L}\\p{N}_-])','giu');numericText=numericText.replace(identifier,'SOURCE_IDENTIFIER');}
- for(const n of numericText.match(/\d+(?:[.,]\d+)?/g)||[])if(!(facts.match(/\d+(?:[.,]\d+)?/g)||[]).includes(n))issues.push('unsupported_number');
+ for(const n of numericText.match(/\d+(?:[.,]\d+)?/g)||[])if(!(facts.match(/\d+(?:[.,]\d+)?/g)||[]).map(v=>v.replace(',','.')).includes(n.replace(',','.')))issues.push('unsupported_number');
  if(/лечит|лечени[ея]|гарантирован|100\s*%|одобрено стоматолог|оригинал(?:ьн\w*)? Xiaomi|сертифицирован/i.test(text))issues.push('unsupported_claim');return [...new Set(issues)];
 }
 export async function improveProduct(product,research,{local=qwenJSON,strong=codexJSON}={}){
