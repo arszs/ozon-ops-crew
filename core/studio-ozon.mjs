@@ -9,7 +9,7 @@ const str={type:'string'};
 const brandKey=value=>String(value).normalize('NFKC').toLowerCase().replace(/[\s‐‑‒–—−-]+/gu,'');
 // Manufacturer spellings; keep Mijia distinct from the parent Xiaomi brand.
 // https://www.mi.com/about/history (MIJIA / 米家 launch, March 2016).
-const brandSpellings=[['米家','Mijia','小米米家','Xiaomi Mijia','Xiaomi/Mijia','Xiaomi (Mijia)'],['小米','Xiaomi'],['夸克','Quark']];
+const brandSpellings=[['米家','Mijia','小米米家','Xiaomi Mijia','Xiaomi/Mijia','Xiaomi (Mijia)'],['小米','Xiaomi'],['夸克','Quark'],['无品牌','无牌','Нет бренда','No brand']];
 const aliases=value=>brandSpellings.find(group=>group.some(v=>brandKey(v)===brandKey(value)))||[value];
 const sameBrand=(a,b)=>aliases(a).some(v=>brandKey(v)===brandKey(b));
 export const sameStudioBrand=sameBrand;
