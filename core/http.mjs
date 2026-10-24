@@ -108,6 +108,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='agents'&&id==='run'){strategies.tick({force:true}).catch(()=>{});return send({started:true});}
     if(resource==='agents'&&id==='reconcile-review')return send(await strategies.reconcileReview(body.reviewId));
     if(resource==='agents'&&id==='reconcile')return send(await strategies.reconcile(body.actionId));
+    if(resource==='studio'&&action==='refresh-source')return send(await studio.checkSource(id));
     if(resource==='studio'&&action==='source-media')return send(await studio.attachSourceMedia(id,body));
     if(resource==='studio'&&action==='reconcile-media-rejection')return send(await studio.reconcileMediaRejection(id,body));
     if(resource==='studio'&&action==='apply-media')return send(await studio.applyMedia(id));
