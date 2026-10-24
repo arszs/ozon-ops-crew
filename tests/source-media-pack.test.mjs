@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import sharp from 'sharp';
+import test from 'node:test';import assert from 'node:assert/strict';import {mkdtemp,rm,readFile,writeFile} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import sharp from 'sharp';
 import {sourceMediaInventory} from '../core/source-media.mjs';import {collectSourceMedia,analyzeSourceMedia,composeMediaPack,mediaGroups} from '../core/product-media-pack.mjs';import {saveImage} from '../adapters/media.mjs';
 const html='<img class="thumbnailPic--a" src="https://img.alicdn.com/item/front.jpg"><img class="mainPic--a" src="https://img.alicdn.com/item/front.jpg"><div class="Comment--a"><img src="https://img.alicdn.com/user.jpg"></div>'+Array.from({length:27},(_,i)=>`<img class="descV6-mobile-image" src="./page_files/detail-${i}.jpg">`).join('')+'<footer><img src="https://img.alicdn.com/logo.png"></footer>';
 test('whole gallery and 27 description blocks are inventoried without review photos, footer graphics or an arbitrary first-five limit',()=>{const rows=sourceMediaInventory(html);assert.equal(rows.length,28);assert.equal(rows.filter(r=>r.role==='gallery').length,1);assert.equal(rows.filter(r=>r.localCompanionRequired).length,27);assert.equal(rows[27].name,'detail-26.jpg');});
@@ -23,3 +23,19 @@ test('the explicit selected revision table binds its exact printed model after i
  const generic=await analyzeSourceMedia(rows,{...product,descriptionZh:'已选规格：Стандартный'},{run:async request=>{assert.ok(!request.prompt.startsWith('Verify'));return {output:{items:records}};}});assert.equal(generic[1].state,'excluded');
 });
 test('selected full-size main image supersedes its thumbnail without losing source order',()=>{const rows=sourceMediaInventory('<img class="thumbnailPic--a" src="https://img.alicdn.com/a.jpg_120x120.jpg"><img class="mainPic--a" src="https://img.alicdn.com/a.jpg_800x800.jpg">');assert.equal(rows.length,1);assert.equal(rows[0].selected,true);assert.ok(rows[0].filename.includes('800x800'));assert.equal(rows[0].url,'https://img.alicdn.com/a.jpg');});
+
+
+test('bad cached image identities are reanalyzed, and a repeated batch mismatch falls back to individually bound images',async t=>{
+ const root=await mkdtemp(join(tmpdir(),'analysis-repair-'));t.after(()=>rm(root,{recursive:true,force:true}));
+ const {hash}=await import('../core/repository.mjs'),rows=[{key:'source-one',assetId:'a'.repeat(64),role:'gallery'},{key:'source-two',assetId:'b'.repeat(64),role:'detail'}],product={titleZh:'商品',descriptionZh:'白色',attributes:{}},path=join(root,hash({assets:rows.map(r=>r.assetId),product:{title:product.titleZh,variant:product.descriptionZh},policy:'media-analysis-1'})+'.json');
+ const record=key=>({key,kind:'product',textZh:'产品',textRu:'Товар',captionRu:'Товар',modelCodes:[],facts:[]});
+ await writeFile(path,JSON.stringify({items:[record('source-one'),record('typo-two')]}));let calls=0;
+ const run=async request=>{calls++;const ids=request.schema.properties.items.items.properties.key.enum;return {output:{items:ids.length===2?[record('source-one'),record('typo-two')]:ids.map(record)}};};
+ const result=await analyzeSourceMedia(rows,product,{run,cacheDir:root});assert.equal(calls,3);assert.deepEqual(result.map(r=>r.key),rows.map(r=>r.key));assert.deepEqual(JSON.parse(await readFile(path)).items.map(r=>r.key),rows.map(r=>r.key));
+ await analyzeSourceMedia(rows,product,{cacheDir:root,run:async()=>{throw Error('valid cache should be reused');}});
+});
+test('malformed analysis is never cached or assigned to the wrong source even after single-image repair',async t=>{
+ const root=await mkdtemp(join(tmpdir(),'analysis-invalid-'));t.after(()=>rm(root,{recursive:true,force:true}));let calls=0;
+ await assert.rejects(analyzeSourceMedia([{key:'correct',assetId:'a'.repeat(64),role:'gallery'}],{}, {cacheDir:root,run:async()=>{calls++;return {output:{items:[{key:'wrong'}]}};}}),/сопоставить анализ/);assert.equal(calls,2);
+ const {readdir}=await import('node:fs/promises');assert.deepEqual(await readdir(root),[]);
+});
