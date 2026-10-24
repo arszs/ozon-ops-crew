@@ -24,9 +24,10 @@ export async function publishPublicImages(images,{api=githubJSON,repo,load=async
  for(const image of images){const bytes=await load(image.assetId);if(bytes.length>10_000_000||digest(bytes)!==image.assetId)throw Error('图片文件校验失败');
   const path='product-media/'+image.assetId+'.png',endpoint='repos/'+repo+'/contents/'+path;let existing;
   try{existing=await api(endpoint+'?ref='+branch);}catch{}
-  if(existing){if(digest(Buffer.from(existing.content||'','base64'))!==image.assetId)throw Error('公开图片内容与本地不一致，不覆盖');}
+  if(existing){const data=existing.content?existing:await api('repos/'+repo+'/git/blobs/'+existing.sha);if(digest(Buffer.from(data.content||'','base64'))!==image.assetId)throw Error('公开图片内容与本地不一致，不覆盖');}
   else await api(endpoint,{message:'Host approved product image '+image.assetId.slice(0,12),content:bytes.toString('base64'),branch});
   urls.push('https://raw.githubusercontent.com/'+repo+'/'+branch+'/'+path);
  }
  return {urls,repo,branch,scope:'Only approved public product images; no credentials, source HTML or business reports uploaded.'};
 }
+export async function publishPublicVideo(video,{api=githubJSON,repo,load}={}){if(!/^[\w.-]+\/[\w.-]+$/.test(repo||'')||!video.rightsConfirmed||video.kind!=='photo-overview'||!/^[a-f0-9]{64}$/.test(video.assetId||''))throw Error('Нет подтверждённого фотообзора');if((await api('repos/'+repo)).private!==false)throw Error('Нужен публичный медиарепозиторий');const bytes=await (load|| (async id=>readFile((await import('../core/product-video.mjs')).videoPath(id))))(video.assetId);if(bytes.length>8_000_000||digest(bytes)!==video.assetId)throw Error('Не пройдена проверка видео');const path='product-media/'+video.assetId+'.mp4',endpoint='repos/'+repo+'/contents/'+path;let existing;try{existing=await api(endpoint+'?ref=product-media');}catch{}if(existing){const data=existing.content?existing:await api('repos/'+repo+'/git/blobs/'+existing.sha);if(digest(Buffer.from(data.content||'','base64'))!==video.assetId)throw Error('Публичное видео отличается от подготовленного');}else await api(endpoint,{message:'Host product photo overview '+video.assetId.slice(0,12),content:bytes.toString('base64'),branch:'product-media'});return {url:'https://raw.githubusercontent.com/'+repo+'/product-media/'+path,repo,branch:'product-media'};}

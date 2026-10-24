@@ -70,10 +70,11 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='agents'&&id==='finance')return send(await strategies.financialView(url.searchParams.get('storeId'),url.searchParams.get('sku')));
     if(resource==='agents'&&id==='campaigns')return send(await strategies.campaignChoices(url.searchParams.get('storeId'),url.searchParams.get('sku')));
     if(resource==='agents'&&!id)return send(await strategies.view());
-    if(resource==='studio')return send(id?await studio.refresh(id):await studio.list());
+    if(resource==='studio'&&!action)return send(id?await studio.refresh(id):await studio.list());
     if(!resource){const view=await ws.view(),db=await ws.repo.read();view.catalogueStatus=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&['ozon','wb'].includes(s.marketplace)).map(async s=>{try{return [s.id,await catalogue.status(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',total:null,loaded:null,complete:false}];}})));view.wbFinance=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbFinance.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 财务连接不可用'}];}})));view.wbAds=Object.fromEntries(await Promise.all(view.stores.filter(s=>s.mode==='live'&&s.marketplace==='wb').map(async s=>{try{return [s.id,await wbAds.get(ws.resolveStore(db,s.id))];}catch{return [s.id,{state:'unavailable',error:'WB 广告连接不可用'}];}})));view.adMonitors=await monitoring.list();view.adMonitorWorker=monitoring.status;view.adReadings=await advertising.list(view.stores.map(s=>ws.resolveStore(db,s.id)));view.financeReadings=await finance.list(view.stores.map(s=>ws.resolveStore(db,s.id)));for(const t of view.trials)if(t.source==='api_accruals_seller_costs')t.sourceStatus=ledgerTrialStatus(t,view.financeReadings,view.adReadings,view.trialPlans.find(p=>p.id===t.planId));for(const t of view.trials)if(t.source==='wb_reports_seller_costs'){try{t.sourceStatus=await wbTrials.status(ws.resolveStore(db,t.storeId),db.trialPlans?.find(p=>p.id===t.planId),t);}catch{t.sourceStatus='unavailable';}}return send(view);}
     if(resource==='trial-plans'&&action==='wb-evidence')return send(await wbTrials.get(id));
     if(resource==='creatives'&&!id)return send(creativeViews(await ws.repo.read()));
+    if(resource==='studio'&&action==='content-rating')return send(await studio.contentRating(id));
     if(resource==='assets'&&id){res.setHeader('Content-Type','image/png');res.end(await readFile(assetPath(id)));return true;}
     if(resource==='stores'&&action==='wb-economics')return send(await wbFinance.skuCosts.query(ws.resolveStore(await ws.repo.read(),id),Object.fromEntries(url.searchParams)));
     if(resource==='stores'&&action==='catalogue'){const store=ws.resolveStore(await ws.repo.read(),id);return send(await catalogue.query(store,{q:url.searchParams.get('q')||'',offset:Number(url.searchParams.get('offset')||0)}));}
@@ -107,6 +108,10 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='agents'&&id==='run'){strategies.tick({force:true}).catch(()=>{});return send({started:true});}
     if(resource==='agents'&&id==='reconcile-review')return send(await strategies.reconcileReview(body.reviewId));
     if(resource==='agents'&&id==='reconcile')return send(await strategies.reconcile(body.actionId));
+    if(resource==='studio'&&action==='source-media')return send(await studio.attachSourceMedia(id,body));
+    if(resource==='studio'&&action==='reconcile-media-rejection')return send(await studio.reconcileMediaRejection(id,body));
+    if(resource==='studio'&&action==='apply-media')return send(await studio.applyMedia(id));
+    if(resource==='studio'&&action==='enhance-media')return send(await studio.enhanceMedia(id,body));
     if(resource==='studio'&&action==='repair-content')return send(await studio.repairContent(id));
     if(resource==='studio'&&action==='repair-manufacturer')return send(await studio.repairManufacturer(id));
     if(resource==='studio'&&action==='document-facts')return send(await studio.documentFacts(id,body));

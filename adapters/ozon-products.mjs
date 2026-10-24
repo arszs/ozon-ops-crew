@@ -2,7 +2,7 @@ import {credentials} from '../ozon.mjs';
 import {sellerRequests,sellerCooldown,sellerCooldownKey} from '../core/seller-transport.mjs';
 import {hash} from '../core/repository.mjs';
 const GET_READ=new Set(['/v1/actions']);
-const READ=new Set(['/v4/posting/fbs/list','/v1/actions/candidates','/v1/actions/products','/v1/review/list','/v1/review/info','/v1/review/comment/list','/v2/product/pictures/info','/v1/product/info/description','/v4/product/info/attributes','/v4/product/info/stocks','/v2/warehouse/list','/v2/delivery-method/list','/v1/finance/accrual/types','/v1/finance/accrual/by-day','/v5/product/info/prices','/v3/product/list','/v1/description-category/tree','/v1/description-category/attribute','/v1/description-category/attribute/values/search','/v1/description-category/attribute/values','/v1/product/import/info','/v3/product/info/list']);
+const READ=new Set(['/v1/product/rating-by-sku','/v4/posting/fbs/list','/v1/actions/candidates','/v1/actions/products','/v1/review/list','/v1/review/info','/v1/review/comment/list','/v2/product/pictures/info','/v1/product/info/description','/v4/product/info/attributes','/v4/product/info/stocks','/v2/warehouse/list','/v2/delivery-method/list','/v1/finance/accrual/types','/v1/finance/accrual/by-day','/v5/product/info/prices','/v3/product/list','/v1/description-category/tree','/v1/description-category/attribute','/v1/description-category/attribute/values/search','/v1/description-category/attribute/values','/v1/product/import/info','/v3/product/info/list']);
 export async function ozonCall(store,path,body,{write=false,fetcher=fetch,method='POST',beforeWrite=null,expectedAccountRef=null}={}){
  if(method==='GET'?!GET_READ.has(path):method!=='POST'||!READ.has(path)&&!(write&&['/v3/product/import','/v1/product/import/prices','/v1/product/pictures/import','/v1/product/attributes/update','/v2/products/stocks','/v1/review/comment/create','/v1/actions/products/activate'].includes(path)))throw Object.assign(Error('Ozon method not allowed'),{noWrite:true});
  const run=sellerRequests.run(async()=>{
@@ -15,7 +15,7 @@ export async function ozonCall(store,path,body,{write=false,fetcher=fetch,method
   }catch(e){e.noWrite=true;throw e;}
   const r=await fetcher('https://api-seller.ozon.ru'+path,{method,headers:{'Client-Id':c.client,'Api-Key':c.key,'Content-Type':'application/json'},...(method==='GET'?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(30000)});
   if(r.status===429)sellerCooldown.reject(sellerCooldownKey(c.client,path),r,'seller_http_429');
-  if(!r.ok)throw Error('Ozon HTTP '+r.status+(r.status===429?'：达到速率限制，请稍后重试读取；不要重复提交发布':''));
+  if(!r.ok){let detail;try{detail=await r.json();}catch{}const message=String(detail?.message||'').split(c.key).join('[redacted]').slice(0,700),e=Error('Ozon HTTP '+r.status+(message?' — '+message:'')+(r.status===429?'：达到速率限制，请稍后重试读取；不要重复提交发布':''));e.httpStatus=r.status;e.ozonCode=detail?.code;if(r.status===400&&Number(detail?.code)===3)e.noWrite=true;throw e;}
   const d=await r.json();if(d.error||d.code)throw Error('Ozon rejected request');return d;
  });return run;
 }
