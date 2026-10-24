@@ -13,7 +13,7 @@ export async function ozonCall(store,path,body,{write=false,fetcher=fetch,method
    if(write&&expectedAccountRef&&hash({client:c.client})!==expectedAccountRef)throw Error('strategy_account_changed');
    if(write&&beforeWrite&&!await beforeWrite())throw Error('strategy_action_cancelled');
   }catch(e){e.noWrite=true;throw e;}
-  const r=await fetcher('https://api-seller.ozon.ru'+path,{method,headers:{'Client-Id':c.client,'Api-Key':c.key,'Content-Type':'application/json'},...(method==='GET'?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(30000)});
+  let r;for(let attempt=0;attempt<2;attempt++){try{r=await fetcher('https://api-seller.ozon.ru'+path,{method,headers:{'Client-Id':c.client,'Api-Key':c.key,'Content-Type':'application/json'},...(method==='GET'?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(30000)});break;}catch(e){if(!write&&attempt===0){await new Promise(resolve=>setTimeout(resolve,350));continue;}const raw=e.cause?.code||e.name||'unavailable',code=/^[A-Za-z_0-9]{1,60}$/.test(raw)?raw:'unavailable',error=Error('Ozon network error: '+code);error.networkCode=code;error.cause=e;throw error;}}
   if(r.status===429)sellerCooldown.reject(sellerCooldownKey(c.client,path),r,'seller_http_429');
   if(!r.ok){let detail;try{detail=await r.json();}catch{}const message=String(detail?.message||'').split(c.key).join('[redacted]').slice(0,700),e=Error('Ozon HTTP '+r.status+(message?' — '+message:'')+(r.status===429?'：达到速率限制，请稍后重试读取；不要重复提交发布':''));e.httpStatus=r.status;e.ozonCode=detail?.code;if(r.status===400&&Number(detail?.code)===3)e.noWrite=true;throw e;}
   const d=await r.json();if(d.error||d.code)throw Error('Ozon rejected request');return d;
