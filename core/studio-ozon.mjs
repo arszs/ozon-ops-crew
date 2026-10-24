@@ -3,7 +3,7 @@ import {codexJSON,objectSchema} from '../adapters/codex.mjs';
 import {ozonCall,categoryAttributes,attributeValues} from '../adapters/ozon-products.mjs';
 import {publishPublicImages} from '../adapters/public-media.mjs';
 import {russianManufacturer} from './studio-manufacturer-repair.mjs';
-import {checkedProductFacts,productFactBinding} from './product-facts.mjs';
+import {checkedProductFacts,productFactBinding,studioReviewHash} from './product-facts.mjs';
 import {studioCategoryChoices,cameraGlassesSource} from './studio-categories.mjs';
 const str={type:'string'};
 const brandKey=value=>String(value).normalize('NFKC').toLowerCase().replace(/[\s‐‑‒–—−-]+/gu,'');
@@ -48,13 +48,13 @@ export async function publishStudioOzon(studio,id,{map=mapStudioOzon,host=publis
  if(['submitted','imported'].includes(j.state)){await reconcileStudioOzon(studio,id);return;}
  if(j.artifacts.translate?.output.title!==t.content.output.title||j.artifacts.translate?.output.description!==t.content.output.description||JSON.stringify(j.artifacts.image_edit?.output.images.map(i=>i.assetId))!==JSON.stringify(t.visuals.images.map(i=>i.assetId)))throw Error('Черновик изменён в подробном режиме; заново проверьте результат перед отправкой');
  if(!t.pricing||!t.visuals?.images.length)throw Error('Сначала завершите генерацию и расчёт цены');
- const mapping=await map(store,t);if(mapping.brandEvidence)await studio.set(id,{brandEvidence:mapping.brandEvidence});const images=t.visuals.images.map(i=>({...i,rightsConfirmed:true}));
+ const expectedHash=studioReviewHash(t),mapping=t.preparedOzonMapping?.expectedHash===expectedHash?t.preparedOzonMapping.mapping:await map(store,t);await studio.set(id,{preparedOzonMapping:{expectedHash,mapping}});if(mapping.brandEvidence)await studio.set(id,{brandEvidence:mapping.brandEvidence});const images=t.visuals.images.map(i=>({...i,rightsConfirmed:true}));
  // The publish button identifies the visible product, image set and destination.
- const media=await host(images);
+ await studio.activityPhase?.(id,'hosting');const media=await host(images);await studio.activityPhase?.(id,'validation');
  await w.setup(j.id,{mapping,publishConfig:{...j.publishConfig,price:t.pricing.price,currency:t.pricing.currency,vat:'0',images:media.urls,rightsConfirmed:true,complianceConfirmed:true,imagesReviewed:true}});
  await w.step(j.id);const validated=await w.step(j.id);if(validated.state!=='review_gate'||!validated.artifacts.validate?.output.passed)throw Error(validated.error||'Ozon: данные карточки ещё не прошли проверку');
- await w.approveCategory(j.id,validated.revision);const op=await w.preparePublish(j.id);await studio.set(id,{operationId:op.id});await w.approveOperation(op.id,op.payloadHash);await w.executeOperation(op.id);
- await studio.set(id,{state:'submitted',publishError:null});await reconcileStudioOzon(studio,id);
+ await studio.activityPhase?.(id,'ozon_send');await w.approveCategory(j.id,validated.revision);const op=await w.preparePublish(j.id);await studio.set(id,{operationId:op.id});await w.approveOperation(op.id,op.payloadHash);await w.executeOperation(op.id);
+ await studio.activityPhase?.(id,'ozon_wait');await studio.set(id,{state:'submitted',publishError:null});await reconcileStudioOzon(studio,id);
 }
 // Keep status reads responsive while prepared media is uploaded and enriched.
 function startAutomaticMediaApply(studio,id){
