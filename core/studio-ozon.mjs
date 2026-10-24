@@ -44,6 +44,9 @@ export async function mapStudioOzon(store,task,{call=ozonCall,run=codexJSON}={})
  // Keep an evidenced manufacturer number when available; never manufacture one from model compatibility.
  const part=fields.find(f=>f.id===7236&&!f.dictionary_id&&/если[^.]*нет партномера[^.]*укажите код продавца/iu.test(f.description||''));
  if(part&&!attributes.some(a=>a.id===7236)&&typeof task.product.sku==='string'&&task.product.sku.trim())attributes.push({id:7236,values:[{value:task.product.sku}]});
+ // This is a catalogue grouping key, not a technical model specification.
+ const grouping=fields.find(f=>f.id===9048&&!f.dictionary_id&&/для объединения в одну карточку/iu.test(f.name||'')&&/любым одинаковым значением/iu.test(f.description||''));
+ if(grouping&&!attributes.some(a=>a.id===9048)&&typeof task.product.sku==='string'&&task.product.sku.trim())attributes.push({id:9048,values:[{value:task.product.sku}]});
  const missing=fields.filter(f=>f.is_required&&!attributes.some(a=>a.id===f.id));if(missing.length)throw Error('Не хватает подтверждённых данных Ozon: '+missing.map(f=>f.name).join(', '));
  return {categoryId:category.categoryId,typeId:category.id,name:category.name,attributes,...(brandEvidence?{brandEvidence}: {})};
 }

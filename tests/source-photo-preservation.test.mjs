@@ -5,6 +5,8 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import sharp from 'sharp';
 import {composeMediaPack} from '../core/product-media-pack.mjs';
+import {composeInitialSourceGallery} from '../core/initial-source-gallery.mjs';
+import {sourceMediaInventory} from '../core/source-media.mjs';
 import {withGalleryRichFallback} from '../core/ozon-rich-content.mjs';
 import {saveImage,assetPath} from '../adapters/media.mjs';
 const approved={productPreserved:true,russianReadable:true,unsupportedClaims:false,chineseMarketingRemaining:false,externalPromotionRemaining:false,reasonRu:'На фото только товар и заводская маркировка.'};
@@ -33,4 +35,10 @@ test('thin Taobao layout slices stay archived and never generate a rich image',a
  const {row}=await fixture(t),strip=await saveImage(await sharp({create:{width:1500,height:19,channels:3,background:'white'}}).png().toBuffer());let edits=0;
  const result=await composeMediaPack([row,{...row,key:'strip',role:'detail',selected:false,assetId:strip.assetId}],{edit:async()=>{edits++;throw Error('layout strip must not generate');},run:async()=>({output:{...approved,keepOriginal:true}})});
  assert.equal(edits,0);assert.equal(result.images.length,1);assert.equal(result.richImages.length,0);assert.equal(result.sourceCount,2);assert.equal(result.excluded[0].key,'strip');assert.match(result.excluded[0].reason,/фрагмент/);
+});
+
+test('initial Studio progress uses the actual block count after layout fragments are archived',async t=>{
+ const {root,a}=await fixture(t),strip=await saveImage(await sharp({create:{width:1500,height:19,channels:3,background:'white'}}).png().toBuffer()),images=[{...a,url:'https://img.alicdn.com/product.jpg'},{...strip,url:'https://img.alicdn.com/strip.jpg'}],html=images.map((im,i)=>'<img class="'+(i?'descV6-mobile-image':'mainPic--a')+'" src="'+im.url+'">').join(''),rows=sourceMediaInventory(html),progress=[];
+ const pack=await composeInitialSourceGallery({images,titleZh:'商品',descriptionZh:'标准',attributes:{},sku:'one',sourceUrl:'https://item.taobao.com/item.htm?id=1'},{},{html,cacheDir:join(root,'initial-cache'),onProgress:p=>progress.push(p),analysis:{run:async request=>({output:{items:request.images.map(path=>{const image=images.find(im=>path.includes(im.assetId)),row=rows.find(r=>r.url===image.url);return {key:row.key,kind:'product',textZh:'',textRu:'',captionRu:'Товар',modelCodes:[],facts:[],otherColor:false,excludeReason:''};})}})},compose:{edit:async()=>{throw Error('must not generate');},run:async()=>({output:{...approved,keepOriginal:true}})}});
+ assert.equal(pack.images.length,1);assert.equal(progress.at(-1).localized,1);assert.equal(progress.at(-1).totalBlocks,1);assert.equal(progress.at(-1).failedBlocks,0);
 });
