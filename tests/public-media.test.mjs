@@ -14,3 +14,5 @@ test('private repositories and unconfirmed photos are not published',async()=>{
 test('existing media with changed bytes is never overwritten',async()=>{
  let wrote=false;await assert.rejects(publishPublicImages(images,{repo:'owner/repo',load:async()=>bytes,api:async(path,body)=>{if(body)wrote=true;if(path==='repos/owner/repo')return {private:false};return {content:Buffer.from('different').toString('base64')};}}),/不覆盖/);assert.equal(wrote,false);
 });
+
+test('existing Git blob identity verifies large media without fetching the blob or writing again',async()=>{const sha=createHash('sha1').update(Buffer.from('blob '+bytes.length+'\0')).update(bytes).digest('hex'),calls=[];await publishPublicImages(images,{repo:'owner/repo',load:async()=>bytes,api:async(path,body)=>{calls.push(path);assert.equal(body,undefined);if(path==='repos/owner/repo')return {private:false};if(path.includes('/contents/'))return {sha,size:bytes.length,encoding:'none'};return {object:{sha:'branch'}};}});assert.ok(!calls.some(p=>p.includes('/git/blobs/')));});
