@@ -121,6 +121,7 @@ export async function createWorkspaceAPI(root,live){
     if(resource==='studio'&&action==='reprice')return send(await studio.reprice(id,body));
     if(resource==='studio'&&action==='publish')return send(await studio.publish(id,body));
     if(resource==='studio'&&action==='retry')return send(await studio.retry(id));
+    if(resource==='studio'&&action==='remove')return send(await studio.remove(id,body));
     if(resource==='studio-imports')return send(await studio.start({...body,...Object.fromEntries(url.searchParams)}));
     if(resource==='connections'&&id==='ozon')return send(await ws.connectOzon(body));
     if(resource==='jobs'&&action==='source-images')return send(await ws.keepSourceImages(id));
