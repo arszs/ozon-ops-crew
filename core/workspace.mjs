@@ -61,10 +61,12 @@ export class Workspace{
   const result=await importer(input.html,{sourceUrl:input.sourceUrl,fallback:process.env.OPS_PAGE_FALLBACK==='review'?'review':'codex'});
   if(result.state!=='ready')return this.repo.mutate(db=>{const record={id:randomUUID(),createdAt:now(),storeId:input.storeId,...result};(db.pageImports||=[]).push(record);audit(db,{kind:'page.needs_review',pageImportId:record.id,sourceHash:result.evidence?.sourceHash});return record;});
   if(input.sourceImageRightsConfirmed===true)for(const image of result.product.images)image.rightsConfirmed=true;
-  const job=await this.importProduct({storeId:input.storeId,product:result.product});
+  const studioImport=input.newJobOnly===true&&typeof input.studioTaskId==='string'&&!!input.studioTaskId;
+  const imported=await this.importProduct({storeId:input.storeId,product:result.product,...(studioImport?{studioTaskId:input.studioTaskId}:{})},{withCreationMetadata:studioImport}),job=studioImport?imported.job:imported;
+  if(studioImport&&!imported.created)return {...result,job,jobCreated:false};
   return this.repo.mutate(db=>{const j=find(db.jobs,job.id);j.pageImport={evidence:result.evidence,attempts:result.attempts,imageIssues:result.imageIssues,publicationBlockers:result.publicationBlockers};
    if(!j.evidence.some(e=>e.kind==='saved_page'&&e.hash===result.evidence.sourceHash))j.evidence.push({kind:'saved_page',hash:result.evidence.sourceHash,time:now()});
-   audit(db,{kind:'page.imported',jobId:j.id,sourceHash:result.evidence.sourceHash,sourceImageRightsConfirmed:input.sourceImageRightsConfirmed===true});return {...result,job:j};});
+   audit(db,{kind:'page.imported',jobId:j.id,sourceHash:result.evidence.sourceHash,sourceImageRightsConfirmed:input.sourceImageRightsConfirmed===true});return {...result,job:j,...(studioImport?{jobCreated:true}:{})};});
  }
  async keepSourceImages(id){return this.repo.mutate(db=>{
   const j=find(db.jobs,id);if(j.marketplace!=='ozon'||!j.artifacts.translate||['running','publishing','submitted','imported','published','synced'].includes(j.state))throw Error('请先完成文字处理');
@@ -85,10 +87,10 @@ export class Workspace{
   await this.setup(id,{publishConfig:{...(j.publishConfig||{}),price:quote.price,currency:quote.currency}});
   return this.repo.mutate(db=>{const job=find(db.jobs,id);job.landedPricing=quote;audit(db,{kind:'job.landed_price',jobId:id,inputHash:quote.inputHash});return job;});
  }
- async importProduct(input){const sample=input.subscriptionSample?{...DEMO_PRODUCT,sku:'SAMPLE-AI-STORAGE-01',images:await sampleImages()}:null;return this.repo.mutate(db=>{
+ async importProduct(input,{withCreationMetadata=false}={}){const sample=input.subscriptionSample?{...DEMO_PRODUCT,sku:'SAMPLE-AI-STORAGE-01',images:await sampleImages()}:null;return this.repo.mutate(db=>{
   const store=this.resolveStore(db,input.storeId);const mode=input.subscriptionSample?'sample':input.demo===true?'mock':'manual';if(['mock','sample'].includes(mode)&&store.mode!=='mock')throw Error('演示商品只能进入演示店铺');
-  const p=canonical(sample||(mode==='mock'?DEMO_PRODUCT:input.product));const key=hash({store:store.id,mode,product:p});const prior=db.jobs.find(j=>j.importKey===key);if(prior)return prior;
-  const job={id:randomUUID(),storeId:store.id,marketplace:store.marketplace,mode,canonical:p,importKey:key,state:'extract',createdAt:now(),updatedAt:now(),revision:1,artifacts:{},evidence:[{kind:'source',hash:hash(p),source:mode==='sample'?'synthetic_subscription_sample':mode==='mock'?'fixture_not_fetched':'structured_export',time:now()}],gates:{},bannedWords:Array.isArray(input.bannedWords)?input.bannedWords.map(String).slice(0,50):[],translationVersion:0,synthetic:['mock','sample'].includes(mode)||p.source.itemId===DEMO_PRODUCT.itemId||/^(DEMO|SAMPLE)-/.test(p.sku),mapping:p.mapping,publishConfig:null};db.jobs.push(job);audit(db,{kind:'sku.import',jobId:job.id,storeId:store.id,inputHash:key,mode});return job;
+  const p=canonical(sample||(mode==='mock'?DEMO_PRODUCT:input.product));const key=hash({store:store.id,mode,product:p});const prior=db.jobs.find(j=>j.importKey===key);if(prior)return withCreationMetadata?{job:prior,created:false}:prior;
+  const job={id:randomUUID(),storeId:store.id,marketplace:store.marketplace,mode,canonical:p,importKey:key,state:'extract',createdAt:now(),updatedAt:now(),revision:1,artifacts:{},evidence:[{kind:'source',hash:hash(p),source:mode==='sample'?'synthetic_subscription_sample':mode==='mock'?'fixture_not_fetched':'structured_export',time:now()}],gates:{},bannedWords:Array.isArray(input.bannedWords)?input.bannedWords.map(String).slice(0,50):[],translationVersion:0,synthetic:['mock','sample'].includes(mode)||p.source.itemId===DEMO_PRODUCT.itemId||/^(DEMO|SAMPLE)-/.test(p.sku),mapping:p.mapping,publishConfig:null,...(withCreationMetadata&&input.studioTaskId?{studioTaskId:input.studioTaskId}:{})};db.jobs.push(job);audit(db,{kind:'sku.import',jobId:job.id,storeId:store.id,inputHash:key,mode});return withCreationMetadata?{job,created:true}:job;
  });}
  async step(id){
   const start=await this.repo.mutate(db=>{

@@ -6,10 +6,17 @@ import {hash} from '../core/repository.mjs';
 
 // Use the installed, authenticated CLI; never read or copy its OAuth credentials.
 // No shell interpolation; no seller secrets inherited by the child process.
-let tail=Promise.resolve();
-export function codexJSON(request){
- const work=tail.then(()=>run(request));tail=work.catch(()=>{});return work;
+export function createCodexJSONQueue({concurrency=process.env.OPS_CODEX_JSON_CONCURRENCY,runRequest=run}={}){
+ const limit=concurrency===1||concurrency==='1'?1:2,pending=[];let active=0;
+ const drain=()=>{
+  while(active<limit&&pending.length){
+   const {request,resolve,reject}=pending.shift();active++;
+   Promise.resolve().then(()=>runRequest(request)).then(resolve,reject).finally(()=>{active--;drain();});
+  }
+ };
+ return request=>new Promise((resolve,reject)=>{pending.push({request,resolve,reject});drain();});
 }
+export const codexJSON=createCodexJSONQueue();
 async function run({prompt,schema,images=[],timeoutMs=180000,binary=process.env.OPS_CODEX_BIN||'codex',research=false}){
  if(typeof prompt!=='string'||prompt.length>60000||images.length>2)throw Error('AI 输入超过单商品限制');
  const dir=await mkdtemp(join(tmpdir(),'ops-localization-'));
