@@ -28,7 +28,7 @@ export class ProductStudio{
  const id=randomUUID(),t={id,key,storeId:store.id,state:'queued',createdAt:timestamp(),updatedAt:timestamp(),sourceUrl:evidence?.sourceUrl||input.sourceUrl,sourceHash:evidence?.sourceHash||null,evidence:evidence||null,options,events:[]};
  if(evidence){await mkdir(this.root,{recursive:true,mode:0o700});await writeFile(join(this.root,evidence.sourceHash+'.html'),input.html,{mode:0o600});}
  await this.ws.repo.mutate(db=>{(db.studioTasks||=[]).push(t);audit(db,{kind:'studio.started',taskId:id,sourceHash:t.sourceHash,externalWrite:false});});
- const task=this.tail.then(()=>this.run(id,input)).catch(async e=>{await this.set(id,{state:'failed',error:String(e.message).slice(0,350)});}).finally(()=>this.tasks.delete(id));this.tail=task;this.tasks.set(id,task);return t;
+ const task=this.tail.then(()=>this.run(id,input)).catch(async e=>{await this.set(id,{state:'failed',error:String(e.message).slice(0,350),processingAttempts:Array.isArray(e.attempts)?e.attempts.map(a=>({provider:a.provider,issues:a.issues,durationMs:a.durationMs??null})):null});}).finally(()=>this.tasks.delete(id));this.tail=task;this.tasks.set(id,task);return t;
  }
  async stage(id,state,label){const t=await this.get(id);return this.set(id,{state,events:[...t.events,{state,label,at:timestamp()}]});}
  async run(id,input){let t=await this.get(id),html=input.html;
